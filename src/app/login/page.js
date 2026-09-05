@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import Modal from "@/components/ui/Modal";
+import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,10 +14,13 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Quick Google Sign-In Prompt Modal (for dev / instant testing)
+  // Google Sign-In Account Selector Popup Modal
   const [googleModalOpen, setGoogleModalOpen] = useState(false);
   const [googleName, setGoogleName] = useState("");
   const [googleEmail, setGoogleEmail] = useState("");
+
+  // Obligatory Post-Google Login Onboarding Popup (Name & Subjects)
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const { login, googleLogin } = useAuth();
   const toast = useToast();
@@ -74,7 +78,7 @@ export default function LoginPage() {
       toast.success(`مرحباً ${user.name} 👋`);
 
       if (!user.isProfileComplete && !user.role?.isSystem) {
-        router.push("/complete-profile");
+        setShowOnboarding(true);
       } else {
         const isAdmin = user.role?.isSystem === true;
         router.push(isAdmin ? "/dashboard/admin" : "/dashboard/teacher");
@@ -95,11 +99,12 @@ export default function LoginPage() {
     setGoogleLoading(true);
     try {
       const loggedUser = await googleLogin(payload);
-      toast.success(`مرحباً ${loggedUser.name} 👋`);
 
+      // If profile is not complete, show obligatory name & subjects popup immediately!
       if (!loggedUser.isProfileComplete && !loggedUser.role?.isSystem) {
-        router.push("/complete-profile");
+        setShowOnboarding(true);
       } else {
+        toast.success(`مرحباً ${loggedUser.name} 👋`);
         const isAdmin = loggedUser.role?.isSystem === true;
         router.push(isAdmin ? "/dashboard/admin" : "/dashboard/teacher");
       }
@@ -120,22 +125,33 @@ export default function LoginPage() {
     ) {
       window.google.accounts.id.prompt();
     } else {
-      // Open instant Google account test modal
+      // Open instant Google account selector popup modal
       setGoogleModalOpen(true);
     }
   };
 
   const handleCustomGoogleSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
     if (!googleEmail.trim()) {
-      toast.error("يرجى إدخال بريد حساب Google");
+      toast.error("يرجى اختيار أو إدخال بريد حساب Google");
       return;
     }
+    const chosenEmail = googleEmail.trim().toLowerCase();
+    const chosenName = googleName.trim() || "معلم جديد";
     setGoogleModalOpen(false);
     await handleGoogleLogin({
-      email: googleEmail.trim().toLowerCase(),
-      name: googleName.trim() || "معلم جديد",
+      email: chosenEmail,
+      name: chosenName,
       googleId: `google_${Date.now()}`,
+    });
+  };
+
+  const handleSelectQuickAccount = async (account) => {
+    setGoogleModalOpen(false);
+    await handleGoogleLogin({
+      email: account.email,
+      name: account.name,
+      googleId: `google_${account.email.replace(/[^a-zA-Z0-9]/g, '_')}`,
     });
   };
 
@@ -383,78 +399,83 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Quick 1-click teacher accounts */}
+          {/* Quick 1-click Google accounts */}
           <div>
             <label className="block text-[11px] font-bold text-gray-500 mb-1.5">
-              🚀 حسابات معلمين جاهزة للتجربة الفورية (بنقرة واحدة):
+              🚀 اختر حساب Google للدخول الفوري بنقرة واحدة:
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[
                 {
-                  name: "أ. أحمد محمد",
-                  email: "ahmed.math@gmail.com",
+                  name: "أ. محمد عبدالمحسن",
+                  email: "mohamed.teacher@gmail.com",
                   role: "معلم رياضيات",
+                  avatar: "👨‍🏫",
                 },
                 {
                   name: "أ. خالد الحربي",
-                  email: "khaled.science@gmail.com",
+                  email: "khaled.harbi@gmail.com",
                   role: "معلم علوم",
+                  avatar: "🔬",
                 },
                 {
                   name: "أ. فهد العتيبي",
-                  email: "fahad.arabic@gmail.com",
+                  email: "fahad.otaibi@gmail.com",
                   role: "معلم لغتي",
+                  avatar: "📖",
                 },
                 {
                   name: "أ. سلطان الدوسري",
-                  email: "sultan.english@gmail.com",
+                  email: "sultan.dosari@gmail.com",
                   role: "معلم إنجليزي",
+                  avatar: "🇬🇧",
                 },
               ].map((t) => (
                 <button
                   key={t.email}
                   type="button"
-                  onClick={() => {
-                    setGoogleName(t.name);
-                    setGoogleEmail(t.email);
-                  }}
-                  className={`p-2 rounded-xl border text-right transition-all cursor-pointer ${
-                    googleEmail === t.email
-                      ? "bg-blue-50 border-blue-500 text-blue-900 ring-2 ring-blue-200"
-                      : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-800"
-                  }`}
+                  onClick={() => handleSelectQuickAccount(t)}
+                  className="p-3 rounded-2xl border border-gray-200 hover:border-blue-500 bg-white hover:bg-blue-50/60 transition-all flex items-center gap-3 text-right shadow-xs hover:shadow-md cursor-pointer group"
                 >
-                  <p className="text-xs font-bold">{t.name}</p>
-                  <p className="text-[10px] text-gray-500">{t.role}</p>
+                  <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-lg flex-shrink-0 group-hover:scale-110 transition-transform">
+                    {t.avatar}
+                  </div>
+                  <div className="truncate flex-1">
+                    <p className="text-xs font-black text-gray-900 group-hover:text-blue-950 truncate">
+                      {t.name}
+                    </p>
+                    <p className="text-[10px] text-gray-500 font-mono truncate">
+                      {t.email}
+                    </p>
+                  </div>
+                  <span className="text-blue-600 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                    دخول ←
+                  </span>
                 </button>
               ))}
             </div>
           </div>
 
           <div className="border-t border-gray-100 pt-3 space-y-3">
+            <p className="text-[11px] font-bold text-gray-700">
+              أو اكتب بريد حساب Google آخر:
+            </p>
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
-                اسم المعلم بحساب Google
-              </label>
               <input
                 type="text"
                 value={googleName}
                 onChange={(e) => setGoogleName(e.target.value)}
-                placeholder="مثال: أ. عبدالمحسن العتيبي"
+                placeholder="اسمك بحساب Google (مثال: أ. عبدالله الغامدي)"
                 className="w-full px-3.5 py-2.5 text-xs bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
-                بريد Google (Gmail) <span className="text-red-500">*</span>
-              </label>
               <input
                 type="email"
                 value={googleEmail}
                 onChange={(e) => setGoogleEmail(e.target.value)}
-                required
-                placeholder="teacher.name@gmail.com"
+                placeholder="your.email@gmail.com"
                 className="w-full px-3.5 py-2.5 text-xs bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold text-left"
                 dir="ltr"
               />
@@ -462,6 +483,15 @@ export default function LoginPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Obligatory Post-Login Teacher Onboarding Modal (Name & Subjects) */}
+      <TeacherOnboardingModal
+        isOpen={showOnboarding}
+        onComplete={(updatedUser) => {
+          setShowOnboarding(false);
+          router.push("/dashboard/teacher");
+        }}
+      />
     </div>
   );
 }

@@ -28,7 +28,7 @@ export default function CompleteProfilePage() {
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedSubjectId, setSelectedSubjectId] = useState('');
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -40,12 +40,15 @@ export default function CompleteProfilePage() {
         router.replace('/login');
         return;
       }
-      if (user.isProfileComplete && user.subjects && user.subjects.length > 0 && user.phone) {
+      if (user.isProfileComplete && user.subjects && user.subjects.length > 0) {
         router.replace(user.role?.isSystem ? '/dashboard/admin' : '/dashboard/teacher');
         return;
       }
-      if (user.name) setName(user.name);
+      if (user.name && user.name !== 'معلم جديد') setName(user.name);
       if (user.phone) setPhone(user.phone);
+      if (Array.isArray(user.subjects) && user.subjects.length > 0) {
+        setSelectedSubjectIds(user.subjects.map((s) => (typeof s === 'object' ? s._id : s)));
+      }
     }
   }, [user, authLoading, router]);
 
@@ -57,9 +60,6 @@ export default function CompleteProfilePage() {
         const res = await subjectsService.getAll({ isActive: true });
         const list = res.data || [];
         setSubjects(list);
-        if (list.length > 0 && !selectedSubjectId) {
-          setSelectedSubjectId(list[0]._id);
-        }
       } catch (err) {
         console.error('Error fetching subjects:', err);
         toast.error('تعذر تحميل قائمة المواد الدراسية');
@@ -71,23 +71,23 @@ export default function CompleteProfilePage() {
     fetchSubjects();
   }, []);
 
+  const toggleSubject = (subId) => {
+    setSelectedSubjectIds((prev) =>
+      prev.includes(subId) ? prev.filter((id) => id !== subId) : [...prev, subId]
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const cleanName = name.trim();
-    const cleanPhone = phone.trim();
 
     if (!cleanName) {
-      toast.error('يرجى إدخال اسمك الكامل');
+      toast.error('يرجى إدخال اسمك الكريم لاستخدامه في النظام');
       return;
     }
 
-    if (!cleanPhone) {
-      toast.error('يرجى إدخال رقم الجوال للتواصل');
-      return;
-    }
-
-    if (!selectedSubjectId) {
-      toast.error('يرجى اختيار مادتك الدراسية الأساسية');
+    if (selectedSubjectIds.length === 0) {
+      toast.error('يرجى اختيار مادة دراسية واحدة على الأقل من المواد التي تدرسها');
       return;
     }
 
@@ -95,8 +95,8 @@ export default function CompleteProfilePage() {
     try {
       const updatedUser = await completeProfile({
         name: cleanName,
-        phone: cleanPhone,
-        subjectId: selectedSubjectId,
+        phone: phone.trim(),
+        subjectIds: selectedSubjectIds,
       });
 
       toast.success(`أهلاً بك أستاذ ${updatedUser.name}! تم تفعيل حسابك بنجاح 🎉`);
@@ -196,17 +196,16 @@ export default function CompleteProfilePage() {
                 />
               </div>
 
-              {/* Phone Number */}
+              {/* Phone Number (Optional) */}
               <div>
                 <label className="block text-xs font-black text-gray-800 mb-1.5">
-                  رقم الجوال للتواصل <span className="text-red-500">*</span>
+                  رقم الجوال <span className="text-gray-400 font-normal">(اختياري للتواصل)</span>
                 </label>
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  required
-                  placeholder="مثال: 0501234567"
+                  placeholder="05xxxxxxxx"
                   className="w-full px-4 py-3 text-sm bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all font-bold text-gray-900"
                   dir="ltr"
                 />
@@ -217,38 +216,41 @@ export default function CompleteProfilePage() {
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-black text-gray-800">
-                  اختر مادتك الدراسية الأساسية <span className="text-red-500">*</span>
+                  المواد التي تدرسها (يمكنك اختيار أكثر من مادة) <span className="text-red-500">*</span>
                 </label>
-                {selectedSubject && (
-                  <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-200">
-                    تم اختيار: {selectedSubject.name}
-                  </span>
-                )}
+                <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-200">
+                  تم اختيار {selectedSubjectIds.length} مواد
+                </span>
               </div>
 
               {/* Interactive Subject Cards Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto p-1 scrollbar-thin">
                 {subjects.map((sub) => {
-                  const isSelected = selectedSubjectId === sub._id;
+                  const isSelected = selectedSubjectIds.includes(sub._id);
                   const icon = SUBJECT_ICONS[sub.name] || '📖';
 
                   return (
                     <button
                       type="button"
                       key={sub._id}
-                      onClick={() => setSelectedSubjectId(sub._id)}
+                      onClick={() => toggleSubject(sub._id)}
                       className={`p-3 rounded-2xl border-2 text-right transition-all flex flex-col justify-between gap-2 cursor-pointer ${
                         isSelected
-                          ? 'border-blue-600 bg-blue-50/70 shadow-md ring-2 ring-blue-500/20'
+                          ? 'border-blue-600 bg-blue-50/80 shadow-md ring-2 ring-blue-500/20'
                           : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/70'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-2xl">{icon}</span>
-                        <span
-                          className="w-3 h-3 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: sub.color || '#3b82f6' }}
-                        />
+                        <div
+                          className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs font-black ${
+                            isSelected
+                              ? 'bg-blue-600 border-blue-600 text-white'
+                              : 'border-gray-300 bg-white text-transparent'
+                          }`}
+                        >
+                          ✓
+                        </div>
                       </div>
                       <div>
                         <span className={`block font-black text-sm ${isSelected ? 'text-blue-950' : 'text-gray-900'}`}>

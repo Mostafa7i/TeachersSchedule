@@ -10,6 +10,7 @@ import WeekNavigator from "@/components/schedule/WeekNavigator";
 import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
 import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
+import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
 import { TableSkeleton } from "@/components/ui";
 
 export default function TeacherDashboardPage() {
@@ -811,6 +812,14 @@ export default function TeacherDashboardPage() {
         teachers={[user]}
         onSave={handleSaveCell}
         loading={saving}
+      />
+
+      {/* Obligatory Teacher Onboarding Modal if not completed */}
+      <TeacherOnboardingModal
+        isOpen={Boolean(user && !user.isProfileComplete && !user.role?.isSystem)}
+        onComplete={() => {
+          window.location.reload();
+        }}
       />
     </div>
   );
