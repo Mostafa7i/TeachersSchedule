@@ -294,7 +294,7 @@ export default function AdminSettingsPage() {
 
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">
-                اسم المرشد الأكاديمي / الطلابي
+               وكيل المدرسة
               </label>
               <input
                 type="text"

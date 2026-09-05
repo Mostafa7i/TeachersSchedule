@@ -447,7 +447,7 @@ export default function WeeklyScheduleTable({
           <span>👈 اسحب الجدول يميناً ويساراً لاستعراض جميع تفاصيل الحصص</span>
           <span className="font-bold">👉</span>
         </div>
-        \n {/* 3) Main Schedule Table */}
+         {/* 3) Main Schedule Table */}
         <div className="overflow-x-auto schedule-table-wrap">
           <table className="w-full text-right border-collapse border border-slate-300 min-w-[950px]">
             <thead>
