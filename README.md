@@ -92,6 +92,7 @@ employs/
 ## 🚀 دليل التشغيل والتثبيت (Getting Started)
 
 ### 1. المتطلبات الأساسية (Prerequisites)
+
 - [Node.js](https://nodejs.org/) (إصدار 18 أو أحدث)
 - [MongoDB Community Server](https://www.mongodb.com/try/download/community) يعمل على المنفذ `27017`
 
@@ -100,16 +101,19 @@ employs/
 ### 2. إعداد وتشغيل خادم الـ Backend
 
 1. انتقل إلى مجلد `backend`:
+
 ```bash
 cd backend
 ```
 
 2. تثبيت الحزم:
+
 ```bash
 npm install
 ```
 
 3. قم بإنشاء ملف `.env` (أو استخدام القيم الافتراضية من `.env.example`):
+
 ```env
 PORT=5000
 NODE_ENV=development
@@ -121,17 +125,21 @@ FRONTEND_URL=http://localhost:3000
 ```
 
 4. **تشغيل سكريبت تهيئة البيانات الأولية (Seed Data)**:
+
 ```bash
 npm run seed
 ```
+
 > سيقوم السكريبت بإنشاء الصلاحيات، الأدوار، المواد، والأسابيع، وحسابات المدير والمعلمين مع جدول أسبوعي نموذجي.
 
 5. تشغيل خادم الـ Backend:
+
 ```bash
 npm start
 # أو للتطوير مع إعادة التحميل التلقائي:
 npm run dev
 ```
+
 سيعمل الخادم على الرابط: `http://localhost:5000`
 
 ---
@@ -139,25 +147,28 @@ npm run dev
 ### 3. إعداد وتشغيل واجهة المستخدم (Next.js Frontend)
 
 1. من المجلد الرئيسي للمشروع (`employs`):
+
 ```bash
 npm install
 ```
 
 2. تشغيل الواجهة في وضع التطوير:
+
 ```bash
 npm run dev
 ```
+
 سيعمل الموقع على الرابط: `http://localhost:3000`
 
 ---
 
 ## 🔑 الحسابات التجريبية الافتراضية (Default Credentials)
 
-| الحساب | البريد الإلكتروني | كلمة المرور | الدور |
-| :--- | :--- | :--- | :--- |
-| **مدير النظام (Admin)** | `admin@school.com` | `Admin@123456` | صلاحيات كاملة لإدارة النظام والجداول والمدارس |
-| **معلم الرياضيات (Math Teacher)** | `teacher@school.com` | `Teacher@123456` | تعديل حصص الرياضيات، الواجبات، الأنشطة، وتصدير الجدول |
-| **معلمة العلوم (Science Teacher)** | `science.teacher@school.com` | `Teacher@123456` | تعديل حصص مادة العلوم فقط |
+| الحساب                             | البريد الإلكتروني            | كلمة المرور      | الدور                                                 |
+| :--------------------------------- | :--------------------------- | :--------------- | :---------------------------------------------------- |
+| **مدير النظام (Admin)**            | `admin@school.com`           | `Admin@123456`   | صلاحيات كاملة لإدارة النظام والجداول والمدارس         |
+| **معلم الرياضيات (Math Teacher)**  | `teacher@school.com`         | `Teacher@123456` | تعديل حصص الرياضيات، الواجبات، الأنشطة، وتصدير الجدول |
+| **معلمة العلوم (Science Teacher)** | `science.teacher@school.com` | `Teacher@123456` | تعديل حصص مادة العلوم فقط                             |
 
 ---
 
@@ -187,6 +198,7 @@ npm run dev
 ## 🔮 القابلية للتوسع المستقبلي (Future Expansion)
 
 تم بناء هيكلية البيانات وواجهات برمجة التطبيقات بنمط Modular يتيح إضافة:
+
 - **الطلاب (Students)**: عبر إنشاء `Student.model.js` وربطه بالفصول الدراسية.
 - **الفصول الدراسية (Classes)**: عبر ربط `Schedule` بمعرف `classId`.
 - **الغياب والحضور (Attendance)**: عبر تسجيل حضور الطلاب لكل حصة في `Schedule`.
@@ -198,12 +210,14 @@ npm run dev
 ## 📦 البناء للإنتاج (Production Build)
 
 1. بناء واجهة الـ Frontend:
+
 ```bash
 npm run build
 npm start
 ```
 
 2. تشغيل الـ Backend في بيئة الإنتاج:
+
 ```bash
 cd backend
 NODE_ENV=production npm start
