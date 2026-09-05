@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToastContext';
-import Modal from '@/components/ui/Modal';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import Modal from "@/components/ui/Modal";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   // Quick Google Sign-In Prompt Modal (for dev / instant testing)
   const [googleModalOpen, setGoogleModalOpen] = useState(false);
-  const [googleName, setGoogleName] = useState('');
-  const [googleEmail, setGoogleEmail] = useState('');
+  const [googleName, setGoogleName] = useState("");
+  const [googleEmail, setGoogleEmail] = useState("");
 
   const { login, googleLogin } = useAuth();
   const toast = useToast();
@@ -25,9 +25,9 @@ export default function LoginPage() {
   // Load Google Identity Services SDK if Client ID is configured
   useEffect(() => {
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (googleClientId && typeof window !== 'undefined') {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
+    if (googleClientId && typeof window !== "undefined") {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
       script.async = true;
       script.defer = true;
       script.onload = () => {
@@ -40,14 +40,14 @@ export default function LoginPage() {
               }
             },
           });
-          const btnDiv = document.getElementById('google-btn-container');
+          const btnDiv = document.getElementById("google-btn-container");
           if (btnDiv) {
             window.google.accounts.id.renderButton(btnDiv, {
-              theme: 'outline',
-              size: 'large',
-              width: '100%',
-              text: 'continue_with',
-              shape: 'pill',
+              theme: "outline",
+              size: "large",
+              width: "100%",
+              text: "continue_with",
+              shape: "pill",
             });
           }
         }
@@ -65,7 +65,7 @@ export default function LoginPage() {
     const cleanPassword = password.trim();
 
     if (!cleanEmail || !cleanPassword) {
-      toast.error('يرجى إدخال البريد الإلكتروني وكلمة المرور');
+      toast.error("يرجى إدخال البريد الإلكتروني وكلمة المرور");
       return;
     }
     setLoading(true);
@@ -74,17 +74,17 @@ export default function LoginPage() {
       toast.success(`مرحباً ${user.name} 👋`);
 
       if (!user.isProfileComplete && !user.role?.isSystem) {
-        router.push('/complete-profile');
+        router.push("/complete-profile");
       } else {
         const isAdmin = user.role?.isSystem === true;
-        router.push(isAdmin ? '/dashboard/admin' : '/dashboard/teacher');
+        router.push(isAdmin ? "/dashboard/admin" : "/dashboard/teacher");
       }
     } catch (err) {
       const msg =
         err.response?.data?.message ||
-        (err.code === 'ERR_NETWORK' || err.message === 'Network Error'
-          ? 'تعذر الاتصال بالخادم، يرجى التأكد من تشغيل الـ Backend على المنفذ 5000'
-          : 'البريد الإلكتروني أو كلمة المرور غير صحيحة');
+        (err.code === "ERR_NETWORK" || err.message === "Network Error"
+          ? "تعذر الاتصال بالخادم، يرجى التأكد من تشغيل الـ Backend على المنفذ 5000"
+          : "البريد الإلكتروني أو كلمة المرور غير صحيحة");
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -98,13 +98,14 @@ export default function LoginPage() {
       toast.success(`مرحباً ${loggedUser.name} 👋`);
 
       if (!loggedUser.isProfileComplete && !loggedUser.role?.isSystem) {
-        router.push('/complete-profile');
+        router.push("/complete-profile");
       } else {
         const isAdmin = loggedUser.role?.isSystem === true;
-        router.push(isAdmin ? '/dashboard/admin' : '/dashboard/teacher');
+        router.push(isAdmin ? "/dashboard/admin" : "/dashboard/teacher");
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'فشل تسجيل الدخول بحساب Google';
+      const msg =
+        err.response?.data?.message || "فشل تسجيل الدخول بحساب Google";
       toast.error(msg);
     } finally {
       setGoogleLoading(false);
@@ -113,7 +114,10 @@ export default function LoginPage() {
 
   const handleTriggerGoogleModal = () => {
     // If real Google SDK button is loaded, try prompt
-    if (window.google?.accounts?.id && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+    if (
+      window.google?.accounts?.id &&
+      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+    ) {
       window.google.accounts.id.prompt();
     } else {
       // Open instant Google account test modal
@@ -124,13 +128,13 @@ export default function LoginPage() {
   const handleCustomGoogleSubmit = async (e) => {
     e.preventDefault();
     if (!googleEmail.trim()) {
-      toast.error('يرجى إدخال بريد حساب Google');
+      toast.error("يرجى إدخال بريد حساب Google");
       return;
     }
     setGoogleModalOpen(false);
     await handleGoogleLogin({
       email: googleEmail.trim().toLowerCase(),
-      name: googleName.trim() || 'معلم جديد',
+      name: googleName.trim() || "معلم جديد",
       googleId: `google_${Date.now()}`,
     });
   };
@@ -228,7 +232,7 @@ export default function LoginPage() {
               </label>
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -241,7 +245,12 @@ export default function LoginPage() {
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
                 >
                   {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -250,7 +259,12 @@ export default function LoginPage() {
                       />
                     </svg>
                   ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -277,9 +291,24 @@ export default function LoginPage() {
             >
               {loading ? (
                 <>
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  <svg
+                    className="animate-spin w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
                   </svg>
                   <span>جاري الدخول...</span>
                 </>
@@ -288,7 +317,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
         </div>
 
         <p className="text-center text-blue-300 text-xs mt-6 font-medium">
@@ -317,7 +345,7 @@ export default function LoginPage() {
               disabled={googleLoading}
               className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-2"
             >
-              {googleLoading ? 'جاري الاتصال...' : 'متابعة عبر Google 🚀'}
+              {googleLoading ? "جاري الاتصال..." : "متابعة عبر Google 🚀"}
             </button>
           </div>
         }
@@ -345,8 +373,13 @@ export default function LoginPage() {
               </svg>
             </div>
             <div>
-              <p className="text-xs font-bold text-blue-950">تسجيل وتوثيق المعلم بحساب Google</p>
-              <p className="text-[11px] text-blue-700">سجل كمعلم جديد بالبريد أو اختر أحد المعلمين الجاهزين بنقرة واحدة:</p>
+              <p className="text-xs font-bold text-blue-950">
+                تسجيل وتوثيق المعلم بحساب Google
+              </p>
+              <p className="text-[11px] text-blue-700">
+                سجل كمعلم جديد بالبريد أو اختر أحد المعلمين الجاهزين بنقرة
+                واحدة:
+              </p>
             </div>
           </div>
 
@@ -357,10 +390,26 @@ export default function LoginPage() {
             </label>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { name: "أ. أحمد محمد", email: "ahmed.math@gmail.com", role: "معلم رياضيات" },
-                { name: "أ. خالد الحربي", email: "khaled.science@gmail.com", role: "معلم علوم" },
-                { name: "أ. فهد العتيبي", email: "fahad.arabic@gmail.com", role: "معلم لغتي" },
-                { name: "أ. سلطان الدوسري", email: "sultan.english@gmail.com", role: "معلم إنجليزي" },
+                {
+                  name: "أ. أحمد محمد",
+                  email: "ahmed.math@gmail.com",
+                  role: "معلم رياضيات",
+                },
+                {
+                  name: "أ. خالد الحربي",
+                  email: "khaled.science@gmail.com",
+                  role: "معلم علوم",
+                },
+                {
+                  name: "أ. فهد العتيبي",
+                  email: "fahad.arabic@gmail.com",
+                  role: "معلم لغتي",
+                },
+                {
+                  name: "أ. سلطان الدوسري",
+                  email: "sultan.english@gmail.com",
+                  role: "معلم إنجليزي",
+                },
               ].map((t) => (
                 <button
                   key={t.email}
