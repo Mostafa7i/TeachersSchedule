@@ -9,6 +9,7 @@ import { settingsService } from "@/services/settings.service";
 import WeekNavigator from "@/components/schedule/WeekNavigator";
 import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
 import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
+import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
 import { TableSkeleton } from "@/components/ui";
 
@@ -170,22 +171,33 @@ export default function TeacherTimetablePage() {
         )}
       </div>
 
-      {/* Week Navigator */}
-      <WeekNavigator
-        weeks={weeks}
-        currentWeek={currentWeek}
-        onSelectWeek={handleSelectWeek}
-      />
+      {/* Controls: Week Navigator + Export Buttons */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div className="flex-1">
+          <WeekNavigator
+            weeks={weeks}
+            currentWeek={currentWeek}
+            onSelectWeek={handleSelectWeek}
+          />
+        </div>
+        <ExportButtons
+          targetElementId="teacher-official-timetable-container"
+          weekLabel={`جدول_حصص_${user?.name || "معلم"}_${currentWeek?.label || ""}`}
+        />
+      </div>
 
       {/* Timetable Grid View */}
       {loading ? (
         <TableSkeleton rows={6} cols={6} />
       ) : (
         <TeacherTimetableGrid
-          settings={settings}
+          teacher={user}
           week={currentWeek}
-          teacherMatrix={teacherMatrix}
-          onEditCell={handleEditCell}
+          schedules={schedules}
+          settings={settings}
+          onCellClick={handleEditCell}
+          editable={true}
+          containerId="teacher-official-timetable-container"
         />
       )}
 
