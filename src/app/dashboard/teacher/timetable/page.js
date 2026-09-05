@@ -107,7 +107,7 @@ export default function TeacherTimetablePage() {
     }
   };
 
-  const handleEditCell = (cell, day, period) => {
+  const handleEditCell = (day, period, cell) => {
     if (!cell) {
       toast.warning("هذه الحصة غير مسندة إليك في جدول الحصص (حصة فراغ)");
       return;
