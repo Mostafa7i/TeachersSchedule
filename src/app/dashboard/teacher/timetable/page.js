@@ -123,7 +123,7 @@ export default function TeacherTimetablePage() {
       if (activeCell && activeCell._id) {
         const res = await schedulesService.update(activeCell._id, formData);
         setSchedules((prev) =>
-          prev.map((item) => (item._id === activeCell._id ? res.data : item))
+          prev.map((item) => (item._id === activeCell._id ? res.data : item)),
         );
         toast.success("تم تحديث بيانات الحصة والتحضير بنجاح ✅");
       }
@@ -161,7 +161,9 @@ export default function TeacherTimetablePage() {
             <div>
               <p className="text-xs font-black text-blue-950">{user.name}</p>
               <p className="text-[11px] text-blue-700 font-semibold">
-                {user.subjects?.map((s) => (typeof s === "object" ? s.name : s)).join(" • ") || "معلم"}
+                {user.subjects
+                  ?.map((s) => (typeof s === "object" ? s.name : s))
+                  .join(" • ") || "معلم"}
               </p>
             </div>
           </div>
@@ -203,7 +205,9 @@ export default function TeacherTimetablePage() {
 
       {/* Obligatory Teacher Onboarding Modal if not completed */}
       <TeacherOnboardingModal
-        isOpen={Boolean(user && user.isProfileComplete === false && !user.role?.isSystem)}
+        isOpen={Boolean(
+          user && user.isProfileComplete === false && !user.role?.isSystem,
+        )}
         onComplete={() => {
           window.location.reload();
         }}
