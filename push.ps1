@@ -5,3 +5,4 @@ param (
 )
 
 node "$PSScriptRoot\scripts\push.js" $msg "--target=$target"
+

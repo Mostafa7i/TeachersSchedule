@@ -141,9 +141,7 @@ export default function LoginPage() {
         {/* School Logo & Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-xl mb-4 border border-blue-100">
-            <span className="text-3xl">
-              <img src='./logo'/>
-            </span>
+            <span className="text-3xl">🏫</span>
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight mb-1">
             نظام إدارة الجداول المدرسية
@@ -348,36 +346,70 @@ export default function LoginPage() {
             </div>
             <div>
               <p className="text-xs font-bold text-blue-950">تسجيل وتوثيق المعلم بحساب Google</p>
-              <p className="text-[11px] text-blue-700">إذا كانت هذه أول مرة تسجل فيها، ستنتقل لخطوة استكمال بياناتك الإلزامية.</p>
+              <p className="text-[11px] text-blue-700">سجل كمعلم جديد بالبريد أو اختر أحد المعلمين الجاهزين بنقرة واحدة:</p>
             </div>
           </div>
 
+          {/* Quick 1-click teacher accounts */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">
-              اسم المعلم بحساب Google
+            <label className="block text-[11px] font-bold text-gray-500 mb-1.5">
+              🚀 حسابات معلمين جاهزة للتجربة الفورية (بنقرة واحدة):
             </label>
-            <input
-              type="text"
-              value={googleName}
-              onChange={(e) => setGoogleName(e.target.value)}
-              placeholder="مثال: أ. عبدالمحسن العتيبي"
-              className="w-full px-3.5 py-2.5 text-xs bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { name: "أ. أحمد محمد", email: "ahmed.math@gmail.com", role: "معلم رياضيات" },
+                { name: "أ. خالد الحربي", email: "khaled.science@gmail.com", role: "معلم علوم" },
+                { name: "أ. فهد العتيبي", email: "fahad.arabic@gmail.com", role: "معلم لغتي" },
+                { name: "أ. سلطان الدوسري", email: "sultan.english@gmail.com", role: "معلم إنجليزي" },
+              ].map((t) => (
+                <button
+                  key={t.email}
+                  type="button"
+                  onClick={() => {
+                    setGoogleName(t.name);
+                    setGoogleEmail(t.email);
+                  }}
+                  className={`p-2 rounded-xl border text-right transition-all cursor-pointer ${
+                    googleEmail === t.email
+                      ? "bg-blue-50 border-blue-500 text-blue-900 ring-2 ring-blue-200"
+                      : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-800"
+                  }`}
+                >
+                  <p className="text-xs font-bold">{t.name}</p>
+                  <p className="text-[10px] text-gray-500">{t.role}</p>
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">
-              بريد Google (Gmail) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              value={googleEmail}
-              onChange={(e) => setGoogleEmail(e.target.value)}
-              required
-              placeholder="teacher.name@gmail.com"
-              className="w-full px-3.5 py-2.5 text-xs bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold text-left"
-              dir="ltr"
-            />
+          <div className="border-t border-gray-100 pt-3 space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">
+                اسم المعلم بحساب Google
+              </label>
+              <input
+                type="text"
+                value={googleName}
+                onChange={(e) => setGoogleName(e.target.value)}
+                placeholder="مثال: أ. عبدالمحسن العتيبي"
+                className="w-full px-3.5 py-2.5 text-xs bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">
+                بريد Google (Gmail) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                value={googleEmail}
+                onChange={(e) => setGoogleEmail(e.target.value)}
+                required
+                placeholder="teacher.name@gmail.com"
+                className="w-full px-3.5 py-2.5 text-xs bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold text-left"
+                dir="ltr"
+              />
+            </div>
           </div>
         </form>
       </Modal>
