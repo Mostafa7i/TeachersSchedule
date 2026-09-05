@@ -5,6 +5,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { settingsService } from "@/services/settings.service";
 import { Skeleton } from "@/components/ui";
 import { DAYS_OF_WEEK } from "@/constants";
+import { getLogoUrl } from "@/lib/utils";
 
 export default function AdminSettingsPage() {
   const toast = useToast();
@@ -161,11 +162,7 @@ export default function AdminSettingsPage() {
               <div className="w-28 h-28 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50">
                 {logoPreview ? (
                   <img
-                    src={
-                      logoPreview.startsWith("/uploads")
-                        ? `http://localhost:5000${logoPreview}`
-                        : logoPreview
-                    }
+                    src={getLogoUrl(logoPreview)}
                     alt="School Logo Preview"
                     className="w-full h-full object-contain p-2"
                   />

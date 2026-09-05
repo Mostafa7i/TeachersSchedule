@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { PERMISSIONS } from "@/constants";
+import { getLogoUrl } from "@/lib/utils";
 
 export default function WeeklyScheduleTable({
   week,
@@ -196,7 +197,7 @@ export default function WeeklyScheduleTable({
           <div className="flex flex-col items-center md:items-end justify-center gap-2">
             {settings?.logo ? (
               <img
-                src={settings.logo}
+                src={getLogoUrl(settings.logo)}
                 alt="School Logo"
                 className="h-14 w-auto object-contain"
               />
