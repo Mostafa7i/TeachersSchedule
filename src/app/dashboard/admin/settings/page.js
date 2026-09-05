@@ -5,7 +5,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { settingsService } from "@/services/settings.service";
 import { Skeleton } from "@/components/ui";
 import { DAYS_OF_WEEK } from "@/constants";
-import { getLogoUrl } from "@/lib/utils";
+import { getLogoUrl, uploadImageToCloudinary } from "@/lib/utils";
 
 export default function AdminSettingsPage() {
   const toast = useToast();
@@ -93,16 +93,20 @@ export default function AdminSettingsPage() {
       return;
     }
 
-    const uploadData = new FormData();
-    uploadData.append("logo", file);
-
     setUploadingLogo(true);
     try {
-      const res = await settingsService.uploadLogo(uploadData);
-      setLogoPreview(res.data.logoUrl);
+      // 1) Upload directly to Cloudinary from the browser
+      const cloudinaryUrl = await uploadImageToCloudinary(file);
+
+      // 2) Show preview immediately
+      setLogoPreview(cloudinaryUrl);
+
+      // 3) Save the Cloudinary URL to our backend
+      await settingsService.updateLogo(cloudinaryUrl);
+
       toast.success("تم رفع شعار المدرسة بنجاح 🖼️");
     } catch (err) {
-      toast.error("فشل رفع الشعار");
+      toast.error(err.message || "فشل رفع الشعار");
     } finally {
       setUploadingLogo(false);
     }

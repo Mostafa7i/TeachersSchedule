@@ -12,10 +12,9 @@ export const settingsService = {
     return data;
   },
 
-  async uploadLogo(formData) {
-    const { data } = await api.post('/school-settings/upload-logo', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+  /** Save a Cloudinary URL as the school logo (replaces old multer upload) */
+  async updateLogo(logoUrl) {
+    const { data } = await api.patch('/school-settings/logo', { logoUrl });
     return data;
   },
 };

@@ -4,19 +4,47 @@
  */
 
 /**
- * Resolves a school logo path to a full URL.
- * The backend stores logo as a relative path like "/uploads/school-logo-xxx.png".
- * This helper prepends the backend base URL so the browser can fetch it.
+ * Resolves a school logo path/URL to a full displayable URL.
+ * - Cloudinary URLs (https://res.cloudinary.com/...) are returned as-is.
+ * - Legacy relative paths (/uploads/...) get the backend base URL prepended.
  *
- * @param {string|null|undefined} logoPath - The logo value from school settings
- * @returns {string|null} Full URL or null if no logo
+ * @param {string|null|undefined} logoPath
+ * @returns {string|null}
  */
 export function getLogoUrl(logoPath) {
   if (!logoPath) return null;
-  // Already a full URL (e.g. http:// or https://)
-  if (logoPath.startsWith("http")) return logoPath;
-  // Relative path from backend — prepend the backend base URL
+  if (logoPath.startsWith("http")) return logoPath; // Full URL (Cloudinary or external)
+  // Legacy relative path — prepend backend base URL
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-  const baseUrl = apiUrl.replace(/\/api$/, ""); // strip trailing /api
+  const baseUrl = apiUrl.replace(/\/api$/, "");
   return `${baseUrl}${logoPath}`;
+}
+
+/**
+ * Uploads an image file directly to Cloudinary from the browser.
+ * Uses an unsigned upload preset — no backend involvement needed.
+ *
+ * @param {File} file - The image File object from an <input type="file">
+ * @returns {Promise<string>} The Cloudinary secure_url of the uploaded image
+ */
+export async function uploadImageToCloudinary(file) {
+  const CLOUD_NAME = "dyqs8bid2";
+  const UPLOAD_PRESET = "image_photo";
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+    { method: "POST", body: formData }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || "فشل في رفع الصورة إلى Cloudinary");
+  }
+
+  const data = await response.json();
+  return data.secure_url;
 }
