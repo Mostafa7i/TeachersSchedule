@@ -712,7 +712,7 @@ export default function WeeklyScheduleTable({
       {/* 3) Table Footer Signatures (For Official Print) */}
       <div className="mt-8 pt-4 border-t border-slate-200 grid grid-cols-2 md:grid-cols-3 gap-4 text-center text-xs text-slate-700 font-semibold">
         <div>
-          <p className="text-slate-500 font-normal mb-6">المرشد الأكاديمي</p>
+          <p className="text-slate-500 font-normal mb-6">وكيل المدرسة</p>
           <p className="font-bold text-slate-900">
             {settings?.academicAdvisorName || "أ. فهد الشمري"}
           </p>
