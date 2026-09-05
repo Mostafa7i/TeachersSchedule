@@ -28,6 +28,7 @@ export default function MasterTimetableGrid({
 }) {
   const toast = useToast();
   const [selectedDay, setSelectedDay] = useState("الأحد");
+  const [viewMode, setViewMode] = useState("teachers"); // 'teachers' | 'classes'
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileLayout, setMobileLayout] = useState("cards"); // 'cards' | 'table'
 
