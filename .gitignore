@@ -19,6 +19,8 @@ backend/.env.local
 backend/uploads/*
 !backend/uploads/.gitkeep
 
+PROJECT_AI_CONTEXT.md
+
 # testing
 /coverage
 
