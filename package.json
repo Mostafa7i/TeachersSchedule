@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "push": "node scripts/push.js",
+    "push:front": "node scripts/push.js --target=front",
+    "push:back": "node scripts/push.js --target=back"
   },
   "dependencies": {
     "axios": "^1.20.0",
