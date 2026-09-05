@@ -1,24 +1,24 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToastContext';
-import { subjectsService } from '@/services/subjects.service';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import { subjectsService } from "@/services/subjects.service";
 
 const SUBJECT_ICONS = {
-  'فنية': '🎨',
-  'رياضيات': '📐',
-  'رقمية': '💻',
-  'توحيد': '🕋',
-  'English': '🇬🇧',
-  'لغتي': '📖',
-  'بدنية': '⚽',
-  'تفسير': '📜',
-  'تفسر': '📜',
-  'اجتماعيات': '🌍',
-  'حديث': '💬',
-  'علوم': '🔬',
+  فنية: "🎨",
+  رياضيات: "📐",
+  رقمية: "💻",
+  توحيد: "🕋",
+  English: "🇬🇧",
+  لغتي: "📖",
+  بدنية: "⚽",
+  تفسير: "📜",
+  تفسر: "📜",
+  اجتماعيات: "🌍",
+  حديث: "💬",
+  علوم: "🔬",
 };
 
 export default function CompleteProfilePage() {
@@ -26,8 +26,8 @@ export default function CompleteProfilePage() {
   const toast = useToast();
   const router = useRouter();
 
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [selectedSubjectIds, setSelectedSubjectIds] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
@@ -37,17 +37,21 @@ export default function CompleteProfilePage() {
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
-        router.replace('/login');
+        router.replace("/login");
         return;
       }
       if (user.isProfileComplete && user.subjects && user.subjects.length > 0) {
-        router.replace(user.role?.isSystem ? '/dashboard/admin' : '/dashboard/teacher');
+        router.replace(
+          user.role?.isSystem ? "/dashboard/admin" : "/dashboard/teacher",
+        );
         return;
       }
-      if (user.name && user.name !== 'معلم جديد') setName(user.name);
+      if (user.name && user.name !== "معلم جديد") setName(user.name);
       if (user.phone) setPhone(user.phone);
       if (Array.isArray(user.subjects) && user.subjects.length > 0) {
-        setSelectedSubjectIds(user.subjects.map((s) => (typeof s === 'object' ? s._id : s)));
+        setSelectedSubjectIds(
+          user.subjects.map((s) => (typeof s === "object" ? s._id : s)),
+        );
       }
     }
   }, [user, authLoading, router]);
@@ -61,8 +65,8 @@ export default function CompleteProfilePage() {
         const list = res.data || [];
         setSubjects(list);
       } catch (err) {
-        console.error('Error fetching subjects:', err);
-        toast.error('تعذر تحميل قائمة المواد الدراسية');
+        console.error("Error fetching subjects:", err);
+        toast.error("تعذر تحميل قائمة المواد الدراسية");
       } finally {
         setLoadingSubjects(false);
       }
@@ -73,7 +77,9 @@ export default function CompleteProfilePage() {
 
   const toggleSubject = (subId) => {
     setSelectedSubjectIds((prev) =>
-      prev.includes(subId) ? prev.filter((id) => id !== subId) : [...prev, subId]
+      prev.includes(subId)
+        ? prev.filter((id) => id !== subId)
+        : [...prev, subId],
     );
   };
 
@@ -82,12 +88,14 @@ export default function CompleteProfilePage() {
     const cleanName = name.trim();
 
     if (!cleanName) {
-      toast.error('يرجى إدخال اسمك الكريم لاستخدامه في النظام');
+      toast.error("يرجى إدخال اسمك الكريم لاستخدامه في النظام");
       return;
     }
 
     if (selectedSubjectIds.length === 0) {
-      toast.error('يرجى اختيار مادة دراسية واحدة على الأقل من المواد التي تدرسها');
+      toast.error(
+        "يرجى اختيار مادة دراسية واحدة على الأقل من المواد التي تدرسها",
+      );
       return;
     }
 
@@ -99,10 +107,12 @@ export default function CompleteProfilePage() {
         subjectIds: selectedSubjectIds,
       });
 
-      toast.success(`أهلاً بك أستاذ ${updatedUser.name}! تم تفعيل حسابك بنجاح 🎉`);
-      router.replace('/dashboard/teacher');
+      toast.success(
+        `أهلاً بك أستاذ ${updatedUser.name}! تم تفعيل حسابك بنجاح 🎉`,
+      );
+      router.replace("/dashboard/teacher");
     } catch (err) {
-      const msg = err.response?.data?.message || 'حدث خطأ أثناء حفظ البيانات';
+      const msg = err.response?.data?.message || "حدث خطأ أثناء حفظ البيانات";
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -114,7 +124,9 @@ export default function CompleteProfilePage() {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-blue-200 text-sm font-bold">جاري تحميل بيانات التسجيل...</p>
+          <p className="text-blue-200 text-sm font-bold">
+            جاري تحميل بيانات التسجيل...
+          </p>
         </div>
       </div>
     );
@@ -138,7 +150,8 @@ export default function CompleteProfilePage() {
               استكمال بيانات الملف الشخصي
             </h1>
             <p className="text-blue-200 text-xs sm:text-sm mt-1 max-w-md mx-auto">
-              أهلاً بك في منصة إدارة الجداول المدرسية! يرجى إدخال اسمك ورقم هاتفك واختيار مادتك الدراسية للبدء.
+              أهلاً بك في منصة إدارة الجداول المدرسية! يرجى إدخال اسمك ورقم
+              هاتفك واختيار مادتك الدراسية للبدء.
             </p>
           </div>
         </div>
@@ -170,8 +183,12 @@ export default function CompleteProfilePage() {
                   </svg>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold block text-[11px]">حساب Google المرتبط:</span>
-                  <span className="font-bold text-slate-800 font-mono text-xs">{user?.email}</span>
+                  <span className="text-slate-500 font-semibold block text-[11px]">
+                    حساب Google المرتبط:
+                  </span>
+                  <span className="font-bold text-slate-800 font-mono text-xs">
+                    {user?.email}
+                  </span>
                 </div>
               </div>
               <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-lg text-[11px] font-bold">
@@ -199,7 +216,10 @@ export default function CompleteProfilePage() {
               {/* Phone Number (Optional) */}
               <div>
                 <label className="block text-xs font-black text-gray-800 mb-1.5">
-                  رقم الجوال <span className="text-gray-400 font-normal">(اختياري للتواصل)</span>
+                  رقم الجوال{" "}
+                  <span className="text-gray-400 font-normal">
+                    (اختياري للتواصل)
+                  </span>
                 </label>
                 <input
                   type="tel"
@@ -216,7 +236,8 @@ export default function CompleteProfilePage() {
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-black text-gray-800">
-                  المواد التي تدرسها (يمكنك اختيار أكثر من مادة) <span className="text-red-500">*</span>
+                  المواد التي تدرسها (يمكنك اختيار أكثر من مادة){" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-200">
                   تم اختيار {selectedSubjectIds.length} مواد
@@ -227,7 +248,7 @@ export default function CompleteProfilePage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-[300px] overflow-y-auto p-1 scrollbar-thin">
                 {subjects.map((sub) => {
                   const isSelected = selectedSubjectIds.includes(sub._id);
-                  const icon = SUBJECT_ICONS[sub.name] || '📖';
+                  const icon = SUBJECT_ICONS[sub.name] || "📖";
 
                   return (
                     <button
@@ -236,8 +257,8 @@ export default function CompleteProfilePage() {
                       onClick={() => toggleSubject(sub._id)}
                       className={`p-3 rounded-2xl border-2 text-right transition-all flex flex-col justify-between gap-2 cursor-pointer ${
                         isSelected
-                          ? 'border-blue-600 bg-blue-50/80 shadow-md ring-2 ring-blue-500/20'
-                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/70'
+                          ? "border-blue-600 bg-blue-50/80 shadow-md ring-2 ring-blue-500/20"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/70"
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -245,15 +266,17 @@ export default function CompleteProfilePage() {
                         <div
                           className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs font-black ${
                             isSelected
-                              ? 'bg-blue-600 border-blue-600 text-white'
-                              : 'border-gray-300 bg-white text-transparent'
+                              ? "bg-blue-600 border-blue-600 text-white"
+                              : "border-gray-300 bg-white text-transparent"
                           }`}
                         >
                           ✓
                         </div>
                       </div>
                       <div>
-                        <span className={`block font-black text-sm ${isSelected ? 'text-blue-950' : 'text-gray-900'}`}>
+                        <span
+                          className={`block font-black text-sm ${isSelected ? "text-blue-950" : "text-gray-900"}`}
+                        >
                           {sub.name}
                         </span>
                         {sub.nameEn && (
@@ -285,9 +308,24 @@ export default function CompleteProfilePage() {
               >
                 {submitting ? (
                   <>
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    <svg
+                      className="animate-spin w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
                     </svg>
                     <span>جاري تفعيل الحساب...</span>
                   </>

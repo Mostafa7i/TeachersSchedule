@@ -1,31 +1,31 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToastContext';
-import { subjectsService } from '@/services/subjects.service';
-import Modal from '@/components/ui/Modal';
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/contexts/ToastContext";
+import { subjectsService } from "@/services/subjects.service";
+import Modal from "@/components/ui/Modal";
 
 const SUBJECT_ICONS = {
-  فنية: '🎨',
-  رياضيات: '📐',
-  رقمية: '💻',
-  توحيد: '🕋',
-  English: '🇬🇧',
-  لغتي: '📖',
-  بدنية: '⚽',
-  تفسير: '📜',
-  اجتماعيات: '🌍',
-  حديث: '💬',
-  علوم: '🔬',
+  فنية: "🎨",
+  رياضيات: "📐",
+  رقمية: "💻",
+  توحيد: "🕋",
+  English: "🇬🇧",
+  لغتي: "📖",
+  بدنية: "⚽",
+  تفسير: "📜",
+  اجتماعيات: "🌍",
+  حديث: "💬",
+  علوم: "🔬",
 };
 
 export default function TeacherOnboardingModal({ isOpen, onComplete }) {
   const { user, completeProfile } = useAuth();
   const toast = useToast();
 
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [selectedSubjectIds, setSelectedSubjectIds] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
@@ -34,12 +34,14 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
   // Prefill name from user
   useEffect(() => {
     if (user) {
-      if (user.name && user.name !== 'معلم جديد') {
+      if (user.name && user.name !== "معلم جديد") {
         setName(user.name);
       }
       if (user.phone) setPhone(user.phone);
       if (Array.isArray(user.subjects) && user.subjects.length > 0) {
-        setSelectedSubjectIds(user.subjects.map((s) => (typeof s === 'object' ? s._id : s)));
+        setSelectedSubjectIds(
+          user.subjects.map((s) => (typeof s === "object" ? s._id : s)),
+        );
       }
     }
   }, [user]);
@@ -53,7 +55,7 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
         const list = res.data || [];
         setSubjects(list);
       } catch (err) {
-        console.error('Error fetching subjects:', err);
+        console.error("Error fetching subjects:", err);
       } finally {
         setLoadingSubjects(false);
       }
@@ -65,7 +67,9 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
 
   const toggleSubject = (subId) => {
     setSelectedSubjectIds((prev) =>
-      prev.includes(subId) ? prev.filter((id) => id !== subId) : [...prev, subId]
+      prev.includes(subId)
+        ? prev.filter((id) => id !== subId)
+        : [...prev, subId],
     );
   };
 
@@ -74,12 +78,14 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
     const cleanName = name.trim();
 
     if (!cleanName) {
-      toast.error('يرجى كتابة اسمك الكريم لاستخدامه في النظام');
+      toast.error("يرجى كتابة اسمك الكريم لاستخدامه في النظام");
       return;
     }
 
     if (selectedSubjectIds.length === 0) {
-      toast.error('يرجى اختيار مادة دراسية واحدة على الأقل من المواد التي تدرسها');
+      toast.error(
+        "يرجى اختيار مادة دراسية واحدة على الأقل من المواد التي تدرسها",
+      );
       return;
     }
 
@@ -96,7 +102,7 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
         onComplete(updatedUser);
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'فشل حفظ البيانات';
+      const msg = err.response?.data?.message || "فشل حفظ البيانات";
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -117,18 +123,24 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
             مرحباً بك يا معلم! أكمل بياناتك للبدء
           </h2>
           <p className="text-xs text-gray-500 font-medium max-w-md mx-auto">
-            خطوة إجبارية واحدة لتخصيص جدولك الدراسي وتحديد المواد التي تدرسها في المدرسة.
+            خطوة إجبارية واحدة لتخصيص جدولك الدراسي وتحديد المواد التي تدرسها في
+            المدرسة.
           </p>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="overflow-y-auto py-4 space-y-5 flex-1 pe-1">
+        <form
+          onSubmit={handleSubmit}
+          className="overflow-y-auto py-4 space-y-5 flex-1 pe-1"
+        >
           {/* Email Info */}
           {user?.email && (
             <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-blue-700 font-bold">الحساب:</span>
-                <span className="text-xs font-mono font-bold text-blue-950">{user.email}</span>
+                <span className="text-xs font-mono font-bold text-blue-950">
+                  {user.email}
+                </span>
               </div>
               <span className="text-[11px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
                 ✓ متصل عبر Google
@@ -139,7 +151,8 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
           {/* Teacher Name */}
           <div>
             <label className="block text-xs font-black text-gray-800 mb-1.5">
-              اسمك الكامل (الذي سيظهر في الجداول والخطط) <span className="text-red-500">*</span>
+              اسمك الكامل (الذي سيظهر في الجداول والخطط){" "}
+              <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -155,7 +168,8 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-black text-gray-800">
-                المواد التي تدرسها (يمكنك اختيار أكثر من مادة) <span className="text-red-500">*</span>
+                المواد التي تدرسها (يمكنك اختيار أكثر من مادة){" "}
+                <span className="text-red-500">*</span>
               </label>
               <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
                 تم اختيار {selectedSubjectIds.length} مواد
@@ -170,7 +184,7 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[220px] overflow-y-auto p-1">
                 {subjects.map((sub) => {
                   const isSelected = selectedSubjectIds.includes(sub._id);
-                  const icon = SUBJECT_ICONS[sub.name] || '📖';
+                  const icon = SUBJECT_ICONS[sub.name] || "📖";
 
                   return (
                     <button
@@ -179,8 +193,8 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
                       onClick={() => toggleSubject(sub._id)}
                       className={`p-2.5 rounded-xl border-2 text-right transition-all flex items-center justify-between gap-2 cursor-pointer ${
                         isSelected
-                          ? 'border-blue-600 bg-blue-50/80 text-blue-950 font-black shadow-xs ring-2 ring-blue-400/20'
-                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-bold'
+                          ? "border-blue-600 bg-blue-50/80 text-blue-950 font-black shadow-xs ring-2 ring-blue-400/20"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-bold"
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate">
@@ -190,11 +204,11 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
                       <div
                         className={`w-4 h-4 rounded-md border flex items-center justify-center flex-shrink-0 text-[10px] ${
                           isSelected
-                            ? 'bg-blue-600 border-blue-600 text-white'
-                            : 'border-gray-300 bg-white'
+                            ? "bg-blue-600 border-blue-600 text-white"
+                            : "border-gray-300 bg-white"
                         }`}
                       >
-                        {isSelected ? '✓' : ''}
+                        {isSelected ? "✓" : ""}
                       </div>
                     </button>
                   );
@@ -224,7 +238,9 @@ export default function TeacherOnboardingModal({ isOpen, onComplete }) {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || selectedSubjectIds.length === 0 || !name.trim()}
+            disabled={
+              submitting || selectedSubjectIds.length === 0 || !name.trim()
+            }
             className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white text-xs font-black rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             {submitting ? (

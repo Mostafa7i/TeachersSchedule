@@ -379,7 +379,9 @@ export default function TeacherDashboardPage() {
                 {/* Scale Controller */}
                 {planViewMode === "table" && (
                   <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs border border-gray-200">
-                    <span className="text-[10px] font-black text-gray-500 px-1">🔍 المقياس:</span>
+                    <span className="text-[10px] font-black text-gray-500 px-1">
+                      🔍 المقياس:
+                    </span>
                     {[70, 85, 100].map((sc) => (
                       <button
                         key={sc}
@@ -434,7 +436,9 @@ export default function TeacherDashboardPage() {
           {/* MOBILE CARDS VIEW: Teacher Weekly Plan (No Horizontal Overflow)           */}
           {/* ========================================================================= */}
           <div
-            className={planViewMode === "cards" ? "block space-y-3.5" : "hidden"}
+            className={
+              planViewMode === "cards" ? "block space-y-3.5" : "hidden"
+            }
           >
             {/* Day Selector Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
@@ -593,9 +597,7 @@ export default function TeacherDashboardPage() {
           {/* ========================================================================= */}
           {/* DESKTOP / FULL TABLE VIEW (Weekly Plan)                                   */}
           {/* ========================================================================= */}
-          <div
-            className={planViewMode === "table" ? "block" : "hidden"}
-          >
+          <div className={planViewMode === "table" ? "block" : "hidden"}>
             {/* Mobile Swipe Hint Banner */}
             <div className="md:hidden flex items-center justify-between text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg mb-2.5 no-print">
               <span>
@@ -816,7 +818,9 @@ export default function TeacherDashboardPage() {
 
       {/* Obligatory Teacher Onboarding Modal if not completed */}
       <TeacherOnboardingModal
-        isOpen={Boolean(user && !user.isProfileComplete && !user.role?.isSystem)}
+        isOpen={Boolean(
+          user && !user.isProfileComplete && !user.role?.isSystem,
+        )}
         onComplete={() => {
           window.location.reload();
         }}
