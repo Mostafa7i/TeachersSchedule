@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+/* Arabic RTL Support */
+@layer base {
+  :root {
+    --color-primary: #1d4ed8;
+    --color-primary-light: #3b82f6;
+    --color-primary-dark: #1e3a8a;
+    --color-secondary: #0f766e;
+    --color-accent: #f59e0b;
+    --color-danger: #dc2626;
+    --color-success: #16a34a;
+    --color-warning: #d97706;
+    --color-sidebar-bg: #0f172a;
+    --color-sidebar-text: #cbd5e1;
+    --color-sidebar-hover: #1e293b;
+    --color-sidebar-active: #1d4ed8;
+  }
+}
+
+/* RTL Base & Mobile Overflow Prevention */
+html,
+body {
+  direction: rtl;
+  font-family: "Cairo", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Table Fixes for RTL */
+.schedule-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.schedule-table th,
+.schedule-table td {
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem 0.75rem;
+  text-align: right;
+  vertical-align: top;
+}
+.schedule-table th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}
+
+/* Mobile responsive table */
+@media (max-width: 768px) {
+  .schedule-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Sidebar transition */
+.sidebar-transition {
+  transition:
+    transform 0.3s ease,
+    width 0.3s ease;
+}
+
+/* Toast animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+.toast-enter {
+  animation: slideInRight 0.3s ease forwards;
+}
+.toast-exit {
+  animation: slideOutRight 0.3s ease forwards;
+}
+
+/* Loading skeleton animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f0f4f8 25%, #e2e8f0 50%, #f0f4f8 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
