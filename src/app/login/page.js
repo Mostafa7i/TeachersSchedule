@@ -294,34 +294,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo Credentials Buttons */}
-          <div className="pt-2">
-            <div className="p-3.5 bg-blue-50/70 rounded-2xl border border-blue-100 space-y-2">
-              <p className="text-xs font-bold text-blue-900 flex items-center gap-1">
-                <span>⚡</span>
-                <span>حسابات تجريبية سريعة:</span>
-              </p>
-              <div className="space-y-1.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => fillCredentials('admin@school.com', 'Admin@123456')}
-                  className="w-full text-right p-2 rounded-xl bg-white border border-blue-200 hover:bg-blue-100/60 transition-colors flex items-center justify-between cursor-pointer"
-                >
-                  <span className="font-extrabold text-blue-950">مدير النظام (Admin)</span>
-                  <span className="text-blue-600 font-mono text-[11px]">admin@school.com</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => fillCredentials('teacher@school.com', 'Teacher@123456')}
-                  className="w-full text-right p-2 rounded-xl bg-white border border-blue-200 hover:bg-blue-100/60 transition-colors flex items-center justify-between cursor-pointer"
-                >
-                  <span className="font-extrabold text-emerald-950">المعلم (مصطفى محمود)</span>
-                  <span className="text-emerald-600 font-mono text-[11px]">teacher@school.com</span>
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
         <p className="text-center text-blue-300 text-xs mt-6 font-medium">
