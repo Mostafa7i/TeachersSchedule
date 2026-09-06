@@ -146,6 +146,18 @@ export default function TeacherDashboardPage() {
     }
   };
 
+  // Update local schedules state after bulk-fill
+  const handleBulkFill = (updatedSchedules) => {
+    if (!Array.isArray(updatedSchedules)) return;
+    setSchedules((prev) => {
+      const updatedMap = {};
+      updatedSchedules.forEach((s) => { updatedMap[s._id] = s; });
+      return prev.map((item) => updatedMap[item._id] || item);
+    });
+    toast.success(`تم الملئ التلقائي لجميع فصول نفس الصف ✅`);
+  };
+
+
   // Calculate day date formatted
   const getDayDateFormatted = (dayName) => {
     if (!currentWeek?.startDate) return "";
@@ -813,6 +825,7 @@ export default function TeacherDashboardPage() {
         subjects={subjects}
         teachers={[user]}
         onSave={handleSaveCell}
+        onBulkFill={handleBulkFill}
         loading={saving}
       />
 

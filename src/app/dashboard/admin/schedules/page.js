@@ -400,6 +400,14 @@ export default function AdminSchedulesPage() {
         subjects={subjects}
         teachers={teachers}
         onSave={handleSaveCell}
+        onBulkFill={(updatedSchedules) => {
+          if (!Array.isArray(updatedSchedules)) return;
+          setSchedules((prev) => {
+            const map = {};
+            updatedSchedules.forEach((s) => { map[s._id] = s; });
+            return prev.map((item) => map[item._id] || item);
+          });
+        }}
         loading={saving}
       />
 

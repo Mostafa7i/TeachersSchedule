@@ -107,7 +107,7 @@ export default function TeacherTimetablePage() {
     }
   };
 
-  const handleEditCell = (day, period, cell) => {
+  const handleEditCell = (cell, day, period) => {
     if (!cell) {
       toast.warning("هذه الحصة غير مسندة إليك في جدول الحصص (حصة فراغ)");
       return;
@@ -212,6 +212,14 @@ export default function TeacherTimetablePage() {
         subjects={subjects}
         teachers={[user]}
         onSave={handleSaveCell}
+        onBulkFill={(updatedSchedules) => {
+          if (!Array.isArray(updatedSchedules)) return;
+          setSchedules((prev) => {
+            const map = {};
+            updatedSchedules.forEach((s) => { map[s._id] = s; });
+            return prev.map((item) => map[item._id] || item);
+          });
+        }}
         loading={saving}
       />
 
