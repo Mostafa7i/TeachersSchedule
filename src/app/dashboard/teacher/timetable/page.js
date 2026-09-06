@@ -11,7 +11,6 @@ import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
 import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
-import { TableSkeleton } from "@/components/ui";
 import { TableSkeleton, ErrorBoundary } from "@/components/ui";
 
 export default function TeacherTimetablePage() {
@@ -110,7 +109,6 @@ export default function TeacherTimetablePage() {
 
   const handleEditCell = (cell, day, period) => {
     if (!cell) {
-      toast.warning("هذه الحصة غير مسندة إليك في جدول الحصص (حصة فراغ)");
       toast.info("هذه الحصة غير مسندة لجدولك الدراسي");
       return;
     }
@@ -192,15 +190,6 @@ export default function TeacherTimetablePage() {
       {loading ? (
         <TableSkeleton rows={6} cols={6} />
       ) : (
-        <TeacherTimetableGrid
-          teacher={user}
-          week={currentWeek}
-          schedules={schedules}
-          settings={settings}
-          onCellClick={handleEditCell}
-          editable={true}
-          containerId="teacher-official-timetable-container"
-        />
         <ErrorBoundary title="تعذر عرض جدول الحصص">
           <TeacherTimetableGrid
             teacher={user}
@@ -229,7 +218,9 @@ export default function TeacherTimetablePage() {
           if (!Array.isArray(updatedSchedules)) return;
           setSchedules((prev) => {
             const map = {};
-            updatedSchedules.forEach((s) => { map[s._id] = s; });
+            updatedSchedules.forEach((s) => {
+              map[s._id] = s;
+            });
             return prev.map((item) => map[item._id] || item);
           });
         }}

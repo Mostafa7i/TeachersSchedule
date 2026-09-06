@@ -11,7 +11,7 @@ import MasterTimetableGrid from "@/components/schedule/MasterTimetableGrid";
 import PeriodTimingsModal from "@/components/schedule/PeriodTimingsModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import Modal from "@/components/ui/Modal";
-import { Skeleton } from "@/components/ui";
+import { Skeleton, ErrorBoundary } from "@/components/ui";
 
 const COMMON_CLASSES = [
   "أول أول",
@@ -128,9 +128,9 @@ export default function AdminTeacherTimetablesPage() {
   const selectedWeek = weeks.find((w) => w._id === selectedWeekId);
 
   // Single View Cell Click
-  const handleCellClick = (day, period, currentCell) => {
+  const handleCellClick = (currentCell, day, period) => {
     setActiveDay(day);
-    setActivePeriod(period);
+    setActivePeriod(Number(period) || 1);
     const defaultSubjectId =
       selectedTeacher?.subjects && selectedTeacher.subjects.length > 0
         ? selectedTeacher.subjects[0]._id || selectedTeacher.subjects[0]
@@ -393,40 +393,42 @@ export default function AdminTeacherTimetablesPage() {
         </div>
       </div>
 
-      {loading && !allWeekSchedules.length ? (
-        <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      ) : activeMainTab === "master" ? (
-        /* ========================================================== */
-        /* TAB 1: MASTER SCHOOL TIMETABLE GRID (All Teachers & Classes)*/
-        /* ========================================================== */
-        <MasterTimetableGrid
-          week={selectedWeek}
-          schedules={allWeekSchedules}
-          teachers={teachers}
-          subjects={subjects}
-          settings={settings}
-          onScheduleUpdated={handleMasterScheduleUpdated}
-          onOpenTimingsModal={() => setTimingsModalOpen(true)}
-        />
-      ) : (
-        /* ========================================================== */
-        /* TAB 2: SINGLE TEACHER OFFICIAL TIMETABLE                    */
-        /* ========================================================== */
-        <div className="space-y-4">
-          <TeacherTimetableGrid
-            teacher={selectedTeacher}
+      <ErrorBoundary title="تعذر عرض جدول الحصص">
+        {loading && !allWeekSchedules.length ? (
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        ) : activeMainTab === "master" ? (
+          /* ========================================================== */
+          /* TAB 1: MASTER SCHOOL TIMETABLE GRID (All Teachers & Classes)*/
+          /* ========================================================== */
+          <MasterTimetableGrid
             week={selectedWeek}
-            schedules={singleSchedules}
+            schedules={allWeekSchedules}
+            teachers={teachers}
+            subjects={subjects}
             settings={settings}
-            onCellClick={handleCellClick}
-            editable={true}
-            containerId="teacher-paper-timetable-container"
+            onScheduleUpdated={handleMasterScheduleUpdated}
+            onOpenTimingsModal={() => setTimingsModalOpen(true)}
           />
-        </div>
-      )}
+        ) : (
+          /* ========================================================== */
+          /* TAB 2: SINGLE TEACHER OFFICIAL TIMETABLE                    */
+          /* ========================================================== */
+          <div className="space-y-4">
+            <TeacherTimetableGrid
+              teacher={selectedTeacher}
+              week={selectedWeek}
+              schedules={singleSchedules}
+              settings={settings}
+              onCellClick={handleCellClick}
+              editable={true}
+              containerId="teacher-paper-timetable-container"
+            />
+          </div>
+        )}
+      </ErrorBoundary>
 
       {/* Single Cell Edit Modal */}
       <Modal

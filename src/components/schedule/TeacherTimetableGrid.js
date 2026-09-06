@@ -35,7 +35,9 @@ export default function TeacherTimetableGrid({
   // Mobile View States
   const [mobileView, setMobileView] = useState("table"); // "table" | "cards"
   const [tableScale, setTableScale] = useState(85); // 70 | 85 | 100 // 'cards' | 'table'
-  const [selectedMobileDay, setSelectedMobileDay] = useState(daysList[0] || "الأحد");
+  const [selectedMobileDay, setSelectedMobileDay] = useState(
+    daysList[0] || "الأحد",
+  );
 
   // Dynamic Period Timings Formatter
   const getPeriodTime = (pNum) => {
@@ -77,7 +79,7 @@ export default function TeacherTimetableGrid({
 
   // Calculate stats for current mobile day
   const currentDayClassesCount = periodsList.filter(
-    (p) => !!matrix[selectedMobileDay]?.[p]
+    (p) => !!matrix[selectedMobileDay]?.[p],
   ).length;
 
   return (
@@ -117,7 +119,9 @@ export default function TeacherTimetableGrid({
             {/* Table Scale Zoom Controller */}
             {mobileView === "table" && (
               <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs border border-gray-200">
-                <span className="text-[10px] font-black text-gray-500 px-1">🔍 المقياس:</span>
+                <span className="text-[10px] font-black text-gray-500 px-1">
+                  🔍 المقياس:
+                </span>
                 {[70, 85, 100].map((sc) => (
                   <button
                     key={sc}
@@ -183,7 +187,9 @@ export default function TeacherTimetableGrid({
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
           {daysList.map((day) => {
             const isSel = day === selectedMobileDay;
-            const countForDay = periodsList.filter((p) => !!matrix[day]?.[p]).length;
+            const countForDay = periodsList.filter(
+              (p) => !!matrix[day]?.[p],
+            ).length;
             return (
               <button
                 key={day}
@@ -200,7 +206,9 @@ export default function TeacherTimetableGrid({
                 <span
                   className={
                     "text-[10px] px-1.5 py-0.2 rounded-full " +
-                    (isSel ? "bg-white/25 text-white" : "bg-gray-200 text-gray-600")
+                    (isSel
+                      ? "bg-white/25 text-white"
+                      : "bg-gray-200 text-gray-600")
                   }
                 >
                   {countForDay}
@@ -236,7 +244,9 @@ export default function TeacherTimetableGrid({
                     <div className="flex items-center gap-2">
                       <span className="text-base">☕</span>
                       <div>
-                        <span className="font-bold">استراحة الفسحة المدرسية</span>
+                        <span className="font-bold">
+                          استراحة الفسحة المدرسية
+                        </span>
                         <span className="text-[10px] text-amber-700 block font-mono">
                           {breakTimeString}
                         </span>
@@ -251,8 +261,9 @@ export default function TeacherTimetableGrid({
                 {/* Period Slot Card */}
                 <div
                   onClick={() =>
-                    editable && onCellClick && onCellClick(selectedMobileDay, p, cell)
-                    editable && onCellClick && onCellClick(cell, selectedMobileDay, p)
+                    editable &&
+                    onCellClick &&
+                    onCellClick(cell, selectedMobileDay, p)
                   }
                   className={
                     "border rounded-xl p-3 transition-all relative " +
@@ -278,7 +289,6 @@ export default function TeacherTimetableGrid({
                       </span>
                     ) : (
                       <span className="text-[10px] text-gray-400 font-semibold">
-                        حصة فراغ
                         غير مسندة
                       </span>
                     )}
@@ -323,9 +333,7 @@ export default function TeacherTimetableGrid({
       {/* ========================================================================= */}
       {/* 3) DESKTOP & FULL TABLE VIEW (Classic aSc Timetables Matrix)               */}
       {/* ========================================================================= */}
-      <div
-        className={mobileView === "table" ? "block" : "hidden"}
-      >
+      <div className={mobileView === "table" ? "block" : "hidden"}>
         {/* Mobile Swipe Hint Banner */}
         <div className="md:hidden flex items-center justify-between text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg mb-2.5 no-print">
           <span>👈 يمكنك سحب الجدول لليمين واليسار للتنقل بين الحصص</span>
@@ -400,12 +408,13 @@ export default function TeacherTimetableGrid({
                         onClick={() =>
                           editable &&
                           onCellClick &&
-                          onCellClick(day, period, cell)
                           onCellClick(cell, day, period)
                         }
                         className={
                           "border-2 border-gray-700 p-2 align-middle relative transition-all " +
-                          (editable ? "cursor-pointer hover:bg-blue-50/80 " : "") +
+                          (editable
+                            ? "cursor-pointer hover:bg-blue-50/80 "
+                            : "") +
                           (hasClass ? "bg-white font-bold" : "bg-gray-50/30")
                         }
                       >
@@ -448,12 +457,13 @@ export default function TeacherTimetableGrid({
                         onClick={() =>
                           editable &&
                           onCellClick &&
-                          onCellClick(day, period, cell)
                           onCellClick(cell, day, period)
                         }
                         className={
                           "border-2 border-gray-700 p-2 align-middle relative transition-all " +
-                          (editable ? "cursor-pointer hover:bg-blue-50/80 " : "") +
+                          (editable
+                            ? "cursor-pointer hover:bg-blue-50/80 "
+                            : "") +
                           (hasClass ? "bg-white font-bold" : "bg-gray-50/30")
                         }
                       >
