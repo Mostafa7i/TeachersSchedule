@@ -7,13 +7,23 @@ import { schedulesService, weeksService } from "@/services/schedules.service";
 import { subjectsService } from "@/services/subjects.service";
 import { settingsService } from "@/services/settings.service";
 import WeekNavigator from "@/components/schedule/WeekNavigator";
-import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
+import WeeklyScheduleTable from "@/components/schedule/WeeklyScheduleTable";
 import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
-import { TableSkeleton, ErrorBoundary } from "@/components/ui";
+import { TableSkeleton } from "@/components/ui";
 
-export default function TeacherTimetablePage() {
+const DEFAULT_CLASSES = [
+  "أول أول",
+  "أول ثاني",
+  "أول ثالث",
+  "ثاني أول",
+  "ثاني ثاني",
+  "ثالث أول",
+  "ثالث ثاني",
+];
+
+export default function TeacherWeeklyPlanPreviewPage() {
   const { user } = useAuth();
   const toast = useToast();
 
@@ -24,40 +34,24 @@ export default function TeacherTimetablePage() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Class Selection Filter
+  const [selectedClass, setSelectedClass] = useState("");
+
   // Edit Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [activeCell, setActiveCell] = useState(null);
-  const [activeDay, setActiveDay] = useState("");
+  const [activeDay, setActiveDay] = useState("الأحد");
   const [activePeriod, setActivePeriod] = useState(1);
+  const [activeDefaultClass, setActiveDefaultClass] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const daysList = settings?.workDays || [
-    "الأحد",
-    "الإثنين",
-    "الثلاثاء",
-    "الأربعاء",
-    "الخميس",
+  // Compute available classes dynamically from schedules + defaults
+  const allClassesList = [
+    ...new Set([
+      ...DEFAULT_CLASSES,
+      ...schedules.map((s) => (s.className || "").trim()).filter(Boolean),
+    ]),
   ];
-  const periodsCount = settings?.periodsCount || 6;
-  const periodsList = Array.from({ length: periodsCount }, (_, i) => i + 1);
-
-  // Group teacher's schedules into day-period matrix
-  const teacherMatrix = {};
-  daysList.forEach((day) => {
-    teacherMatrix[day] = {};
-    periodsList.forEach((p) => {
-      teacherMatrix[day][p] = null;
-    });
-  });
-
-  schedules.forEach((item) => {
-    if (
-      teacherMatrix[item.day] &&
-      teacherMatrix[item.day][item.period] !== undefined
-    ) {
-      teacherMatrix[item.day][item.period] = item;
-    }
-  });
 
   // Load Initial Metadata
   useEffect(() => {
@@ -79,12 +73,12 @@ export default function TeacherTimetablePage() {
         setSettings(settingsRes.data || null);
 
         if (activeWk) {
-          const schedRes = await schedulesService.getForTeacher(activeWk._id);
+          const schedRes = await schedulesService.getByWeek(activeWk._id);
           setSchedules(schedRes.data?.schedules || []);
         }
       } catch (err) {
-        console.error("Error loading teacher timetable:", err);
-        toast.error("حدث خطأ أثناء تحميل بيانات الجدول");
+        console.error("Error loading weekly plan preview:", err);
+        toast.error("حدث خطأ أثناء تحميل بيانات الخطة الأسبوعية");
       } finally {
         setLoading(false);
       }
@@ -98,7 +92,7 @@ export default function TeacherTimetablePage() {
     setCurrentWeek(week);
     try {
       setLoading(true);
-      const res = await schedulesService.getForTeacher(week._id);
+      const res = await schedulesService.getByWeek(week._id);
       setSchedules(res.data?.schedules || []);
     } catch (err) {
       toast.error("فشل جلب جدول الأسبوع المختار");
@@ -107,30 +101,32 @@ export default function TeacherTimetablePage() {
     }
   };
 
-  const handleEditCell = (cell, day, period) => {
-    if (!cell) {
-      toast.info("هذه الحصة غير مسندة لجدولك الدراسي");
-      return;
-    }
+  const handleEditCell = (cell, day, period, classForCell) => {
     setActiveCell(cell);
     setActiveDay(day);
     setActivePeriod(period);
+    setActiveDefaultClass(classForCell || selectedClass || "");
     setModalOpen(true);
   };
 
   const handleSaveCell = async (formData) => {
     setSaving(true);
     try {
-      if (activeCell && activeCell._id) {
-        const res = await schedulesService.update(activeCell._id, formData);
+      if (formData.id) {
+        const res = await schedulesService.update(formData.id, {
+          lessonTitle: formData.lessonTitle,
+          homework: formData.homework,
+          activities: formData.activities,
+          notes: formData.notes,
+        });
         setSchedules((prev) =>
-          prev.map((item) => (item._id === activeCell._id ? res.data : item)),
+          prev.map((item) => (item._id === formData.id ? res.data : item)),
         );
-        toast.success("تم تحديث بيانات الحصة والتحضير بنجاح ✅");
+        toast.success("تم تحديث تحضير الحصة بنجاح ✅");
       }
       setModalOpen(false);
     } catch (err) {
-      const msg = err.response?.data?.message || "فشل حفظ بيانات الحصة";
+      const msg = err.response?.data?.message || "فشل حفظ التعديلات";
       toast.error(msg);
     } finally {
       setSaving(false);
@@ -143,13 +139,13 @@ export default function TeacherTimetablePage() {
       <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
-            <span className="text-2xl">📅</span>
+            <span className="text-2xl">📋</span>
             <h1 className="text-xl sm:text-2xl font-black text-gray-900">
-              جدول الحصص المدرسي الأسبوعي
+              استعراض الخطة الأسبوعية المدرسية
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 font-medium">
-            عرض جدول حصصك الأسبوعية وتوزيع الحصص والفصول الدراسية المسندة إليك
+            استعراض شكل وتنسيق الخطة والجدول الأسبوعي لجميع فصول المدرسة مع إمكانية التصدير والطباعة
           </p>
         </div>
 
@@ -171,6 +167,53 @@ export default function TeacherTimetablePage() {
         )}
       </div>
 
+      {/* Class Filter Bar */}
+      <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-bold text-gray-700 flex items-center gap-1">
+            <span>🏫</span>
+            <span>تصفية حسب الفصل:</span>
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setSelectedClass("")}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              selectedClass === ""
+                ? "bg-slate-900 text-white shadow-xs"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            جميع الفصول
+          </button>
+
+          {allClassesList.map((cls) => (
+            <button
+              key={cls}
+              type="button"
+              onClick={() => setSelectedClass(cls)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                selectedClass === cls
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {cls}
+            </button>
+          ))}
+        </div>
+
+        {selectedClass && (
+          <button
+            type="button"
+            onClick={() => setSelectedClass("")}
+            className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors"
+          >
+            ✕ إلغاء التصفية
+          </button>
+        )}
+      </div>
+
       {/* Controls: Week Navigator + Export Buttons */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div className="flex-1">
@@ -178,29 +221,31 @@ export default function TeacherTimetablePage() {
             weeks={weeks}
             currentWeek={currentWeek}
             onSelectWeek={handleSelectWeek}
+            canCopy={false}
+            canAdd={false}
           />
         </div>
         <ExportButtons
-          targetElementId="teacher-official-timetable-container"
-          weekLabel={`جدول_حصص_${user?.name || "معلم"}_${currentWeek?.label || ""}`}
+          targetElementId="weekly-schedule-print-container"
+          weekLabel={`خطة_الأسبوع_${currentWeek?.label || ""}${selectedClass ? `_فصل_${selectedClass}` : ""}`}
         />
       </div>
 
-      {/* Timetable Grid View */}
+      {/* Weekly Schedule Table View */}
       {loading ? (
-        <TableSkeleton rows={6} cols={6} />
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
+          <TableSkeleton rows={8} cols={6} />
+        </div>
       ) : (
-        <ErrorBoundary title="تعذر عرض جدول الحصص">
-          <TeacherTimetableGrid
-            teacher={user}
-            week={currentWeek}
-            schedules={schedules}
-            settings={settings}
-            onCellClick={handleEditCell}
-            editable={true}
-            containerId="teacher-official-timetable-container"
-          />
-        </ErrorBoundary>
+        <WeeklyScheduleTable
+          week={currentWeek}
+          schedules={schedules}
+          settings={settings}
+          subjects={subjects}
+          selectedClass={selectedClass}
+          onSelectClass={(cls) => setSelectedClass(cls)}
+          onEditCell={handleEditCell}
+        />
       )}
 
       {/* Edit Cell Modal */}
@@ -211,6 +256,7 @@ export default function TeacherTimetablePage() {
         week={currentWeek}
         day={activeDay}
         period={activePeriod}
+        defaultClassName={activeDefaultClass}
         subjects={subjects}
         teachers={[user]}
         onSave={handleSaveCell}
@@ -218,7 +264,9 @@ export default function TeacherTimetablePage() {
           if (!Array.isArray(updatedSchedules)) return;
           setSchedules((prev) => {
             const map = {};
-            updatedSchedules.forEach((s) => { map[s._id] = s; });
+            updatedSchedules.forEach((s) => {
+              map[s._id] = s;
+            });
             return prev.map((item) => map[item._id] || item);
           });
         }}
@@ -228,7 +276,7 @@ export default function TeacherTimetablePage() {
       {/* Obligatory Teacher Onboarding Modal if not completed */}
       <TeacherOnboardingModal
         isOpen={Boolean(
-          user && user.isProfileComplete === false && !user.role?.isSystem,
+          user && !user.isProfileComplete && !user.role?.isSystem,
         )}
         onComplete={() => {
           window.location.reload();

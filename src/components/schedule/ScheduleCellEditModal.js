@@ -105,7 +105,7 @@ export default function ScheduleCellEditModal({
     setShowWarningPrompt(false);
     setBulkResult(null);
     setShowBulkConfirm(false);
-    if (schedule) {
+    if (schedule && typeof schedule === "object") {
       setFormData({
         subject: schedule.subject?._id || schedule.subject || "",
         teacher: schedule.teacher?._id || schedule.teacher || "",

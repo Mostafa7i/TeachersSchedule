@@ -37,3 +37,5 @@ export function EmptyState({ icon, title, description, action }) {
     </div>
   );
 }
+
+export { default as ErrorBoundary } from './ErrorBoundary';

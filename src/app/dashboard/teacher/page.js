@@ -11,7 +11,7 @@ import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
 import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
-import { TableSkeleton } from "@/components/ui";
+import { TableSkeleton, ErrorBoundary } from "@/components/ui";
 
 export default function TeacherDashboardPage() {
   const { user } = useAuth();
@@ -113,7 +113,7 @@ export default function TeacherDashboardPage() {
 
   const handleEditCell = (cell, day, period) => {
     if (!cell) {
-      toast.warning("هذه الحصة غير مسندة إليك في جدول الحصص (حصة فراغ)");
+      toast.info("هذه الحصة غير مسندة لجدولك الدراسي");
       return;
     }
     setActiveCell(cell);
@@ -344,25 +344,26 @@ export default function TeacherDashboardPage() {
         canAdd={false}
       />
 
-      {loading ? (
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-          <TableSkeleton rows={8} cols={6} />
-        </div>
-      ) : activeTab === "timetable" ? (
-        /* ========================================================================= */
-        /* TAB 1: Official Timetable View (Matching aSc Timetables user reference)   */
-        /* ========================================================================= */
-        <div className="space-y-4">
-          <TeacherTimetableGrid
-            teacher={user}
-            week={currentWeek}
-            schedules={schedules}
-            settings={settings}
-            editable={false}
-            containerId="teacher-official-timetable-container"
-          />
-        </div>
-      ) : (
+      <ErrorBoundary title="تعذر عرض بيانات خطة المعلم">
+        {loading ? (
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+            <TableSkeleton rows={8} cols={6} />
+          </div>
+        ) : activeTab === "timetable" ? (
+          /* ========================================================================= */
+          /* TAB 1: Official Timetable View (Matching aSc Timetables user reference)   */
+          /* ========================================================================= */
+          <div className="space-y-4">
+            <TeacherTimetableGrid
+              teacher={user}
+              week={currentWeek}
+              schedules={schedules}
+              settings={settings}
+              editable={false}
+              containerId="teacher-official-timetable-container"
+            />
+          </div>
+        ) : (
         /* ========================================================================= */
         /* TAB 2: Weekly Plan & Preparation View (Only assigned classes are editable) */
         /* ========================================================================= */
@@ -517,7 +518,7 @@ export default function TeacherDashboardPage() {
                         <span className="w-5 h-5 rounded bg-gray-200 text-gray-600 flex items-center justify-center font-bold text-xs">
                           {period}
                         </span>
-                        <span>حصة فراغ — غير مسندة إليك</span>
+                        <span>— حصة غير مسندة لجدولك —</span>
                       </div>
                       <span>—</span>
                     </div>
@@ -708,7 +709,7 @@ export default function TeacherDashboardPage() {
                               </div>
                             ) : (
                               <span className="text-gray-400 text-xs italic font-normal">
-                                حصة فراغ (بدون فصل)
+                                — غير مسندة لجدولك —
                               </span>
                             )}
                           </td>
@@ -798,7 +799,7 @@ export default function TeacherDashboardPage() {
                             ) : (
                               <span
                                 className="text-gray-300 text-xs"
-                                title="حصة فراغ"
+                                title="غير مسندة لجدولك"
                               >
                                 🔒
                               </span>
@@ -814,6 +815,7 @@ export default function TeacherDashboardPage() {
           </div>
         </div>
       )}
+      </ErrorBoundary>
 
       {/* Edit Cell Modal */}
       <ScheduleCellEditModal

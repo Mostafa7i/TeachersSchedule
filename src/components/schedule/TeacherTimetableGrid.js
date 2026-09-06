@@ -251,7 +251,7 @@ export default function TeacherTimetableGrid({
                 {/* Period Slot Card */}
                 <div
                   onClick={() =>
-                    editable && onCellClick && onCellClick(selectedMobileDay, p, cell)
+                    editable && onCellClick && onCellClick(cell, selectedMobileDay, p)
                   }
                   className={
                     "border rounded-xl p-3 transition-all relative " +
@@ -277,7 +277,7 @@ export default function TeacherTimetableGrid({
                       </span>
                     ) : (
                       <span className="text-[10px] text-gray-400 font-semibold">
-                        حصة فراغ
+                        غير مسندة
                       </span>
                     )}
                   </div>
@@ -398,7 +398,7 @@ export default function TeacherTimetableGrid({
                         onClick={() =>
                           editable &&
                           onCellClick &&
-                          onCellClick(day, period, cell)
+                          onCellClick(cell, day, period)
                         }
                         className={
                           "border-2 border-gray-700 p-2 align-middle relative transition-all " +
@@ -445,7 +445,7 @@ export default function TeacherTimetableGrid({
                         onClick={() =>
                           editable &&
                           onCellClick &&
-                          onCellClick(day, period, cell)
+                          onCellClick(cell, day, period)
                         }
                         className={
                           "border-2 border-gray-700 p-2 align-middle relative transition-all " +
