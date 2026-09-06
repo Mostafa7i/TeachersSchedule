@@ -151,12 +151,13 @@ export default function TeacherDashboardPage() {
     if (!Array.isArray(updatedSchedules)) return;
     setSchedules((prev) => {
       const updatedMap = {};
-      updatedSchedules.forEach((s) => { updatedMap[s._id] = s; });
+      updatedSchedules.forEach((s) => {
+        updatedMap[s._id] = s;
+      });
       return prev.map((item) => updatedMap[item._id] || item);
     });
     toast.success(`تم الملئ التلقائي لجميع فصول نفس الصف ✅`);
   };
-
 
   // Calculate day date formatted
   const getDayDateFormatted = (dayName) => {
