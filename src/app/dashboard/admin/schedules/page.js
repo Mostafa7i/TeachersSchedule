@@ -11,6 +11,7 @@ import WeekNavigator from "@/components/schedule/WeekNavigator";
 import WeeklyScheduleTable from "@/components/schedule/WeeklyScheduleTable";
 import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
 import CopyWeekModal from "@/components/schedule/CopyWeekModal";
+import ClassScheduleShareModal from "@/components/schedule/ClassScheduleShareModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import { TableSkeleton } from "@/components/ui";
 
@@ -46,12 +47,19 @@ export default function AdminSchedulesPage() {
   // Modals
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareClass, setShareClass] = useState("");
   const [activeCell, setActiveCell] = useState(null);
   const [activeDay, setActiveDay] = useState("الأحد");
   const [activePeriod, setActivePeriod] = useState(1);
   const [activeDefaultClass, setActiveDefaultClass] = useState("");
   const [saving, setSaving] = useState(false);
   const [copying, setCopying] = useState(false);
+
+  const handleOpenShare = (clsName) => {
+    setShareClass(clsName || selectedClass || allClassesList[0] || "أول أول");
+    setShareModalOpen(true);
+  };
 
   // Compute available classes dynamically from schedules + defaults
   const availableClasses = useState(() => {
@@ -219,19 +227,30 @@ export default function AdminSchedulesPage() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">
-            إدارة الخطة والجداول الأسبوعية
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <span>إدارة الخطة والجداول الأسبوعية</span>
           </h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            عرض وتعديل وتصدير الخطة الأسبوعية والتحضير المدرسي لكل فصل دراسي على
-            حدة.
+            عرض وتعديل وتصدير الخطة الأسبوعية والتحضير المدرسي ومشاركتها مع أولياء الأمور والطلاب والمعلمين.
           </p>
         </div>
 
-        <ExportButtons
-          targetElementId="weekly-schedule-print-container"
-          weekLabel={exportFilename}
-        />
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Share for WhatsApp button */}
+          <button
+            onClick={() => handleOpenShare(selectedClass)}
+            className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white text-xs sm:text-sm font-extrabold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-500"
+            title="إنشاء بطاقة مصممة للفصل ومشاركتها عبر واتساب"
+          >
+            <span className="text-base">📲</span>
+            <span>مشاركة الجدول (واتساب)</span>
+          </button>
+
+          <ExportButtons
+            targetElementId="weekly-schedule-print-container"
+            weekLabel={exportFilename}
+          />
+        </div>
       </div>
 
       {/* Week Navigator Bar */}
@@ -252,14 +271,25 @@ export default function AdminSchedulesPage() {
             <span className="text-base">🏫</span>
             <span>عرض الخطة الأسبوعية حسب الفصل الدراسي:</span>
           </div>
-          {selectedClass && (
-            <button
-              onClick={() => setSelectedClass("")}
-              className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-            >
-              عرض جميع الفصول ⟲
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {selectedClass && (
+              <button
+                onClick={() => handleOpenShare(selectedClass)}
+                className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-3 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <span>📲</span>
+                <span>بطاقة مشاركة فصل {selectedClass}</span>
+              </button>
+            )}
+            {selectedClass && (
+              <button
+                onClick={() => setSelectedClass("")}
+                className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+              >
+                عرض جميع الفصول ⟲
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Horizontal scrollable pills */}
@@ -385,6 +415,7 @@ export default function AdminSchedulesPage() {
           selectedClass={selectedClass}
           onSelectClass={(cls) => setSelectedClass(cls)}
           onEditCell={handleEditCell}
+          onShareClass={handleOpenShare}
         />
       )}
 
@@ -419,6 +450,18 @@ export default function AdminSchedulesPage() {
         weeks={weeks}
         onCopy={handleCopyWeek}
         loading={copying}
+      />
+
+      {/* WhatsApp Share Card Modal */}
+      <ClassScheduleShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        className={shareClass || selectedClass || allClassesList[0] || "أول أول"}
+        week={currentWeek}
+        schedules={schedules}
+        settings={settings}
+        allClasses={allClassesList}
+        onSwitchClass={(cls) => setShareClass(cls)}
       />
     </div>
   );

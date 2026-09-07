@@ -13,6 +13,7 @@ export default function WeeklyScheduleTable({
   selectedClass = "",
   onSelectClass,
   onEditCell,
+  onShareClass,
   readOnly = false,
   teacherHighlight = null,
 }) {
@@ -191,6 +192,19 @@ export default function WeeklyScheduleTable({
               {settings?.academicYear || "1447-1448هـ"} —{" "}
               {settings?.term || "الفصل الدراسي الأول"}
             </p>
+
+            {selectedClass && onShareClass && (
+              <div className="pt-1 no-print">
+                <button
+                  type="button"
+                  onClick={() => onShareClass(selectedClass)}
+                  className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-3 py-1 rounded-lg shadow-sm transition-all cursor-pointer"
+                >
+                  <span>📲</span>
+                  <span>مشاركة جدول {selectedClass} عبر واتساب</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Logo & Week Info */}
