@@ -825,6 +825,175 @@ export default function AdminTeacherTimetablesPage() {
         settings={settings}
         onSettingsUpdated={(newSettings) => setSettings(newSettings)}
       />
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* Modal: إنشاء جدول شاغر جديد                                    */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <Modal
+        isOpen={newSlotModalOpen}
+        onClose={() => {
+          setNewSlotModalOpen(false);
+          setNewSlotData({ name: "", subject: "" });
+        }}
+        title="➕ إنشاء جدول شاغر / متاح جديد"
+        size="md"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <button
+              type="button"
+              onClick={() => {
+                setNewSlotModalOpen(false);
+                setNewSlotData({ name: "", subject: "" });
+              }}
+              className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              onClick={handleCreateAvailableSlot}
+              disabled={creatingSlot || !newSlotData.name.trim()}
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl shadow-sm disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer"
+            >
+              {creatingSlot ? (
+                <>
+                  <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                  <span>جاري الإنشاء...</span>
+                </>
+              ) : (
+                <>
+                  <span>➕</span>
+                  <span>إنشاء الجدول الشاغر</span>
+                </>
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs text-emerald-900 font-medium leading-relaxed">
+            <span className="font-black">💡 ملاحظة:</span> سيُنشأ جدول فارغ يمكنك تعبئة حصصه فوراً. عند تسجيل المعلم الجديد عبر Google، يختار هذا الجدول ويُربط بحسابه تلقائياً.
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">
+              اسم الجدول / الشاغر <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={newSlotData.name}
+              onChange={(e) => setNewSlotData({ ...newSlotData, name: e.target.value })}
+              placeholder="مثال: معلم رياضيات - شاغر 1 / معلم لغة عربية جديد"
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold placeholder:font-normal"
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">
+              المادة الدراسية الرئيسية (اختياري)
+            </label>
+            <select
+              value={newSlotData.subject}
+              onChange={(e) => setNewSlotData({ ...newSlotData, subject: e.target.value })}
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            >
+              <option value="">-- لا توجد مادة محددة الآن --</option>
+              {subjects.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.name} ({s.code})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* Modal: تعيين جدول شاغر لمعلم حالي مسجل                         */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      <Modal
+        isOpen={assignModalOpen}
+        onClose={() => {
+          setAssignModalOpen(false);
+          setSelectedSourceSlot(null);
+          setTargetTeacherId("");
+        }}
+        title="👤 تعيين الجدول لمعلم حالي مسجل"
+        size="md"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <button
+              type="button"
+              onClick={() => {
+                setAssignModalOpen(false);
+                setSelectedSourceSlot(null);
+                setTargetTeacherId("");
+              }}
+              className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              onClick={handleAssignToExistingTeacher}
+              disabled={assigning || !targetTeacherId}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm rounded-xl shadow-sm disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer"
+            >
+              {assigning ? (
+                <>
+                  <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                  <span>جاري التعيين...</span>
+                </>
+              ) : (
+                <>
+                  <span>✅</span>
+                  <span>تأكيد التعيين</span>
+                </>
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {selectedSourceSlot && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 space-y-1">
+              <p className="text-xs font-black text-blue-900">الجدول المُراد تعيينه:</p>
+              <p className="text-sm font-bold text-blue-800">{selectedSourceSlot.teacherName}</p>
+              <p className="text-xs text-blue-700 font-medium">
+                {selectedSourceSlot.totalClasses} حصة •{" "}
+                {(selectedSourceSlot.subjects || []).map((s) => s.name).join("، ")}
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5">
+              اختر المعلم المسجل لتعيين الجدول إليه <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={targetTeacherId}
+              onChange={(e) => setTargetTeacherId(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold"
+            >
+              <option value="">-- اختر المعلم --</option>
+              {teachers
+                .filter((t) => t._id !== selectedSourceSlot?.teacherId)
+                .map((t) => (
+                  <option key={t._id} value={t._id}>
+                    👨‍🏫 {t.name}
+                    {t.subjects?.length > 0
+                      ? ` — ${t.subjects.map((s) => s.name).join("، ")}`
+                      : ""}
+                  </option>
+                ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1 font-medium">
+              سيتم نقل جميع حصص الجدول الشاغر إلى المعلم المختار مع دمج المواد الدراسية.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
