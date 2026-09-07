@@ -228,8 +228,8 @@ export default function ScheduleCellEditModal({
       onClose={onClose}
       title={
         schedule
-          ? `تحضير وتعديل الحصة (${period}) - يوم ${day} ${schedule.className ? `(فصل ${schedule.className})` : ""}`
-          : `إضافة حصة (${period}) - يوم ${day}`
+          ? `تحضير وتعديل الحصة (${period ?? "—"}) - يوم ${day ?? "—"} ${schedule.className ? `(فصل ${schedule.className})` : ""}`
+          : `إضافة حصة جديدة${period ? ` (${period})` : ""}${day ? ` - يوم ${day}` : ""}`
       }
       size="lg"
       footer={

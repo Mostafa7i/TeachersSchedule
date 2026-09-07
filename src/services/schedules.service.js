@@ -34,6 +34,11 @@ export const schedulesService = {
     return data;
   },
 
+  async createVacantSlot(payload) {
+    const { data } = await api.post('/schedules/create-vacant-slot', payload);
+    return data;
+  },
+
   async toggleTimetableClaimed(payload) {
     const { data } = await api.post(
       "/schedules/toggle-timetable-claimed",

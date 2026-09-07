@@ -250,22 +250,13 @@ export default function AdminTeacherTimetablesPage() {
     }
     setCreatingSlot(true);
     try {
-      // Find teacher role
-      const teacherRole =
-        selectedTeacher?.role?._id ||
-        selectedTeacher?.role ||
-        teachers[0]?.role?._id ||
-        teachers[0]?.role;
-      const cleanEmail = "slot_" + Date.now() + "@school.local";
-      const res = await usersService.create({
+      // Use dedicated backend endpoint — role is resolved server-side automatically
+      const res = await schedulesService.createVacantSlot({
         name: newSlotData.name.trim(),
-        email: cleanEmail,
-        password: "Temp@" + Math.floor(100000 + Math.random() * 900000),
-        role: teacherRole,
-        subjects: newSlotData.subject ? [newSlotData.subject] : [],
-        isActive: true,
+        subjectId: newSlotData.subject || undefined,
       });
 
+      const newTeacher = res.data;
       toast.success("تم إنشاء جدول شاغر جديد بنجاح ✅ يمكنك الآن تعبئة حصصه");
       setNewSlotModalOpen(false);
       setNewSlotData({ name: "", subject: "" });
@@ -274,8 +265,8 @@ export default function AdminTeacherTimetablesPage() {
       const teachersRes = await usersService.getTeachers();
       const updatedTeachers = teachersRes.data || [];
       setTeachers(updatedTeachers);
-      if (res.data?._id) {
-        setSelectedTeacherId(res.data._id);
+      if (newTeacher?._id) {
+        setSelectedTeacherId(newTeacher._id);
         setActiveMainTab("single");
       }
       fetchAvailableTimetables(selectedWeekId);
