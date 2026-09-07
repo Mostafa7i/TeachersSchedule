@@ -49,4 +49,10 @@ export const timetableTemplatesService = {
     const { data } = await api.post(`/schedules/templates/${id}/assign`, { teacherId, weekId });
     return data;
   },
+
+  /** Admin: unclaim / release a template so it becomes available again */
+  async unclaim(id) {
+    const { data } = await api.post(`/schedules/templates/${id}/unclaim`);
+    return data;
+  },
 };

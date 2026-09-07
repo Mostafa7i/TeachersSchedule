@@ -231,7 +231,8 @@ export default function AdminSchedulesPage() {
             <span>إدارة الخطة والجداول الأسبوعية</span>
           </h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            عرض وتعديل وتصدير الخطة الأسبوعية والتحضير المدرسي ومشاركتها مع أولياء الأمور والطلاب والمعلمين.
+            عرض وتعديل وتصدير الخطة الأسبوعية والتحضير المدرسي ومشاركتها مع
+            أولياء الأمور والطلاب والمعلمين.
           </p>
         </div>
 
@@ -435,7 +436,9 @@ export default function AdminSchedulesPage() {
           if (!Array.isArray(updatedSchedules)) return;
           setSchedules((prev) => {
             const map = {};
-            updatedSchedules.forEach((s) => { map[s._id] = s; });
+            updatedSchedules.forEach((s) => {
+              map[s._id] = s;
+            });
             return prev.map((item) => map[item._id] || item);
           });
         }}
@@ -456,7 +459,9 @@ export default function AdminSchedulesPage() {
       <ClassScheduleShareModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
-        className={shareClass || selectedClass || allClassesList[0] || "أول أول"}
+        className={
+          shareClass || selectedClass || allClassesList[0] || "أول أول"
+        }
         week={currentWeek}
         schedules={schedules}
         settings={settings}

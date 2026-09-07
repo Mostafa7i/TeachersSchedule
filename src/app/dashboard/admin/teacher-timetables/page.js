@@ -318,6 +318,21 @@ export default function AdminTeacherTimetablesPage() {
     }
   };
 
+  // Unclaim / release template
+  const handleUnclaimTemplate = async (templateId, templateName) => {
+    if (!window.confirm(`هل تريد إلغاء تعيين الجدول "${templateName}" وإتاحته كجدول شاغر مجدداً؟`)) {
+      return;
+    }
+    try {
+      await timetableTemplatesService.unclaim(templateId);
+      toast.success("تم إلغاء تعيين الجدول وأصبح متاحاً للاختيار بنجاح ✅");
+      fetchTemplates();
+      fetchWeekData(selectedWeekId);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "فشل إلغاء تعيين الجدول");
+    }
+  };
+
   const handleClearCell = async () => {
     const updated = singleSchedules.filter(
       (s) =>
@@ -624,19 +639,27 @@ export default function AdminTeacherTimetablesPage() {
                     </div>
 
                     <div className="pt-3 border-t border-gray-100 space-y-2">
-                      {!tpl.isClaimed && (
-                        <button
-                          type="button"
-                          onClick={() => setEditingTemplate(tpl)}
-                          className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <span>✏️</span>
-                          <span>تعديل وتعبئة حصص الجدول ({tpl.entries?.length || 0})</span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEditingTemplate(tpl)}
+                        className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <span>✏️</span>
+                        <span>تعديل وتعبئة حصص الجدول ({tpl.entries?.length || 0})</span>
+                      </button>
 
                       <div className="flex items-center gap-2">
-                        {!tpl.isClaimed && (
+                        {tpl.isClaimed ? (
+                          <button
+                            type="button"
+                            onClick={() => handleUnclaimTemplate(tpl._id, tpl.name)}
+                            className="flex-1 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-black shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            title="إلغاء تعيين هذا الجدول وإتاحته مجدداً كجدول شاغر للمعلمين الجدد"
+                          >
+                            <span>🔓</span>
+                            <span>إلغاء التعيين (إتاحته كشاغر)</span>
+                          </button>
+                        ) : (
                           <button
                             type="button"
                             onClick={() => {
@@ -651,16 +674,14 @@ export default function AdminTeacherTimetablesPage() {
                           </button>
                         )}
 
-                        {!tpl.isClaimed && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteTemplate(tpl._id, tpl.name)}
-                            className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                            title="حذف الجدول الشاغر"
-                          >
-                            <span>🗑️</span>
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTemplate(tpl._id, tpl.name)}
+                          className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                          title="حذف الجدول الشاغر"
+                        >
+                          <span>🗑️</span>
+                        </button>
                       </div>
                     </div>
                   </div>
