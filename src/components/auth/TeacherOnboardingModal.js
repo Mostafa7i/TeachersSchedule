@@ -8,7 +8,7 @@ import { timetableTemplatesService } from "@/services/timetableTemplates.service
 import { weeksService } from "@/services/schedules.service";
 import { useToast } from "@/contexts/ToastContext";
 
-export default function TeacherOnboardingModal({ isOpen, onClose }) {
+export default function TeacherOnboardingModal({ isOpen, onClose, onComplete }) {
   const { completeProfile, refetchUser } = useAuth();
   const toast = useToast();
 
@@ -65,8 +65,17 @@ export default function TeacherOnboardingModal({ isOpen, onClose }) {
     try {
       const res = await timetableTemplatesService.claim(selectedTemplate._id, selectedWeekId || undefined);
       toast.success(res.message || "تم اختيار الجدول بنجاح ✅");
-      await refetchUser();
-      onClose();
+      try {
+        await refetchUser();
+      } catch {}
+      if (onComplete) onComplete(res.data);
+      if (onClose) onClose();
+      // Reload page to display new timetable directly
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "فشل اختيار الجدول");
     } finally {
@@ -83,8 +92,16 @@ export default function TeacherOnboardingModal({ isOpen, onClose }) {
     try {
       await completeProfile({ subjects: selectedSubjects });
       toast.success("تم حفظ التخصصات بنجاح ✅");
-      await refetchUser();
-      onClose();
+      try {
+        await refetchUser();
+      } catch {}
+      if (onComplete) onComplete();
+      if (onClose) onClose();
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "فشل حفظ بيانات الملف الشخصي");
     } finally {
@@ -101,17 +118,17 @@ export default function TeacherOnboardingModal({ isOpen, onClose }) {
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={onClose || (() => {})}
       title="👋 مرحباً! إعداد ملفك المهني"
       size="lg"
       footer={
         <div className="flex items-center justify-between w-full">
           <button
             type="button"
-            onClick={onClose}
+            onClick={onClose || (() => {})}
             className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
           >
-            لاحقاً
+            إغلاق
           </button>
 
           {activeTab === "templates" ? (
