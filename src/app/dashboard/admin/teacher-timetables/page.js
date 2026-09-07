@@ -39,6 +39,10 @@ export default function AdminTeacherTimetablesPage() {
   // Single teacher schedules & all-week schedules
   const [singleSchedules, setSingleSchedules] = useState([]);
   const [allWeekSchedules, setAllWeekSchedules] = useState([]);
+  const [availableTimetables, setAvailableTimetables] = useState([]);
+  const [newSlotModalOpen, setNewSlotModalOpen] = useState(false);
+  const [newSlotData, setNewSlotData] = useState({ name: "", subject: "" });
+  const [creatingSlot, setCreatingSlot] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -86,6 +90,15 @@ export default function AdminTeacherTimetablesPage() {
   }, []);
 
   // 2. Fetch all schedules for the week (for master grid) & for selected teacher
+  const fetchAvailableTimetables = async (weekId = selectedWeekId) => {
+    try {
+      const res = await schedulesService.getAvailableTimetables(weekId);
+      setAvailableTimetables(res.data?.timetables || []);
+    } catch (err) {
+      // ignore
+    }
+  };
+
   const fetchWeekData = async (weekId = selectedWeekId) => {
     if (!weekId) return;
     try {
@@ -115,6 +128,7 @@ export default function AdminTeacherTimetablesPage() {
   useEffect(() => {
     if (selectedWeekId) {
       fetchWeekData(selectedWeekId);
+      fetchAvailableTimetables(selectedWeekId);
     }
   }, [selectedWeekId]);
 
@@ -222,6 +236,46 @@ export default function AdminTeacherTimetablesPage() {
     );
   };
 
+  const handleCreateAvailableSlot = async (e) => {
+    e?.preventDefault();
+    if (!newSlotData.name.trim()) {
+      toast.error("يرجى إدخال اسم الجدول / الشاغر (مثال: معلم رياضيات - شاغر 1)");
+      return;
+    }
+    setCreatingSlot(true);
+    try {
+      // Find teacher role
+      const teacherRole = selectedTeacher?.role?._id || selectedTeacher?.role || teachers[0]?.role?._id || teachers[0]?.role;
+      const cleanEmail = "slot_" + Date.now() + "@school.local";
+      const res = await usersService.create({
+        name: newSlotData.name.trim(),
+        email: cleanEmail,
+        password: "Temp@" + Math.floor(100000 + Math.random() * 900000),
+        role: teacherRole,
+        subjects: newSlotData.subject ? [newSlotData.subject] : [],
+        isActive: true,
+      });
+
+      toast.success("تم إنشاء جدول شاغر جديد بنجاح ✅ يمكنك الآن تعبئة حصصه");
+      setNewSlotModalOpen(false);
+      setNewSlotData({ name: "", subject: "" });
+
+      // Refresh teachers & available list
+      const teachersRes = await usersService.getTeachers();
+      const updatedTeachers = teachersRes.data || [];
+      setTeachers(updatedTeachers);
+      if (res.data?._id) {
+        setSelectedTeacherId(res.data._id);
+        setActiveMainTab("single");
+      }
+      fetchAvailableTimetables(selectedWeekId);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "فشل إنشاء الجدول الشاغر");
+    } finally {
+      setCreatingSlot(false);
+    }
+  };
+
   const handleClearCell = async () => {
     const updated = singleSchedules.filter(
       (s) =>
@@ -318,7 +372,7 @@ export default function AdminTeacherTimetablesPage() {
           <button
             onClick={() => setActiveMainTab("single")}
             className={
-              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer " +
+              "flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer " +
               (activeMainTab === "single"
                 ? "bg-white text-blue-900 shadow-sm"
                 : "text-gray-600 hover:text-gray-900")
@@ -326,6 +380,19 @@ export default function AdminTeacherTimetablesPage() {
           >
             <span>👤</span>
             <span>جدول المعلم الفردي</span>
+          </button>
+
+          <button
+            onClick={() => setActiveMainTab("available")}
+            className={
+              "flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer " +
+              (activeMainTab === "available"
+                ? "bg-white text-emerald-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900")
+            }
+          >
+            <span>📋</span>
+            <span>الجداول المتاحة والشواغر ({availableTimetables.length})</span>
           </button>
         </div>
 
@@ -411,7 +478,7 @@ export default function AdminTeacherTimetablesPage() {
             onScheduleUpdated={handleMasterScheduleUpdated}
             onOpenTimingsModal={() => setTimingsModalOpen(true)}
           />
-        ) : (
+        ) : activeMainTab === "single" ? (
           /* ========================================================== */
           /* TAB 2: SINGLE TEACHER OFFICIAL TIMETABLE                    */
           /* ========================================================== */
@@ -426,6 +493,127 @@ export default function AdminTeacherTimetablesPage() {
               containerId="teacher-paper-timetable-container"
             />
           </div>
+        ) : (
+          /* ========================================================== */
+          /* TAB 3: AVAILABLE TIMETABLES & VACANT SLOTS                  */
+          /* ========================================================== */
+          <div className="space-y-6">
+            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                  <span>📋</span>
+                  <span>الجداول المدرسية المتاحة والشواغر للمعلّمين الجدد</span>
+                </h3>
+                <p className="text-xs text-gray-500 font-medium mt-1 leading-relaxed">
+                  الجداول التي أعدتها الإدارة وتنتظر تسجيل المعلمين الجدد عبر Google لاختيارها وربطها بحساباتهم فوراً.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setNewSlotModalOpen(true)}
+                className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <span>➕</span>
+                <span>إنشاء جدول شاغر / متاح جديد</span>
+              </button>
+            </div>
+
+            {availableTimetables.length === 0 ? (
+              <div className="bg-white rounded-3xl p-12 border border-gray-100 shadow-sm text-center space-y-3">
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl mx-auto border border-emerald-200">
+                  ✓
+                </div>
+                <h4 className="text-base font-black text-gray-900">
+                  جميع الجداول الحالية مسندة لمعلمين مسجلين
+                </h4>
+                <p className="text-xs text-gray-500 max-w-md mx-auto">
+                  لا توجد جداول شاغرة تنتظر معلمين في هذا الأسبوع. يمكنك إضافة جدول شاغر جديد متى أردت توزيع حصص لمعلم جديد قادم.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setNewSlotModalOpen(true)}
+                  className="px-5 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 transition-colors inline-flex items-center gap-2 cursor-pointer mt-2"
+                >
+                  <span>➕</span>
+                  <span>إضافة جدول شاغر جديد الآن</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {availableTimetables.map((tt) => (
+                  <div
+                    key={tt.teacherId}
+                    className="bg-white border-2 border-emerald-100 hover:border-emerald-500 hover:shadow-lg rounded-3xl p-5 transition-all flex flex-col justify-between space-y-4"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mb-1">
+                            🟢 شاغر متاح للاختيار
+                          </span>
+                          <h4 className="text-base font-black text-gray-900">
+                            {tt.teacherName}
+                          </h4>
+                        </div>
+                        <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-black text-xs px-2.5 py-1 rounded-xl flex-shrink-0">
+                          {tt.totalClasses} حصة
+                        </span>
+                      </div>
+
+                      {/* Subjects */}
+                      {tt.subjects && tt.subjects.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {tt.subjects.map((sub) => (
+                            <span
+                              key={sub._id}
+                              className="text-[11px] font-bold px-2 py-0.5 rounded-lg border"
+                              style={{
+                                backgroundColor: (sub.color || "#3b82f6") + "15",
+                                borderColor: (sub.color || "#3b82f6") + "30",
+                                color: sub.color || "#1e40af",
+                              }}
+                            >
+                              {sub.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Classes */}
+                      {tt.classNames && tt.classNames.length > 0 && (
+                        <div className="text-xs text-gray-500">
+                          <span className="text-gray-400 font-bold block mb-1 text-[11px]">الفصول المسندة:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {tt.classNames.map((c) => (
+                              <span key={c} className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-200">
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-100 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTeacherId(tt.teacherId);
+                          setActiveMainTab("single");
+                        }}
+                        className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <span>✏️</span>
+                        <span>معاينة وتعديل حصص الجدول</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
         )}
       </ErrorBoundary>
 
