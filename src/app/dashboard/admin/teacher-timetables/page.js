@@ -11,7 +11,6 @@ import MasterTimetableGrid from "@/components/schedule/MasterTimetableGrid";
 import PeriodTimingsModal from "@/components/schedule/PeriodTimingsModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import Modal from "@/components/ui/Modal";
-import { Skeleton } from "@/components/ui";
 import { Skeleton, ErrorBoundary } from "@/components/ui";
 
 const COMMON_CLASSES = [
@@ -102,7 +101,7 @@ export default function AdminTeacherTimetablesPage() {
 
   const fetchTeacherSchedule = async (
     teacherId = selectedTeacherId,
-    weekId = selectedWeekId
+    weekId = selectedWeekId,
   ) => {
     if (!teacherId || !weekId) return;
     try {
@@ -129,10 +128,8 @@ export default function AdminTeacherTimetablesPage() {
   const selectedWeek = weeks.find((w) => w._id === selectedWeekId);
 
   // Single View Cell Click
-  const handleCellClick = (day, period, currentCell) => {
   const handleCellClick = (currentCell, day, period) => {
     setActiveDay(day);
-    setActivePeriod(period);
     setActivePeriod(Number(period) || 1);
     const defaultSubjectId =
       selectedTeacher?.subjects && selectedTeacher.subjects.length > 0
@@ -143,9 +140,7 @@ export default function AdminTeacherTimetablesPage() {
       setActiveCellData({
         className: currentCell.className || "",
         subject:
-          currentCell.subject?._id ||
-          currentCell.subject ||
-          defaultSubjectId,
+          currentCell.subject?._id || currentCell.subject || defaultSubjectId,
         room: currentCell.room || "",
       });
     } else {
@@ -194,7 +189,7 @@ export default function AdminTeacherTimetablesPage() {
 
     const updated = [...singleSchedules];
     const existingIndex = updated.findIndex(
-      (s) => s.day === activeDay && Number(s.period) === Number(activePeriod)
+      (s) => s.day === activeDay && Number(s.period) === Number(activePeriod),
     );
 
     const fullSubject = subjects.find((s) => s._id === activeCellData.subject);
@@ -223,13 +218,14 @@ export default function AdminTeacherTimetablesPage() {
         ") يوم " +
         activeDay +
         " — " +
-        activeCellData.className
+        activeCellData.className,
     );
   };
 
   const handleClearCell = async () => {
     const updated = singleSchedules.filter(
-      (s) => !(s.day === activeDay && Number(s.period) === Number(activePeriod))
+      (s) =>
+        !(s.day === activeDay && Number(s.period) === Number(activePeriod)),
     );
     setSingleSchedules(updated);
     setCellModalOpen(false);
@@ -396,31 +392,6 @@ export default function AdminTeacherTimetablesPage() {
         </div>
       </div>
 
-      {loading && !allWeekSchedules.length ? (
-        <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      ) : activeMainTab === "master" ? (
-        /* ========================================================== */
-        /* TAB 1: MASTER SCHOOL TIMETABLE GRID (All Teachers & Classes)*/
-        /* ========================================================== */
-        <MasterTimetableGrid
-          week={selectedWeek}
-          schedules={allWeekSchedules}
-          teachers={teachers}
-          subjects={subjects}
-          settings={settings}
-          onScheduleUpdated={handleMasterScheduleUpdated}
-          onOpenTimingsModal={() => setTimingsModalOpen(true)}
-        />
-      ) : (
-        /* ========================================================== */
-        /* TAB 2: SINGLE TEACHER OFFICIAL TIMETABLE                    */
-        /* ========================================================== */
-        <div className="space-y-4">
-          <TeacherTimetableGrid
-            teacher={selectedTeacher}
       <ErrorBoundary title="تعذر عرض جدول الحصص">
         {loading && !allWeekSchedules.length ? (
           <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-4">
@@ -433,19 +404,13 @@ export default function AdminTeacherTimetablesPage() {
           /* ========================================================== */
           <MasterTimetableGrid
             week={selectedWeek}
-            schedules={singleSchedules}
             schedules={allWeekSchedules}
             teachers={teachers}
             subjects={subjects}
             settings={settings}
-            onCellClick={handleCellClick}
-            editable={true}
-            containerId="teacher-paper-timetable-container"
             onScheduleUpdated={handleMasterScheduleUpdated}
             onOpenTimingsModal={() => setTimingsModalOpen(true)}
           />
-        </div>
-      )}
         ) : (
           /* ========================================================== */
           /* TAB 2: SINGLE TEACHER OFFICIAL TIMETABLE                    */
