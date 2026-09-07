@@ -57,10 +57,17 @@ export default function TeacherAvailableTimetablesPage() {
     try {
       const res = await timetableTemplatesService.claim(selectedTemplate._id, selectedWeekId || undefined);
       toast.success(res.message || "تم اختيار الجدول بنجاح ✅");
-      await refetchUser();
+      try {
+        await refetchUser();
+      } catch {}
       setTemplates((prev) => prev.filter((t) => t._id !== selectedTemplate._id));
       setSelectedTemplate(null);
       setTemplateDetail(null);
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.location.href = "/dashboard/teacher";
+        }, 500);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "فشل اختيار الجدول");
     } finally {

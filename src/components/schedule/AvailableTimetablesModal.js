@@ -63,7 +63,12 @@ export default function AvailableTimetablesModal({ isOpen, onClose, onClaimed })
       const res = await timetableTemplatesService.claim(selectedTemplate._id, selectedWeekId || undefined);
       toast.success(res.message || "تم اختيار الجدول بنجاح ✅");
       if (onClaimed) onClaimed(res.data);
-      onClose();
+      if (onClose) onClose();
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "فشل اختيار الجدول");
     } finally {
