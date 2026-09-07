@@ -1,10 +1,10 @@
 // services/timetableTemplates.service.js
-import api from '@/lib/api';
+import api from "@/lib/api";
 
 export const timetableTemplatesService = {
   /** Get all available (unclaimed) templates */
   async getAll(params = {}) {
-    const { data } = await api.get('/schedules/templates', { params });
+    const { data } = await api.get("/schedules/templates", { params });
     return data;
   },
 
@@ -16,7 +16,7 @@ export const timetableTemplatesService = {
 
   /** Admin: create a new vacant timetable template */
   async create(payload) {
-    const { data } = await api.post('/schedules/templates', payload);
+    const { data } = await api.post("/schedules/templates", payload);
     return data;
   },
 
@@ -28,7 +28,9 @@ export const timetableTemplatesService = {
 
   /** Admin: save all schedule entries for a template */
   async saveEntries(id, entries) {
-    const { data } = await api.put(`/schedules/templates/${id}/entries`, { entries });
+    const { data } = await api.put(`/schedules/templates/${id}/entries`, {
+      entries,
+    });
     return data;
   },
 
@@ -40,13 +42,18 @@ export const timetableTemplatesService = {
 
   /** Teacher: claim a template → converts entries to real Schedule docs */
   async claim(id, weekId) {
-    const { data } = await api.post(`/schedules/templates/${id}/claim`, { weekId });
+    const { data } = await api.post(`/schedules/templates/${id}/claim`, {
+      weekId,
+    });
     return data;
   },
 
   /** Admin: assign a template directly to an existing teacher */
   async assignToTeacher(id, teacherId, weekId) {
-    const { data } = await api.post(`/schedules/templates/${id}/assign`, { teacherId, weekId });
+    const { data } = await api.post(`/schedules/templates/${id}/assign`, {
+      teacherId,
+      weekId,
+    });
     return data;
   },
 

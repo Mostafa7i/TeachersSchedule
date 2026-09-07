@@ -45,11 +45,15 @@ export default function AdminTeacherTimetablesPage() {
   // Timetable Templates (Vacant Slots)
   const [templates, setTemplates] = useState([]);
   const [newTemplateModalOpen, setNewTemplateModalOpen] = useState(false);
-  const [newTemplateData, setNewTemplateData] = useState({ name: "", subjects: [] });
+  const [newTemplateData, setNewTemplateData] = useState({
+    name: "",
+    subjects: [],
+  });
   const [creatingTemplate, setCreatingTemplate] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [selectedTemplateForAssign, setSelectedTemplateForAssign] = useState(null);
+  const [selectedTemplateForAssign, setSelectedTemplateForAssign] =
+    useState(null);
   const [targetTeacherId, setTargetTeacherId] = useState("");
   const [assigning, setAssigning] = useState(false);
 
@@ -306,7 +310,9 @@ export default function AdminTeacherTimetablesPage() {
 
   // Delete vacant template
   const handleDeleteTemplate = async (templateId, templateName) => {
-    if (!window.confirm(`هل أنت متأكد من حذف الجدول الشاغر "${templateName}"؟`)) {
+    if (
+      !window.confirm(`هل أنت متأكد من حذف الجدول الشاغر "${templateName}"؟`)
+    ) {
       return;
     }
     try {
@@ -320,7 +326,11 @@ export default function AdminTeacherTimetablesPage() {
 
   // Unclaim / release template
   const handleUnclaimTemplate = async (templateId, templateName) => {
-    if (!window.confirm(`هل تريد إلغاء تعيين الجدول "${templateName}" وإتاحته كجدول شاغر مجدداً؟`)) {
+    if (
+      !window.confirm(
+        `هل تريد إلغاء تعيين الجدول "${templateName}" وإتاحته كجدول شاغر مجدداً؟`,
+      )
+    ) {
       return;
     }
     try {
@@ -363,7 +373,8 @@ export default function AdminTeacherTimetablesPage() {
             جدول حصص المعلمين الشامل (الورقي والفرعي)
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
-            إدارة وتوزيع الحصص الأسبوعية، تعيين المعلمين، وإعداد الجداول الشاغرة للمعلمين الجدد.
+            إدارة وتوزيع الحصص الأسبوعية، تعيين المعلمين، وإعداد الجداول الشاغرة
+            للمعلمين الجدد.
           </p>
         </div>
 
@@ -428,7 +439,9 @@ export default function AdminTeacherTimetablesPage() {
               }`}
             >
               <span>📋</span>
-              <span>الجداول الشاغرة ({templates.filter((t) => !t.isClaimed).length})</span>
+              <span>
+                الجداول الشاغرة ({templates.filter((t) => !t.isClaimed).length})
+              </span>
             </button>
           </div>
 
@@ -437,7 +450,9 @@ export default function AdminTeacherTimetablesPage() {
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Week Selector */}
               <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl">
-                <span className="text-xs font-bold text-gray-500">الأسبوع:</span>
+                <span className="text-xs font-bold text-gray-500">
+                  الأسبوع:
+                </span>
                 <select
                   value={selectedWeekId}
                   onChange={(e) => setSelectedWeekId(e.target.value)}
@@ -454,7 +469,9 @@ export default function AdminTeacherTimetablesPage() {
               {/* Single Teacher View Selector */}
               {activeMainTab === "single" && (
                 <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
-                  <span className="text-xs font-bold text-blue-800">المعلم:</span>
+                  <span className="text-xs font-bold text-blue-800">
+                    المعلم:
+                  </span>
                   <select
                     value={selectedTeacherId}
                     onChange={(e) => setSelectedTeacherId(e.target.value)}
@@ -481,8 +498,8 @@ export default function AdminTeacherTimetablesPage() {
             {activeMainTab === "master"
               ? "يمكنك تعيين حصص المعلمين بالكامل في شاشة واحدة — تُحفظ وتنعكس فوراً."
               : activeMainTab === "single"
-              ? "انقر على أي خلية لتحديد الفصل وتعيين الحصة — يُحفظ تلقائياً."
-              : "الجداول الشاغرة هي قوالب مستقلة يعدها المشرف وينتظر اختيارها من المعلمين الجدد عند تسجيلهم."}
+                ? "انقر على أي خلية لتحديد الفصل وتعيين الحصة — يُحفظ تلقائياً."
+                : "الجداول الشاغرة هي قوالب مستقلة يعدها المشرف وينتظر اختيارها من المعلمين الجدد عند تسجيلهم."}
           </span>
         </div>
       </div>
@@ -533,7 +550,8 @@ export default function AdminTeacherTimetablesPage() {
                   <span>الجداول الشاغرة للمعلّمين الجدد (قوالب مستقلة)</span>
                 </h3>
                 <p className="text-xs text-gray-500 font-medium mt-1 leading-relaxed">
-                  أنشئ جداول الحصص بدون إنشاء مستخدمين وهميين. عندما يسجل المعلم الجديد عبر Google يختار جدوله ويبدأ فوراً.
+                  أنشئ جداول الحصص بدون إنشاء مستخدمين وهميين. عندما يسجل المعلم
+                  الجديد عبر Google يختار جدوله ويبدأ فوراً.
                 </p>
               </div>
 
@@ -556,7 +574,8 @@ export default function AdminTeacherTimetablesPage() {
                   لا توجد جداول شاغرة حالياً
                 </h4>
                 <p className="text-xs text-gray-500 max-w-md mx-auto">
-                  يمكنك إنشاء جدول شاغر الآن وتعبئة حصصه مسبقاً ليكون جاهزاً عندما يسجل أي معلم جديد في المدرسة.
+                  يمكنك إنشاء جدول شاغر الآن وتعبئة حصصه مسبقاً ليكون جاهزاً
+                  عندما يسجل أي معلم جديد في المدرسة.
                 </p>
                 <button
                   type="button"
@@ -583,7 +602,8 @@ export default function AdminTeacherTimetablesPage() {
                         <div>
                           {tpl.isClaimed ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full mb-1">
-                              🔒 تم الاختيار ({tpl.claimedBy?.name || "معلم مسجل"})
+                              🔒 تم الاختيار (
+                              {tpl.claimedBy?.name || "معلم مسجل"})
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mb-1">
@@ -607,7 +627,8 @@ export default function AdminTeacherTimetablesPage() {
                               key={sub._id}
                               className="text-[11px] font-bold px-2 py-0.5 rounded-lg border"
                               style={{
-                                backgroundColor: (sub.color || "#3b82f6") + "15",
+                                backgroundColor:
+                                  (sub.color || "#3b82f6") + "15",
                                 borderColor: (sub.color || "#3b82f6") + "30",
                                 color: sub.color || "#1e40af",
                               }}
@@ -625,7 +646,13 @@ export default function AdminTeacherTimetablesPage() {
                             الفصول:
                           </span>
                           <div className="flex flex-wrap gap-1">
-                            {[...new Set(tpl.entries.map((e) => e.className).filter(Boolean))].map((c) => (
+                            {[
+                              ...new Set(
+                                tpl.entries
+                                  .map((e) => e.className)
+                                  .filter(Boolean),
+                              ),
+                            ].map((c) => (
                               <span
                                 key={c}
                                 className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-200"
@@ -645,14 +672,18 @@ export default function AdminTeacherTimetablesPage() {
                         className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <span>✏️</span>
-                        <span>تعديل وتعبئة حصص الجدول ({tpl.entries?.length || 0})</span>
+                        <span>
+                          تعديل وتعبئة حصص الجدول ({tpl.entries?.length || 0})
+                        </span>
                       </button>
 
                       <div className="flex items-center gap-2">
                         {tpl.isClaimed ? (
                           <button
                             type="button"
-                            onClick={() => handleUnclaimTemplate(tpl._id, tpl.name)}
+                            onClick={() =>
+                              handleUnclaimTemplate(tpl._id, tpl.name)
+                            }
                             className="flex-1 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-black shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                             title="إلغاء تعيين هذا الجدول وإتاحته مجدداً كجدول شاغر للمعلمين الجدد"
                           >
@@ -676,7 +707,9 @@ export default function AdminTeacherTimetablesPage() {
 
                         <button
                           type="button"
-                          onClick={() => handleDeleteTemplate(tpl._id, tpl.name)}
+                          onClick={() =>
+                            handleDeleteTemplate(tpl._id, tpl.name)
+                          }
                           className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
                           title="حذف الجدول الشاغر"
                         >
@@ -879,7 +912,9 @@ export default function AdminTeacherTimetablesPage() {
       >
         <div className="space-y-4">
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs text-emerald-900 font-medium leading-relaxed">
-            <span className="font-black">💡 ميزة النظام الجديد:</span> هذا الجدول لا ينشئ مستخدماً وهمياً في النظام! بعد إنشائه، ستفتح لك شاشة بصرية لتعبئة الحصص فوراً.
+            <span className="font-black">💡 ميزة النظام الجديد:</span> هذا
+            الجدول لا ينشئ مستخدماً وهمياً في النظام! بعد إنشائه، ستفتح لك شاشة
+            بصرية لتعبئة الحصص فوراً.
           </div>
 
           <div>
@@ -889,7 +924,9 @@ export default function AdminTeacherTimetablesPage() {
             <input
               type="text"
               value={newTemplateData.name}
-              onChange={(e) => setNewTemplateData({ ...newTemplateData, name: e.target.value })}
+              onChange={(e) =>
+                setNewTemplateData({ ...newTemplateData, name: e.target.value })
+              }
               placeholder="مثال: معلم رياضيات - شاغر 1 / معلم لغة عربية جديد"
               className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold"
               autoFocus
@@ -981,18 +1018,25 @@ export default function AdminTeacherTimetablesPage() {
         <div className="space-y-4">
           {selectedTemplateForAssign && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 space-y-1">
-              <p className="text-xs font-black text-blue-900">الجدول الشاغر المُراد تعيينه:</p>
-              <p className="text-sm font-bold text-blue-800">{selectedTemplateForAssign.name}</p>
+              <p className="text-xs font-black text-blue-900">
+                الجدول الشاغر المُراد تعيينه:
+              </p>
+              <p className="text-sm font-bold text-blue-800">
+                {selectedTemplateForAssign.name}
+              </p>
               <p className="text-xs text-blue-700 font-medium">
                 {selectedTemplateForAssign.entries?.length || 0} حصة •{" "}
-                {(selectedTemplateForAssign.subjects || []).map((s) => s.name).join("، ")}
+                {(selectedTemplateForAssign.subjects || [])
+                  .map((s) => s.name)
+                  .join("، ")}
               </p>
             </div>
           )}
 
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1.5">
-              اختر المعلم المسجل لتعيين الجدول إليه <span className="text-red-500">*</span>
+              اختر المعلم المسجل لتعيين الجدول إليه{" "}
+              <span className="text-red-500">*</span>
             </label>
             <select
               value={targetTeacherId}
@@ -1010,7 +1054,8 @@ export default function AdminTeacherTimetablesPage() {
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-1 font-medium">
-              سيتم نقل جميع حصص الجدول الشاغر إلى حساب المعلم المختار في الأسبوع الحالي مع دمج مواده تلقائياً.
+              سيتم نقل جميع حصص الجدول الشاغر إلى حساب المعلم المختار في الأسبوع
+              الحالي مع دمج مواده تلقائياً.
             </p>
           </div>
         </div>
