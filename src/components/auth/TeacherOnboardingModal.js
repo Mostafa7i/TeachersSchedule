@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Modal from "@/components/ui/Modal";
 import { useAuth } from "@/contexts/AuthContext";
 import { subjectsService } from "@/services/subjects.service";
@@ -11,6 +11,7 @@ import { useToast } from "@/contexts/ToastContext";
 export default function TeacherOnboardingModal({ isOpen, onClose, onComplete }) {
   const { completeProfile, refetchUser } = useAuth();
   const toast = useToast();
+  const hasClaimedRef = useRef(false);
 
   const [activeTab, setActiveTab] = useState("templates"); // "templates" | "manual"
   const [subjects, setSubjects] = useState([]);
@@ -26,6 +27,7 @@ export default function TeacherOnboardingModal({ isOpen, onClose, onComplete }) 
 
   useEffect(() => {
     if (!isOpen) return;
+    hasClaimedRef.current = false;
     const init = async () => {
       setLoading(true);
       try {
@@ -60,31 +62,35 @@ export default function TeacherOnboardingModal({ isOpen, onClose, onComplete }) 
   };
 
   const handleClaimTemplate = async () => {
-    if (!selectedTemplate) return;
+    if (!selectedTemplate || claiming || hasClaimedRef.current) return;
+    hasClaimedRef.current = true;
     setClaiming(true);
+
     try {
-      const res = await timetableTemplatesService.claim(selectedTemplate._id, selectedWeekId || undefined);
+      const res = await timetableTemplatesService.claim(
+        selectedTemplate._id,
+        selectedWeekId || undefined
+      );
+
       toast.success(res.message || "تم اختيار الجدول بنجاح ✅");
-      try {
-        await refetchUser();
-      } catch {}
-      if (onComplete) onComplete(res.data);
-      if (onClose) onClose();
-      // Reload page to display new timetable directly
+
+      // Direct navigation to teacher dashboard to view newly assigned schedules
       if (typeof window !== "undefined") {
         setTimeout(() => {
-          window.location.reload();
-        }, 300);
+          window.location.href = "/dashboard/teacher";
+        }, 400);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "فشل اختيار الجدول");
-    } finally {
+      hasClaimedRef.current = false;
       setClaiming(false);
+      console.error("Claim error:", err);
+      const msg = err.response?.data?.message || "فشل اختيار الجدول";
+      toast.error(msg);
     }
   };
 
   const handleManualSave = async () => {
-    if (selectedSubjects.length === 0) {
+    if (selectedSubjects.length === 0 || saving) {
       toast.error("يرجى اختيار مادة واحدة على الأقل");
       return;
     }
@@ -92,20 +98,14 @@ export default function TeacherOnboardingModal({ isOpen, onClose, onComplete }) 
     try {
       await completeProfile({ subjects: selectedSubjects });
       toast.success("تم حفظ التخصصات بنجاح ✅");
-      try {
-        await refetchUser();
-      } catch {}
-      if (onComplete) onComplete();
-      if (onClose) onClose();
       if (typeof window !== "undefined") {
         setTimeout(() => {
-          window.location.reload();
-        }, 300);
+          window.location.href = "/dashboard/teacher";
+        }, 400);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "فشل حفظ بيانات الملف الشخصي");
-    } finally {
       setSaving(false);
+      toast.error(err.response?.data?.message || "فشل حفظ بيانات الملف الشخصي");
     }
   };
 
@@ -139,7 +139,7 @@ export default function TeacherOnboardingModal({ isOpen, onClose, onComplete }) 
               className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl shadow-sm disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer"
             >
               {claiming
-                ? <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" /><span>جاري الاختيار...</span></>
+                ? <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" /><span>جاري التحويل لجدولك...</span></>
                 : <><span>✅</span><span>اختيار هذا الجدول والبدء</span></>
               }
             </button>
