@@ -6,9 +6,11 @@ import { usersService } from "@/services/users.service";
 import { weeksService, schedulesService } from "@/services/schedules.service";
 import { subjectsService } from "@/services/subjects.service";
 import { settingsService } from "@/services/settings.service";
+import { timetableTemplatesService } from "@/services/timetableTemplates.service";
 import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
 import MasterTimetableGrid from "@/components/schedule/MasterTimetableGrid";
 import PeriodTimingsModal from "@/components/schedule/PeriodTimingsModal";
+import TemplateEntriesEditorModal from "@/components/schedule/TemplateEntriesEditorModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import Modal from "@/components/ui/Modal";
 import { Skeleton, ErrorBoundary } from "@/components/ui";
@@ -28,7 +30,7 @@ const COMMON_CLASSES = [
 export default function AdminTeacherTimetablesPage() {
   const toast = useToast();
 
-  const [activeMainTab, setActiveMainTab] = useState("master"); // 'master' | 'single'
+  const [activeMainTab, setActiveMainTab] = useState("master"); // 'master' | 'single' | 'templates'
   const [teachers, setTeachers] = useState([]);
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [weeks, setWeeks] = useState([]);
@@ -39,12 +41,15 @@ export default function AdminTeacherTimetablesPage() {
   // Single teacher schedules & all-week schedules
   const [singleSchedules, setSingleSchedules] = useState([]);
   const [allWeekSchedules, setAllWeekSchedules] = useState([]);
-  const [availableTimetables, setAvailableTimetables] = useState([]);
-  const [newSlotModalOpen, setNewSlotModalOpen] = useState(false);
-  const [newSlotData, setNewSlotData] = useState({ name: "", subject: "" });
-  const [creatingSlot, setCreatingSlot] = useState(false);
+
+  // Timetable Templates (Vacant Slots)
+  const [templates, setTemplates] = useState([]);
+  const [newTemplateModalOpen, setNewTemplateModalOpen] = useState(false);
+  const [newTemplateData, setNewTemplateData] = useState({ name: "", subjects: [] });
+  const [creatingTemplate, setCreatingTemplate] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [selectedSourceSlot, setSelectedSourceSlot] = useState(null);
+  const [selectedTemplateForAssign, setSelectedTemplateForAssign] = useState(null);
   const [targetTeacherId, setTargetTeacherId] = useState("");
   const [assigning, setAssigning] = useState(false);
 
@@ -84,21 +89,21 @@ export default function AdminTeacherTimetablesPage() {
 
         if (teachersList.length > 0) setSelectedTeacherId(teachersList[0]._id);
         if (weeksList.length > 0) setSelectedWeekId(weeksList[0]._id);
-      } catch (err) {
+      } catch {
         toast.error("فشل تحميل البيانات الأساسية");
       } finally {
         setLoading(false);
       }
     };
     init();
+    fetchTemplates();
   }, []);
 
-  // 2. Fetch all schedules for the week (for master grid) & for selected teacher
-  const fetchAvailableTimetables = async (weekId = selectedWeekId) => {
+  const fetchTemplates = async () => {
     try {
-      const res = await schedulesService.getAvailableTimetables(weekId);
-      setAvailableTimetables(res.data?.timetables || []);
-    } catch (err) {
+      const res = await timetableTemplatesService.getAll({ includeAll: true });
+      setTemplates(res.data || []);
+    } catch {
       // ignore
     }
   };
@@ -109,7 +114,7 @@ export default function AdminTeacherTimetablesPage() {
       setLoading(true);
       const res = await schedulesService.getByWeek(weekId);
       setAllWeekSchedules(res.data?.schedules || []);
-    } catch (err) {
+    } catch {
       // ignore
     } finally {
       setLoading(false);
@@ -124,7 +129,7 @@ export default function AdminTeacherTimetablesPage() {
     try {
       const res = await schedulesService.getTeacherTimetable(teacherId, weekId);
       setSingleSchedules(res.data?.schedules || []);
-    } catch (err) {
+    } catch {
       toast.error("فشل جلب جدول حصص المعلم");
     }
   };
@@ -132,7 +137,6 @@ export default function AdminTeacherTimetablesPage() {
   useEffect(() => {
     if (selectedWeekId) {
       fetchWeekData(selectedWeekId);
-      fetchAvailableTimetables(selectedWeekId);
     }
   }, [selectedWeekId]);
 
@@ -189,7 +193,6 @@ export default function AdminTeacherTimetablesPage() {
         entries: payloadEntries,
       });
 
-      // Refresh master week schedules in background
       fetchWeekData(selectedWeekId);
     } catch (err) {
       toast.error(err.response?.data?.message || "فشل الحفظ التلقائي");
@@ -240,66 +243,60 @@ export default function AdminTeacherTimetablesPage() {
     );
   };
 
-  const handleCreateAvailableSlot = async (e) => {
+  // Create Timetable Template (No fake user!)
+  const handleCreateTemplate = async (e) => {
     e?.preventDefault();
-    if (!newSlotData.name.trim()) {
-      toast.error(
-        "يرجى إدخال اسم الجدول / الشاغر (مثال: معلم رياضيات - شاغر 1)",
-      );
+    if (!newTemplateData.name.trim()) {
+      toast.error("يرجى إدخال اسم الجدول الشاغر (مثال: معلم رياضيات - شاغر 1)");
       return;
     }
-    setCreatingSlot(true);
+    setCreatingTemplate(true);
     try {
-      // Use dedicated backend endpoint — role is resolved server-side automatically
-      const res = await schedulesService.createVacantSlot({
-        name: newSlotData.name.trim(),
-        subjectId: newSlotData.subject || undefined,
+      const res = await timetableTemplatesService.create({
+        name: newTemplateData.name.trim(),
+        subjects: newTemplateData.subjects,
       });
 
-      const newTeacher = res.data;
-      toast.success("تم إنشاء جدول شاغر جديد بنجاح ✅ يمكنك الآن تعبئة حصصه");
-      setNewSlotModalOpen(false);
-      setNewSlotData({ name: "", subject: "" });
+      toast.success(res.message || "تم إنشاء الجدول الشاغر بنجاح ✅");
+      setNewTemplateModalOpen(false);
+      setNewTemplateData({ name: "", subjects: [] });
+      fetchTemplates();
 
-      // Refresh teachers & available list
-      const teachersRes = await usersService.getTeachers();
-      const updatedTeachers = teachersRes.data || [];
-      setTeachers(updatedTeachers);
-      if (newTeacher?._id) {
-        setSelectedTeacherId(newTeacher._id);
-        setActiveMainTab("single");
+      // Automatically open editor for newly created template
+      if (res.data?._id) {
+        setEditingTemplate(res.data);
       }
-      fetchAvailableTimetables(selectedWeekId);
     } catch (err) {
       toast.error(err.response?.data?.message || "فشل إنشاء الجدول الشاغر");
     } finally {
-      setCreatingSlot(false);
+      setCreatingTemplate(false);
     }
   };
 
-  const handleAssignToExistingTeacher = async (e) => {
+  // Assign template to existing registered teacher
+  const handleAssignTemplate = async (e) => {
     e?.preventDefault();
-    if (!selectedSourceSlot || !targetTeacherId) {
+    if (!selectedTemplateForAssign || !targetTeacherId) {
       toast.error("يرجى اختيار المعلم المستهدف للتعيين");
       return;
     }
     setAssigning(true);
     try {
-      const res = await schedulesService.assignTimetableToTeacher({
-        sourceTeacherId: selectedSourceSlot.teacherId,
+      const res = await timetableTemplatesService.assignToTeacher(
+        selectedTemplateForAssign._id,
         targetTeacherId,
-        weekId: selectedWeekId,
-      });
+        selectedWeekId || undefined,
+      );
 
       toast.success(res.message || "تم تعيين الجدول للمعلم بنجاح ✅");
       setAssignModalOpen(false);
-      setSelectedSourceSlot(null);
+      setSelectedTemplateForAssign(null);
       setTargetTeacherId("");
 
       const teachersRes = await usersService.getTeachers();
       setTeachers(teachersRes.data || []);
+      fetchTemplates();
       fetchWeekData(selectedWeekId);
-      fetchAvailableTimetables(selectedWeekId);
     } catch (err) {
       toast.error(err.response?.data?.message || "فشل تعيين الجدول");
     } finally {
@@ -307,15 +304,17 @@ export default function AdminTeacherTimetablesPage() {
     }
   };
 
-  const handleToggleClaimedDirectly = async (teacherId, isClaimed) => {
+  // Delete vacant template
+  const handleDeleteTemplate = async (templateId, templateName) => {
+    if (!window.confirm(`هل أنت متأكد من حذف الجدول الشاغر "${templateName}"؟`)) {
+      return;
+    }
     try {
-      const res = await schedulesService.toggleTimetableClaimed({ teacherId, isClaimed });
-      toast.success(res.message || "تم تحديث حالة الجدول بنجاح ✅");
-      const teachersRes = await usersService.getTeachers();
-      setTeachers(teachersRes.data || []);
-      fetchAvailableTimetables(selectedWeekId);
+      await timetableTemplatesService.remove(templateId);
+      toast.success("تم حذف الجدول الشاغر بنجاح");
+      fetchTemplates();
     } catch (err) {
-      toast.error(err.response?.data?.message || "فشل تحديث الحالة");
+      toast.error(err.response?.data?.message || "فشل حذف الجدول");
     }
   };
 
@@ -330,8 +329,7 @@ export default function AdminTeacherTimetablesPage() {
     toast.info("تم تفريغ الحصة (" + activePeriod + ") يوم " + activeDay);
   };
 
-  // Callback when master grid updates a cell
-  const handleMasterScheduleUpdated = (updatedCell) => {
+  const handleMasterScheduleUpdated = () => {
     fetchWeekData(selectedWeekId);
     if (selectedTeacherId) {
       fetchTeacherSchedule(selectedTeacherId, selectedWeekId);
@@ -346,148 +344,118 @@ export default function AdminTeacherTimetablesPage() {
           <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold mb-1.5">
             <span>🗓️ النظام المدرسي لتوزيع الحصص والجداول</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900">
-            توزيع وجداول حصص المعلمين
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+            جدول حصص المعلمين الشامل (الورقي والفرعي)
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
-            الجدول الرئيسي العام المجمع لجميع المعلمين والفصول مع الحفظ التلقائي
-            الفوري.
+            إدارة وتوزيع الحصص الأسبوعية، تعيين المعلمين، وإعداد الجداول الشاغرة للمعلمين الجدد.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {saving && (
-            <span className="flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl font-semibold">
-              <svg
-                className="animate-spin w-3.5 h-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-              جاري الحفظ...
-            </span>
-          )}
-
-          <ExportButtons
-            targetElementId={
-              activeMainTab === "master"
-                ? "master-timetable-export-container"
-                : "teacher-paper-timetable-container"
-            }
-            weekLabel={
-              activeMainTab === "master"
-                ? "الجدول_المدرسي_العام_المجمع"
-                : "جدول_حصص_" + (selectedTeacher?.name || "")
-            }
-          />
-        </div>
+        <ExportButtons
+          targetElementId={
+            activeMainTab === "master"
+              ? "master-timetable-print-container"
+              : "teacher-paper-timetable-container"
+          }
+          weekLabel={
+            activeMainTab === "master"
+              ? "الجدول_العام_للمدرسة_" + (selectedWeek?.label || "")
+              : "جدول_المعلم_" +
+                (selectedTeacher?.name?.replace(/\s+/g, "_") || "") +
+                "_" +
+                (selectedWeek?.label || "")
+          }
+        />
       </div>
 
-      {/* Main Tabs Switcher */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-gray-200 pb-2">
-        <div className="flex items-center gap-2 bg-gray-200/80 p-1.5 rounded-2xl max-w-lg">
-          <button
-            onClick={() => setActiveMainTab("master")}
-            className={
-              "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer " +
-              (activeMainTab === "master"
-                ? "bg-white text-blue-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900")
-            }
-          >
-            <span>📊</span>
-            <span>الجدول المدرسي العام المجمع</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMainTab("single")}
-            className={
-              "flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer " +
-              (activeMainTab === "single"
-                ? "bg-white text-blue-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900")
-            }
-          >
-            <span>👤</span>
-            <span>جدول المعلم الفردي</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMainTab("available")}
-            className={
-              "flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer " +
-              (activeMainTab === "available"
-                ? "bg-white text-emerald-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900")
-            }
-          >
-            <span>📋</span>
-            <span>الجداول المتاحة والشواغر ({availableTimetables.length})</span>
-          </button>
-        </div>
-
-        {/* Adjust Period Timings Button */}
-        <button
-          onClick={() => setTimingsModalOpen(true)}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap"
-        >
-          <span>⚙️</span>
-          <span>ضبط وتعديل أوقات الحصص</span>
-        </button>
-      </div>
-
-      {/* Week Selector Bar */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-4 flex-1">
-          <div className="min-w-[260px]">
-            <label className="block text-xs font-bold text-gray-700 mb-1">
-              الأسبوع الدراسي
-            </label>
-            <select
-              value={selectedWeekId}
-              onChange={(e) => setSelectedWeekId(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm font-bold bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+      {/* Top Navigation & Controls Bar */}
+      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-100 shadow-xs space-y-4">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Main Tabs Selector */}
+          <div className="flex items-center p-1.5 bg-gray-100/80 rounded-2xl gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveMainTab("master")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeMainTab === "master"
+                  ? "bg-slate-900 text-white shadow-md shadow-slate-900/10"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+              }`}
             >
-              {weeks.map((w) => (
-                <option key={w._id} value={w._id}>
-                  📅 {w.label}
-                </option>
-              ))}
-            </select>
+              <span>🏫</span>
+              <span>الجدول العام لجميع المعلمين</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveMainTab("single")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeMainTab === "single"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+              }`}
+            >
+              <span>👨‍🏫</span>
+              <span>جدول معلم مخصص (توزيع الحصص)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveMainTab("templates");
+                fetchTemplates();
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeMainTab === "templates"
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-white/60"
+              }`}
+            >
+              <span>📋</span>
+              <span>الجداول الشاغرة ({templates.filter((t) => !t.isClaimed).length})</span>
+            </button>
           </div>
 
-          {activeMainTab === "single" && (
-            <div className="min-w-[260px]">
-              <label className="block text-xs font-bold text-gray-700 mb-1">
-                اختر المعلم <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={selectedTeacherId}
-                onChange={(e) => setSelectedTeacherId(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm font-bold bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                {teachers.map((t) => (
-                  <option key={t._id} value={t._id}>
-                    👨‍🏫 {t.name} (
-                    {t.subjects?.map((s) => s.name).join("، ") ||
-                      "لا توجد مادة"}
-                    )
-                  </option>
-                ))}
-              </select>
+          {/* Quick Selectors */}
+          {activeMainTab !== "templates" && (
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Week Selector */}
+              <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl">
+                <span className="text-xs font-bold text-gray-500">الأسبوع:</span>
+                <select
+                  value={selectedWeekId}
+                  onChange={(e) => setSelectedWeekId(e.target.value)}
+                  className="text-xs font-black text-gray-900 bg-transparent focus:outline-none cursor-pointer"
+                >
+                  {weeks.map((w) => (
+                    <option key={w._id} value={w._id}>
+                      {w.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Single Teacher View Selector */}
+              {activeMainTab === "single" && (
+                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
+                  <span className="text-xs font-bold text-blue-800">المعلم:</span>
+                  <select
+                    value={selectedTeacherId}
+                    onChange={(e) => setSelectedTeacherId(e.target.value)}
+                    className="text-xs font-black text-blue-950 bg-transparent focus:outline-none cursor-pointer"
+                  >
+                    {teachers.map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.name}
+                        {t.subjects && t.subjects.length > 0
+                          ? ` (${t.subjects.map((s) => s.name).join("، ")})`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -497,7 +465,9 @@ export default function AdminTeacherTimetablesPage() {
           <span>
             {activeMainTab === "master"
               ? "يمكنك تعيين حصص المعلمين بالكامل في شاشة واحدة — تُحفظ وتنعكس فوراً."
-              : "انقر على أي خلية لتحديد الفصل وتعيين الحصة — يُحفظ تلقائياً."}
+              : activeMainTab === "single"
+              ? "انقر على أي خلية لتحديد الفصل وتعيين الحصة — يُحفظ تلقائياً."
+              : "الجداول الشاغرة هي قوالب مستقلة يعدها المشرف وينتظر اختيارها من المعلمين الجدد عند تسجيلهم."}
           </span>
         </div>
       </div>
@@ -538,84 +508,91 @@ export default function AdminTeacherTimetablesPage() {
           </div>
         ) : (
           /* ========================================================== */
-          /* TAB 3: AVAILABLE TIMETABLES & VACANT SLOTS                  */
+          /* TAB 3: TIMETABLE TEMPLATES (Independent Vacant Slots)      */
           /* ========================================================== */
           <div className="space-y-6">
             <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
                   <span>📋</span>
-                  <span>الجداول المدرسية المتاحة والشواغر للمعلّمين الجدد</span>
+                  <span>الجداول الشاغرة للمعلّمين الجدد (قوالب مستقلة)</span>
                 </h3>
                 <p className="text-xs text-gray-500 font-medium mt-1 leading-relaxed">
-                  الجداول التي أعدتها الإدارة وتنتظر تسجيل المعلمين الجدد عبر
-                  Google لاختيارها وربطها بحساباتهم فوراً.
+                  أنشئ جداول الحصص بدون إنشاء مستخدمين وهميين. عندما يسجل المعلم الجديد عبر Google يختار جدوله ويبدأ فوراً.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={() => setNewSlotModalOpen(true)}
-                className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                onClick={() => setNewTemplateModalOpen(true)}
+                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
                 <span>➕</span>
-                <span>إنشاء جدول شاغر / متاح جديد</span>
+                <span>إنشاء جدول شاغر جديد</span>
               </button>
             </div>
 
-            {availableTimetables.length === 0 ? (
+            {templates.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 border border-gray-100 shadow-sm text-center space-y-3">
                 <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl mx-auto border border-emerald-200">
-                  ✓
+                  📋
                 </div>
                 <h4 className="text-base font-black text-gray-900">
-                  جميع الجداول الحالية مسندة لمعلمين مسجلين
+                  لا توجد جداول شاغرة حالياً
                 </h4>
                 <p className="text-xs text-gray-500 max-w-md mx-auto">
-                  لا توجد جداول شاغرة تنتظر معلمين في هذا الأسبوع. يمكنك إضافة
-                  جدول شاغر جديد متى أردت توزيع حصص لمعلم جديد قادم.
+                  يمكنك إنشاء جدول شاغر الآن وتعبئة حصصه مسبقاً ليكون جاهزاً عندما يسجل أي معلم جديد في المدرسة.
                 </p>
                 <button
                   type="button"
-                  onClick={() => setNewSlotModalOpen(true)}
+                  onClick={() => setNewTemplateModalOpen(true)}
                   className="px-5 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 transition-colors inline-flex items-center gap-2 cursor-pointer mt-2"
                 >
                   <span>➕</span>
-                  <span>إضافة جدول شاغر جديد الآن</span>
+                  <span>إنشاء جدول شاغر جديد الآن</span>
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {availableTimetables.map((tt) => (
+                {templates.map((tpl) => (
                   <div
-                    key={tt.teacherId}
-                    className="bg-white border-2 border-emerald-100 hover:border-emerald-500 hover:shadow-lg rounded-3xl p-5 transition-all flex flex-col justify-between space-y-4"
+                    key={tpl._id}
+                    className={`bg-white border-2 rounded-3xl p-5 transition-all flex flex-col justify-between space-y-4 ${
+                      tpl.isClaimed
+                        ? "border-gray-200 bg-gray-50/40 opacity-90"
+                        : "border-emerald-100 hover:border-emerald-500 hover:shadow-lg"
+                    }`}
                   >
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mb-1">
-                            🟢 شاغر متاح للاختيار
-                          </span>
+                          {tpl.isClaimed ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full mb-1">
+                              🔒 تم الاختيار ({tpl.claimedBy?.name || "معلم مسجل"})
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mb-1">
+                              🟢 شاغر متاح للاختيار
+                            </span>
+                          )}
                           <h4 className="text-base font-black text-gray-900">
-                            {tt.teacherName}
+                            {tpl.name}
                           </h4>
                         </div>
                         <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-black text-xs px-2.5 py-1 rounded-xl flex-shrink-0">
-                          {tt.totalClasses} حصة
+                          {tpl.entries?.length || 0} حصة
                         </span>
                       </div>
 
                       {/* Subjects */}
-                      {tt.subjects && tt.subjects.length > 0 && (
+                      {tpl.subjects && tpl.subjects.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {tt.subjects.map((sub) => (
+                          {tpl.subjects.map((sub) => (
                             <span
                               key={sub._id}
                               className="text-[11px] font-bold px-2 py-0.5 rounded-lg border"
                               style={{
-                                backgroundColor:
-                                  (sub.color || "#3b82f6") + "15",
+                                backgroundColor: (sub.color || "#3b82f6") + "15",
                                 borderColor: (sub.color || "#3b82f6") + "30",
                                 color: sub.color || "#1e40af",
                               }}
@@ -626,14 +603,14 @@ export default function AdminTeacherTimetablesPage() {
                         </div>
                       )}
 
-                      {/* Classes */}
-                      {tt.classNames && tt.classNames.length > 0 && (
+                      {/* Classes summary */}
+                      {tpl.entries && tpl.entries.length > 0 && (
                         <div className="text-xs text-gray-500">
                           <span className="text-gray-400 font-bold block mb-1 text-[11px]">
-                            الفصول المسندة:
+                            الفصول:
                           </span>
                           <div className="flex flex-wrap gap-1">
-                            {tt.classNames.map((c) => (
+                            {[...new Set(tpl.entries.map((e) => e.className).filter(Boolean))].map((c) => (
                               <span
                                 key={c}
                                 className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-200"
@@ -647,41 +624,43 @@ export default function AdminTeacherTimetablesPage() {
                     </div>
 
                     <div className="pt-3 border-t border-gray-100 space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedTeacherId(tt.teacherId);
-                          setActiveMainTab("single");
-                        }}
-                        className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <span>✏️</span>
-                        <span>معاينة وتعديل الحصص</span>
-                      </button>
+                      {!tpl.isClaimed && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingTemplate(tpl)}
+                          className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <span>✏️</span>
+                          <span>تعديل وتعبئة حصص الجدول ({tpl.entries?.length || 0})</span>
+                        </button>
+                      )}
 
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedSourceSlot(tt);
-                            setTargetTeacherId("");
-                            setAssignModalOpen(true);
-                          }}
-                          className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
-                        >
-                          <span>👤</span>
-                          <span>تعيين لمدرس حالي</span>
-                        </button>
+                        {!tpl.isClaimed && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedTemplateForAssign(tpl);
+                              setTargetTeacherId("");
+                              setAssignModalOpen(true);
+                            }}
+                            className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <span>👤</span>
+                            <span>تعيين لمدرس مسجل</span>
+                          </button>
+                        )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleToggleClaimedDirectly(tt.teacherId, true)}
-                          className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                          title="تثبيت كجدول مسند لمعلم وليس شاغراً"
-                        >
-                          <span>🔒</span>
-                          <span>تثبيت كمسند</span>
-                        </button>
+                        {!tpl.isClaimed && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTemplate(tpl._id, tpl.name)}
+                            className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                            title="حذف الجدول الشاغر"
+                          >
+                            <span>🗑️</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -711,7 +690,7 @@ export default function AdminTeacherTimetablesPage() {
               <button
                 type="button"
                 onClick={() => setCellModalOpen(false)}
-                className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl"
+                className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl cursor-pointer"
               >
                 إلغاء
               </button>
@@ -748,7 +727,7 @@ export default function AdminTeacherTimetablesPage() {
                     setActiveCellData({ ...activeCellData, className: cls })
                   }
                   className={
-                    "px-3 py-1 rounded-lg text-xs font-bold transition-all " +
+                    "px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer " +
                     (activeCellData.className === cls
                       ? "bg-blue-600 text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200")
@@ -826,24 +805,31 @@ export default function AdminTeacherTimetablesPage() {
         onSettingsUpdated={(newSettings) => setSettings(newSettings)}
       />
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* Modal: إنشاء جدول شاغر جديد                                    */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* Template Entries Visual Editor Modal */}
+      <TemplateEntriesEditorModal
+        isOpen={Boolean(editingTemplate)}
+        onClose={() => setEditingTemplate(null)}
+        template={editingTemplate}
+        subjects={subjects}
+        onSaved={fetchTemplates}
+      />
+
+      {/* Modal: Create Vacant Template */}
       <Modal
-        isOpen={newSlotModalOpen}
+        isOpen={newTemplateModalOpen}
         onClose={() => {
-          setNewSlotModalOpen(false);
-          setNewSlotData({ name: "", subject: "" });
+          setNewTemplateModalOpen(false);
+          setNewTemplateData({ name: "", subjects: [] });
         }}
-        title="➕ إنشاء جدول شاغر / متاح جديد"
+        title="➕ إنشاء جدول شاغر جديد (قالب مستقل)"
         size="md"
         footer={
           <div className="flex items-center justify-between w-full">
             <button
               type="button"
               onClick={() => {
-                setNewSlotModalOpen(false);
-                setNewSlotData({ name: "", subject: "" });
+                setNewTemplateModalOpen(false);
+                setNewTemplateData({ name: "", subjects: [] });
               }}
               className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
             >
@@ -851,11 +837,11 @@ export default function AdminTeacherTimetablesPage() {
             </button>
             <button
               type="button"
-              onClick={handleCreateAvailableSlot}
-              disabled={creatingSlot || !newSlotData.name.trim()}
+              onClick={handleCreateTemplate}
+              disabled={creatingTemplate || !newTemplateData.name.trim()}
               className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl shadow-sm disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer"
             >
-              {creatingSlot ? (
+              {creatingTemplate ? (
                 <>
                   <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
                   <span>جاري الإنشاء...</span>
@@ -863,7 +849,7 @@ export default function AdminTeacherTimetablesPage() {
               ) : (
                 <>
                   <span>➕</span>
-                  <span>إنشاء الجدول الشاغر</span>
+                  <span>إنشاء والبدء بتعبئة الحصص</span>
                 </>
               )}
             </button>
@@ -872,7 +858,7 @@ export default function AdminTeacherTimetablesPage() {
       >
         <div className="space-y-4">
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs text-emerald-900 font-medium leading-relaxed">
-            <span className="font-black">💡 ملاحظة:</span> سيُنشأ جدول فارغ يمكنك تعبئة حصصه فوراً. عند تسجيل المعلم الجديد عبر Google، يختار هذا الجدول ويُربط بحسابه تلقائياً.
+            <span className="font-black">💡 ميزة النظام الجديد:</span> هذا الجدول لا ينشئ مستخدماً وهمياً في النظام! بعد إنشائه، ستفتح لك شاشة بصرية لتعبئة الحصص فوراً.
           </div>
 
           <div>
@@ -881,45 +867,61 @@ export default function AdminTeacherTimetablesPage() {
             </label>
             <input
               type="text"
-              value={newSlotData.name}
-              onChange={(e) => setNewSlotData({ ...newSlotData, name: e.target.value })}
+              value={newTemplateData.name}
+              onChange={(e) => setNewTemplateData({ ...newTemplateData, name: e.target.value })}
               placeholder="مثال: معلم رياضيات - شاغر 1 / معلم لغة عربية جديد"
-              className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold placeholder:font-normal"
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold"
               autoFocus
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1.5">
-              المادة الدراسية الرئيسية (اختياري)
+              المواد الدراسية المرتبطة بهذا الجدول
             </label>
-            <select
-              value={newSlotData.subject}
-              onChange={(e) => setNewSlotData({ ...newSlotData, subject: e.target.value })}
-              className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-            >
-              <option value="">-- لا توجد مادة محددة الآن --</option>
-              {subjects.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.name} ({s.code})
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+              {subjects.map((s) => {
+                const isSelected = newTemplateData.subjects.includes(s._id);
+                return (
+                  <button
+                    key={s._id}
+                    type="button"
+                    onClick={() => {
+                      setNewTemplateData((prev) => ({
+                        ...prev,
+                        subjects: isSelected
+                          ? prev.subjects.filter((id) => id !== s._id)
+                          : [...prev.subjects, s._id],
+                      }));
+                    }}
+                    className={`p-2 rounded-xl border text-right text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                      isSelected
+                        ? "bg-emerald-50 border-emerald-400 text-emerald-950 font-black shadow-2xs"
+                        : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: s.color || "#3b82f6" }}
+                    />
+                    <span className="truncate">{s.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </Modal>
 
-      {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* Modal: تعيين جدول شاغر لمعلم حالي مسجل                         */}
-      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* Modal: Assign Template to Existing Registered Teacher */}
       <Modal
         isOpen={assignModalOpen}
         onClose={() => {
           setAssignModalOpen(false);
-          setSelectedSourceSlot(null);
+          setSelectedTemplateForAssign(null);
           setTargetTeacherId("");
         }}
-        title="👤 تعيين الجدول لمعلم حالي مسجل"
+        title="👤 تعيين الجدول الشاغر لمعلم مسجل"
         size="md"
         footer={
           <div className="flex items-center justify-between w-full">
@@ -927,7 +929,7 @@ export default function AdminTeacherTimetablesPage() {
               type="button"
               onClick={() => {
                 setAssignModalOpen(false);
-                setSelectedSourceSlot(null);
+                setSelectedTemplateForAssign(null);
                 setTargetTeacherId("");
               }}
               className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
@@ -936,7 +938,7 @@ export default function AdminTeacherTimetablesPage() {
             </button>
             <button
               type="button"
-              onClick={handleAssignToExistingTeacher}
+              onClick={handleAssignTemplate}
               disabled={assigning || !targetTeacherId}
               className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm rounded-xl shadow-sm disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer"
             >
@@ -956,13 +958,13 @@ export default function AdminTeacherTimetablesPage() {
         }
       >
         <div className="space-y-4">
-          {selectedSourceSlot && (
+          {selectedTemplateForAssign && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 space-y-1">
-              <p className="text-xs font-black text-blue-900">الجدول المُراد تعيينه:</p>
-              <p className="text-sm font-bold text-blue-800">{selectedSourceSlot.teacherName}</p>
+              <p className="text-xs font-black text-blue-900">الجدول الشاغر المُراد تعيينه:</p>
+              <p className="text-sm font-bold text-blue-800">{selectedTemplateForAssign.name}</p>
               <p className="text-xs text-blue-700 font-medium">
-                {selectedSourceSlot.totalClasses} حصة •{" "}
-                {(selectedSourceSlot.subjects || []).map((s) => s.name).join("، ")}
+                {selectedTemplateForAssign.entries?.length || 0} حصة •{" "}
+                {(selectedTemplateForAssign.subjects || []).map((s) => s.name).join("، ")}
               </p>
             </div>
           )}
@@ -977,19 +979,17 @@ export default function AdminTeacherTimetablesPage() {
               className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-bold"
             >
               <option value="">-- اختر المعلم --</option>
-              {teachers
-                .filter((t) => t._id !== selectedSourceSlot?.teacherId)
-                .map((t) => (
-                  <option key={t._id} value={t._id}>
-                    👨‍🏫 {t.name}
-                    {t.subjects?.length > 0
-                      ? ` — ${t.subjects.map((s) => s.name).join("، ")}`
-                      : ""}
-                  </option>
-                ))}
+              {teachers.map((t) => (
+                <option key={t._id} value={t._id}>
+                  👨‍🏫 {t.name}
+                  {t.subjects?.length > 0
+                    ? ` — ${t.subjects.map((s) => s.name).join("، ")}`
+                    : ""}
+                </option>
+              ))}
             </select>
             <p className="text-xs text-gray-500 mt-1 font-medium">
-              سيتم نقل جميع حصص الجدول الشاغر إلى المعلم المختار مع دمج المواد الدراسية.
+              سيتم نقل جميع حصص الجدول الشاغر إلى حساب المعلم المختار في الأسبوع الحالي مع دمج مواده تلقائياً.
             </p>
           </div>
         </div>
