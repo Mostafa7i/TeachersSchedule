@@ -43,6 +43,10 @@ export default function AdminTeacherTimetablesPage() {
   const [newSlotModalOpen, setNewSlotModalOpen] = useState(false);
   const [newSlotData, setNewSlotData] = useState({ name: "", subject: "" });
   const [creatingSlot, setCreatingSlot] = useState(false);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedSourceSlot, setSelectedSourceSlot] = useState(null);
+  const [targetTeacherId, setTargetTeacherId] = useState("");
+  const [assigning, setAssigning] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -239,13 +243,19 @@ export default function AdminTeacherTimetablesPage() {
   const handleCreateAvailableSlot = async (e) => {
     e?.preventDefault();
     if (!newSlotData.name.trim()) {
-      toast.error("يرجى إدخال اسم الجدول / الشاغر (مثال: معلم رياضيات - شاغر 1)");
+      toast.error(
+        "يرجى إدخال اسم الجدول / الشاغر (مثال: معلم رياضيات - شاغر 1)",
+      );
       return;
     }
     setCreatingSlot(true);
     try {
       // Find teacher role
-      const teacherRole = selectedTeacher?.role?._id || selectedTeacher?.role || teachers[0]?.role?._id || teachers[0]?.role;
+      const teacherRole =
+        selectedTeacher?.role?._id ||
+        selectedTeacher?.role ||
+        teachers[0]?.role?._id ||
+        teachers[0]?.role;
       const cleanEmail = "slot_" + Date.now() + "@school.local";
       const res = await usersService.create({
         name: newSlotData.name.trim(),
@@ -273,6 +283,48 @@ export default function AdminTeacherTimetablesPage() {
       toast.error(err.response?.data?.message || "فشل إنشاء الجدول الشاغر");
     } finally {
       setCreatingSlot(false);
+    }
+  };
+
+  const handleAssignToExistingTeacher = async (e) => {
+    e?.preventDefault();
+    if (!selectedSourceSlot || !targetTeacherId) {
+      toast.error("يرجى اختيار المعلم المستهدف للتعيين");
+      return;
+    }
+    setAssigning(true);
+    try {
+      const res = await schedulesService.assignTimetableToTeacher({
+        sourceTeacherId: selectedSourceSlot.teacherId,
+        targetTeacherId,
+        weekId: selectedWeekId,
+      });
+
+      toast.success(res.message || "تم تعيين الجدول للمعلم بنجاح ✅");
+      setAssignModalOpen(false);
+      setSelectedSourceSlot(null);
+      setTargetTeacherId("");
+
+      const teachersRes = await usersService.getTeachers();
+      setTeachers(teachersRes.data || []);
+      fetchWeekData(selectedWeekId);
+      fetchAvailableTimetables(selectedWeekId);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "فشل تعيين الجدول");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleToggleClaimedDirectly = async (teacherId, isClaimed) => {
+    try {
+      const res = await schedulesService.toggleTimetableClaimed({ teacherId, isClaimed });
+      toast.success(res.message || "تم تحديث حالة الجدول بنجاح ✅");
+      const teachersRes = await usersService.getTeachers();
+      setTeachers(teachersRes.data || []);
+      fetchAvailableTimetables(selectedWeekId);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "فشل تحديث الحالة");
     }
   };
 
@@ -505,7 +557,8 @@ export default function AdminTeacherTimetablesPage() {
                   <span>الجداول المدرسية المتاحة والشواغر للمعلّمين الجدد</span>
                 </h3>
                 <p className="text-xs text-gray-500 font-medium mt-1 leading-relaxed">
-                  الجداول التي أعدتها الإدارة وتنتظر تسجيل المعلمين الجدد عبر Google لاختيارها وربطها بحساباتهم فوراً.
+                  الجداول التي أعدتها الإدارة وتنتظر تسجيل المعلمين الجدد عبر
+                  Google لاختيارها وربطها بحساباتهم فوراً.
                 </p>
               </div>
 
@@ -528,7 +581,8 @@ export default function AdminTeacherTimetablesPage() {
                   جميع الجداول الحالية مسندة لمعلمين مسجلين
                 </h4>
                 <p className="text-xs text-gray-500 max-w-md mx-auto">
-                  لا توجد جداول شاغرة تنتظر معلمين في هذا الأسبوع. يمكنك إضافة جدول شاغر جديد متى أردت توزيع حصص لمعلم جديد قادم.
+                  لا توجد جداول شاغرة تنتظر معلمين في هذا الأسبوع. يمكنك إضافة
+                  جدول شاغر جديد متى أردت توزيع حصص لمعلم جديد قادم.
                 </p>
                 <button
                   type="button"
@@ -569,7 +623,8 @@ export default function AdminTeacherTimetablesPage() {
                               key={sub._id}
                               className="text-[11px] font-bold px-2 py-0.5 rounded-lg border"
                               style={{
-                                backgroundColor: (sub.color || "#3b82f6") + "15",
+                                backgroundColor:
+                                  (sub.color || "#3b82f6") + "15",
                                 borderColor: (sub.color || "#3b82f6") + "30",
                                 color: sub.color || "#1e40af",
                               }}
@@ -583,10 +638,15 @@ export default function AdminTeacherTimetablesPage() {
                       {/* Classes */}
                       {tt.classNames && tt.classNames.length > 0 && (
                         <div className="text-xs text-gray-500">
-                          <span className="text-gray-400 font-bold block mb-1 text-[11px]">الفصول المسندة:</span>
+                          <span className="text-gray-400 font-bold block mb-1 text-[11px]">
+                            الفصول المسندة:
+                          </span>
                           <div className="flex flex-wrap gap-1">
                             {tt.classNames.map((c) => (
-                              <span key={c} className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-200">
+                              <span
+                                key={c}
+                                className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-bold border border-gray-200"
+                              >
                                 {c}
                               </span>
                             ))}
@@ -595,25 +655,49 @@ export default function AdminTeacherTimetablesPage() {
                       )}
                     </div>
 
-                    <div className="pt-3 border-t border-gray-100 flex items-center gap-2">
+                    <div className="pt-3 border-t border-gray-100 space-y-2">
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedTeacherId(tt.teacherId);
                           setActiveMainTab("single");
                         }}
-                        className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <span>✏️</span>
-                        <span>معاينة وتعديل حصص الجدول</span>
+                        <span>معاينة وتعديل الحصص</span>
                       </button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedSourceSlot(tt);
+                            setTargetTeacherId("");
+                            setAssignModalOpen(true);
+                          }}
+                          className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <span>👤</span>
+                          <span>تعيين لمدرس حالي</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleClaimedDirectly(tt.teacherId, true)}
+                          className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                          title="تثبيت كجدول مسند لمعلم وليس شاغراً"
+                        >
+                          <span>🔒</span>
+                          <span>تثبيت كمسند</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-
         )}
       </ErrorBoundary>
 

@@ -26,6 +26,22 @@ export const schedulesService = {
     return data;
   },
 
+  async assignTimetableToTeacher(payload) {
+    const { data } = await api.post(
+      "/schedules/assign-timetable-to-teacher",
+      payload,
+    );
+    return data;
+  },
+
+  async toggleTimetableClaimed(payload) {
+    const { data } = await api.post(
+      "/schedules/toggle-timetable-claimed",
+      payload,
+    );
+    return data;
+  },
+
   async getTeacherTimetable(teacherId, weekId) {
     const { data } = await api.get(
       `/schedules/teacher-timetable/${teacherId}`,
