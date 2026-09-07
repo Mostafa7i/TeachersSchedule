@@ -14,6 +14,18 @@ export const schedulesService = {
     return data;
   },
 
+  async getAvailableTimetables(weekId) {
+    const { data } = await api.get("/schedules/available-timetables", {
+      params: weekId ? { weekId } : {},
+    });
+    return data;
+  },
+
+  async claimTimetable(payload) {
+    const { data } = await api.post("/schedules/claim-timetable", payload);
+    return data;
+  },
+
   async getTeacherTimetable(teacherId, weekId) {
     const { data } = await api.get(
       `/schedules/teacher-timetable/${teacherId}`,

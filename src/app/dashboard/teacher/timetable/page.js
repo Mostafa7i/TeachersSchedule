@@ -11,6 +11,7 @@ import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
 import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
+import AvailableTimetablesModal from "@/components/schedule/AvailableTimetablesModal";
 import { TableSkeleton, ErrorBoundary } from "@/components/ui";
 
 export default function TeacherTimetablePage() {
@@ -26,6 +27,7 @@ export default function TeacherTimetablePage() {
 
   // Edit Modal State
   const [modalOpen, setModalOpen] = useState(false);
+  const [availableModalOpen, setAvailableModalOpen] = useState(false);
   const [activeCell, setActiveCell] = useState(null);
   const [activeDay, setActiveDay] = useState("");
   const [activePeriod, setActivePeriod] = useState(1);
@@ -153,6 +155,17 @@ export default function TeacherTimetablePage() {
           </p>
         </div>
 
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setAvailableModalOpen(true)}
+            className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+          >
+            <span>📋</span>
+            <span>الجداول المتاحة بالمدرسة</span>
+          </button>
+        </div>
+
         {/* User Badge */}
         {user && (
           <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-2.5 flex items-center gap-3">
@@ -170,6 +183,34 @@ export default function TeacherTimetablePage() {
           </div>
         )}
       </div>
+
+      
+      {/* Empty State Banner if no classes assigned */}
+      {schedules.length === 0 && !loading && (
+        <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 border-2 border-blue-200 rounded-3xl p-6 sm:p-8 text-center space-y-4 shadow-sm animate-fade-in">
+          <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-lg shadow-blue-500/25">
+            📋
+          </div>
+          <div className="space-y-1.5 max-w-xl mx-auto">
+            <h2 className="text-lg sm:text-xl font-black text-gray-900">
+              لم يتم العثور على حصص في جدولك لهذا الأسبوع!
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed">
+              إذا قامت إدارة المدرسة بوضع وتوزيع جدول الحصص مسبقاً، يمكنك اختياره وتعيينه لحسابك بضغطة زر واحدة.
+            </p>
+          </div>
+          <div className="pt-2 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setAvailableModalOpen(true)}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-black rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <span>📋</span>
+              <span>استعراض واختيار جدولي من الجداول المتاحة بالمدرسة 🚀</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Controls: Week Navigator + Export Buttons */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
@@ -228,6 +269,14 @@ export default function TeacherTimetablePage() {
       />
 
       {/* Obligatory Teacher Onboarding Modal if not completed */}
+      <AvailableTimetablesModal
+        isOpen={availableModalOpen}
+        onClose={() => setAvailableModalOpen(false)}
+        onClaimed={() => {
+          window.location.reload();
+        }}
+      />
+
       <TeacherOnboardingModal
         isOpen={Boolean(
           user && user.isProfileComplete === false && !user.role?.isSystem,
