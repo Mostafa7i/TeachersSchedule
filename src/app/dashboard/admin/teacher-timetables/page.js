@@ -11,6 +11,7 @@ import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
 import MasterTimetableGrid from "@/components/schedule/MasterTimetableGrid";
 import PeriodTimingsModal from "@/components/schedule/PeriodTimingsModal";
 import TemplateEntriesEditorModal from "@/components/schedule/TemplateEntriesEditorModal";
+import PdfTimetableImportModal from "@/components/schedule/PdfTimetableImportModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import Modal from "@/components/ui/Modal";
 import { Skeleton, ErrorBoundary } from "@/components/ui";
@@ -70,6 +71,15 @@ export default function AdminTeacherTimetablesPage() {
     subject: "",
     room: "",
   });
+
+  // Swap / Move Period States
+  const [showSwapSection, setShowSwapSection] = useState(false);
+  const [swapTargetDay, setSwapTargetDay] = useState("الأحد");
+  const [swapTargetPeriod, setSwapTargetPeriod] = useState(1);
+  const [swapping, setSwapping] = useState(false);
+
+  // PDF Import Modal
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
   // 1. Load Initial Metadata
   useEffect(() => {
@@ -157,6 +167,10 @@ export default function AdminTeacherTimetablesPage() {
   const handleCellClick = (currentCell, day, period) => {
     setActiveDay(day);
     setActivePeriod(Number(period) || 1);
+    setShowSwapSection(false);
+    setSwapTargetDay(day);
+    setSwapTargetPeriod(Number(period) === 1 ? 2 : 1);
+
     const defaultSubjectId =
       selectedTeacher?.subjects && selectedTeacher.subjects.length > 0
         ? selectedTeacher.subjects[0]._id || selectedTeacher.subjects[0]
@@ -173,6 +187,38 @@ export default function AdminTeacherTimetablesPage() {
       setActiveCellData({ className: "", subject: defaultSubjectId, room: "" });
     }
     setCellModalOpen(true);
+  };
+
+  const handleExecuteSwap = async () => {
+    if (
+      swapTargetDay === activeDay &&
+      Number(swapTargetPeriod) === Number(activePeriod)
+    ) {
+      toast.error("يرجى اختيار يوم أو حصة مختلفة للنقل أو التبديل");
+      return;
+    }
+
+    setSwapping(true);
+    try {
+      const res = await schedulesService.swapPeriod({
+        weekId: selectedWeekId,
+        teacherId: selectedTeacherId,
+        fromDay: activeDay,
+        fromPeriod: activePeriod,
+        toDay: swapTargetDay,
+        toPeriod: Number(swapTargetPeriod),
+      });
+
+      toast.success(res.message || "تم نقل / تبديل الحصة بنجاح ✅");
+      setCellModalOpen(false);
+      setShowSwapSection(false);
+      fetchTeacherSchedule(selectedTeacherId, selectedWeekId);
+      fetchWeekData(selectedWeekId);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "فشل نقل أو تبديل الحصة");
+    } finally {
+      setSwapping(false);
+    }
   };
 
   const persistSingleTimetable = async (updatedSchedules) => {
@@ -393,6 +439,33 @@ export default function AdminTeacherTimetablesPage() {
                 (selectedWeek?.label || "")
           }
         />
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setPdfModalOpen(true)}
+            className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs sm:text-sm font-black px-4 py-2 sm:py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-500"
+            title="استيراد جداول المعلمين دفعة واحدة من ملف PDF"
+          >
+            <span className="text-base">📥</span>
+            <span>استيراد الجداول من PDF</span>
+          </button>
+
+          <ExportButtons
+            targetElementId={
+              activeMainTab === "master"
+                ? "master-timetable-print-container"
+                : "teacher-paper-timetable-container"
+            }
+            weekLabel={
+              activeMainTab === "master"
+                ? "الجدول_العام_للمدرسة_" + (selectedWeek?.label || "")
+                : "جدول_المعلم_" +
+                  (selectedTeacher?.name?.replace(/\s+/g, "_") || "") +
+                  "_" +
+                  (selectedWeek?.label || "")
+            }
+          />
+        </div>
       </div>
 
       {/* Top Navigation & Controls Bar */}
@@ -563,6 +636,24 @@ export default function AdminTeacherTimetablesPage() {
                 <span>➕</span>
                 <span>إنشاء جدول شاغر جديد</span>
               </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setPdfModalOpen(true)}
+                  className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 font-black text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <span>📥</span>
+                  <span>استيراد جداول من PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewTemplateModalOpen(true)}
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <span>➕</span>
+                  <span>إنشاء جدول شاغر جديد</span>
+                </button>
+              </div>
             </div>
 
             {templates.length === 0 ? (
@@ -848,6 +939,98 @@ export default function AdminTeacherTimetablesPage() {
               className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
           </div>
+
+          {/* Swap / Move Period Section */}
+          <div className="pt-3 border-t border-gray-200">
+            {!showSwapSection ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSwapSection(true);
+                  setSwapTargetDay(activeDay);
+                  setSwapTargetPeriod(activePeriod === 1 ? 2 : 1);
+                }}
+                className="text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer w-full justify-center"
+              >
+                <span>🔄</span>
+                <span>نقل أو تبديل هذه الحصة (مع الحفاظ التام على التحضير والواجب)</span>
+              </button>
+            ) : (
+              <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-blue-950 flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>نقل / تبديل الحصة دون فقدان التحضير:</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowSwapSection(false)}
+                    className="text-gray-400 hover:text-gray-600 text-xs font-bold cursor-pointer"
+                  >
+                    ✕ إلغاء
+                  </button>
+                </div>
+                <p className="text-[11px] text-blue-800 leading-relaxed">
+                  سيتم نقل محتويات الحصة (الفصل، المادة، عنوان الدرس، والواجب) بالكامل إلى الموقع الجديد دون أي ضياع. وإذا كانت الحصة المستهدفة تحتوي على حصة أخرى، سيتم تبديلهما معاً فوراً.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                      اليوم المستهدف:
+                    </label>
+                    <select
+                      value={swapTargetDay}
+                      onChange={(e) => setSwapTargetDay(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      {(
+                        settings?.workDays || [
+                          "الأحد",
+                          "الإثنين",
+                          "الثلاثاء",
+                          "الأربعاء",
+                          "الخميس",
+                        ]
+                      ).map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                      الحصة المستهدفة:
+                    </label>
+                    <select
+                      value={swapTargetPeriod}
+                      onChange={(e) =>
+                        setSwapTargetPeriod(Number(e.target.value))
+                      }
+                      className="w-full px-2.5 py-1.5 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      {Array.from(
+                        { length: settings?.periodsCount || 6 },
+                        (_, i) => i + 1
+                      ).map((p) => (
+                        <option key={p} value={p}>
+                          حصة {p}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExecuteSwap}
+                  disabled={swapping}
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-xs disabled:opacity-60 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {swapping ? "جاري النقل والتبديل..." : "تأكيد النقل أو التبديل 🔄"}
+                </button>
+              </div>
+            )}
+          </div>
         </form>
       </Modal>
 
@@ -1060,6 +1243,23 @@ export default function AdminTeacherTimetablesPage() {
           </div>
         </div>
       </Modal>
+
+      {/* PDF Timetable Import Modal */}
+      <PdfTimetableImportModal
+        isOpen={pdfModalOpen}
+        onClose={() => setPdfModalOpen(false)}
+        weeks={weeks}
+        currentWeek={selectedWeek}
+        teachers={teachers}
+        subjects={subjects}
+        onImportSuccess={() => {
+          fetchTemplates();
+          fetchWeekData(selectedWeekId);
+          if (selectedTeacherId) {
+            fetchTeacherSchedule(selectedTeacherId, selectedWeekId);
+          }
+        }}
+      />
     </div>
   );
 }

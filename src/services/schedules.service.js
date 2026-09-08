@@ -77,6 +77,11 @@ export const schedulesService = {
     return data;
   },
 
+  async swapPeriod(payload) {
+    const { data } = await api.post("/schedules/swap-period", payload);
+    return data;
+  },
+
   async getById(id) {
     const { data } = await api.get(`/schedules/${id}`);
     return data;
@@ -108,6 +113,18 @@ export const schedulesService = {
       targetWeekId,
       overwrite,
     });
+    return data;
+  },
+
+  async importPdf(formData) {
+    const { data } = await api.post("/schedules/import-pdf", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
+  async confirmImportPdf(payload) {
+    const { data } = await api.post("/schedules/confirm-import-pdf", payload);
     return data;
   },
 };
