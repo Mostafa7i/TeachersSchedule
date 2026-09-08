@@ -612,14 +612,6 @@ export default function AdminTeacherTimetablesPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setNewTemplateModalOpen(true)}
-                className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <span>➕</span>
-                <span>إنشاء جدول شاغر جديد</span>
-              </button>
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
