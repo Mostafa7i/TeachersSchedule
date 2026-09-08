@@ -423,27 +423,11 @@ export default function AdminTeacherTimetablesPage() {
             للمعلمين الجدد.
           </p>
         </div>
-
-        <ExportButtons
-          targetElementId={
-            activeMainTab === "master"
-              ? "master-timetable-print-container"
-              : "teacher-paper-timetable-container"
-          }
-          weekLabel={
-            activeMainTab === "master"
-              ? "الجدول_العام_للمدرسة_" + (selectedWeek?.label || "")
-              : "جدول_المعلم_" +
-                (selectedTeacher?.name?.replace(/\s+/g, "_") || "") +
-                "_" +
-                (selectedWeek?.label || "")
-          }
-        />
         <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setPdfModalOpen(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs sm:text-sm font-black px-4 py-2 sm:py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-500"
+            className="flex items-center gap-2 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs sm:text-sm font-black px-4 py-2 sm:py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-500"
             title="استيراد جداول المعلمين دفعة واحدة من ملف PDF"
           >
             <span className="text-base">📥</span>

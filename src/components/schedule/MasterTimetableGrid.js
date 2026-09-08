@@ -370,7 +370,7 @@ export default function MasterTimetableGrid({
           </span>
         </div>
 
-        <div className="relative min-w-[220px]">
+        <div className="relative min-w-55">
           <input
             type="text"
             value={searchQuery}
