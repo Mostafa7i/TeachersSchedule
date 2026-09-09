@@ -13,16 +13,6 @@ import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
 import { TableSkeleton } from "@/components/ui";
 
-const DEFAULT_CLASSES = [
-  "أول أول",
-  "أول ثاني",
-  "أول ثالث",
-  "ثاني أول",
-  "ثاني ثاني",
-  "ثالث أول",
-  "ثالث ثاني",
-];
-
 export default function TeacherWeeklyPlanPreviewPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -45,10 +35,9 @@ export default function TeacherWeeklyPlanPreviewPage() {
   const [activeDefaultClass, setActiveDefaultClass] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Compute available classes dynamically from schedules + defaults
+  // Only show classes that are actually assigned to the logged-in teacher.
   const allClassesList = [
     ...new Set([
-      ...DEFAULT_CLASSES,
       ...schedules.map((s) => (s.className || "").trim()).filter(Boolean),
     ]),
   ];
@@ -73,7 +62,7 @@ export default function TeacherWeeklyPlanPreviewPage() {
         setSettings(settingsRes.data || null);
 
         if (activeWk) {
-          const schedRes = await schedulesService.getByWeek(activeWk._id);
+          const schedRes = await schedulesService.getForTeacher(activeWk._id);
           setSchedules(schedRes.data?.schedules || []);
         }
       } catch (err) {
@@ -92,7 +81,7 @@ export default function TeacherWeeklyPlanPreviewPage() {
     setCurrentWeek(week);
     try {
       setLoading(true);
-      const res = await schedulesService.getByWeek(week._id);
+      const res = await schedulesService.getForTeacher(week._id);
       setSchedules(res.data?.schedules || []);
     } catch (err) {
       toast.error("فشل جلب جدول الأسبوع المختار");
@@ -141,11 +130,11 @@ export default function TeacherWeeklyPlanPreviewPage() {
           <div className="flex items-center gap-2.5 mb-1">
             <span className="text-2xl">📋</span>
             <h1 className="text-xl sm:text-2xl font-black text-gray-900">
-              استعراض الخطة الأسبوعية المدرسية
+              خطتي الأسبوعية
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 font-medium">
-            استعراض شكل وتنسيق الخطة والجدول الأسبوعي لجميع فصول المدرسة مع إمكانية التصدير والطباعة
+            حصصك المسندة في الجدول الأسبوعي، مع إمكانية التصدير والطباعة
           </p>
         </div>
 
