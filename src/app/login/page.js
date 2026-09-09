@@ -36,39 +36,40 @@ export default function LoginPage() {
       script.onload = () => {
         if (window.google?.accounts?.oauth2) {
           try {
-            tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
-              client_id: googleClientId,
-              scope: "email profile openid",
-              callback: async (tokenResponse) => {
-                if (tokenResponse.error) {
-                  toast.error("تم إلغاء تسجيل الدخول بحساب Google");
-                  setGoogleLoading(false);
-                  return;
-                }
-                try {
-                  setGoogleLoading(true);
-                  // Fetch userinfo directly from Google API using the OAuth access token
-                  const res = await fetch(
-                    "https://www.googleapis.com/oauth2/v3/userinfo",
-                    {
-                      headers: {
-                        Authorization: `Bearer ${tokenResponse.access_token}`,
+            tokenClientRef.current =
+              window.google.accounts.oauth2.initTokenClient({
+                client_id: googleClientId,
+                scope: "email profile openid",
+                callback: async (tokenResponse) => {
+                  if (tokenResponse.error) {
+                    toast.error("تم إلغاء تسجيل الدخول بحساب Google");
+                    setGoogleLoading(false);
+                    return;
+                  }
+                  try {
+                    setGoogleLoading(true);
+                    // Fetch userinfo directly from Google API using the OAuth access token
+                    const res = await fetch(
+                      "https://www.googleapis.com/oauth2/v3/userinfo",
+                      {
+                        headers: {
+                          Authorization: `Bearer ${tokenResponse.access_token}`,
+                        },
                       },
-                    }
-                  );
-                  const googleUser = await res.json();
-                  await handleGoogleAuthSuccess({
-                    email: googleUser.email,
-                    name: googleUser.name || "معلم",
-                    avatar: googleUser.picture || "",
-                    googleId: googleUser.sub,
-                  });
-                } catch (err) {
-                  toast.error("فشل جلب بيانات حساب Google");
-                  setGoogleLoading(false);
-                }
-              },
-            });
+                    );
+                    const googleUser = await res.json();
+                    await handleGoogleAuthSuccess({
+                      email: googleUser.email,
+                      name: googleUser.name || "معلم",
+                      avatar: googleUser.picture || "",
+                      googleId: googleUser.sub,
+                    });
+                  } catch (err) {
+                    toast.error("فشل جلب بيانات حساب Google");
+                    setGoogleLoading(false);
+                  }
+                },
+              });
           } catch (e) {
             console.error("GSI Init error:", e);
           }
@@ -95,7 +96,8 @@ export default function LoginPage() {
         router.push(isAdmin ? "/dashboard/admin" : "/dashboard/teacher");
       }
     } catch (err) {
-      const msg = err.response?.data?.message || "فشل تسجيل الدخول بحساب Google";
+      const msg =
+        err.response?.data?.message || "فشل تسجيل الدخول بحساب Google";
       toast.error(msg);
     } finally {
       setGoogleLoading(false);
@@ -115,9 +117,7 @@ export default function LoginPage() {
     }
 
     // 2) Native OAuth2 Popup Flow
-    const clientId =
-      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-      "";
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
     if (clientId) {
       setGoogleLoading(true);
@@ -130,7 +130,7 @@ export default function LoginPage() {
     // If client ID is not configured yet in environment, open Google popup window
     // with clear message
     toast.error(
-      "يرجى وضع NEXT_PUBLIC_GOOGLE_CLIENT_ID في متغيرات البيئة لتفعيل نافذة Google OAuth الحقيقية"
+      "يرجى وضع NEXT_PUBLIC_GOOGLE_CLIENT_ID في متغيرات البيئة لتفعيل نافذة Google OAuth الحقيقية",
     );
   };
 
@@ -143,10 +143,15 @@ export default function LoginPage() {
     }
     setAdminLoading(true);
     try {
-      const user = await login(adminEmail.trim().toLowerCase(), adminPassword.trim());
+      const user = await login(
+        adminEmail.trim().toLowerCase(),
+        adminPassword.trim(),
+      );
       toast.success(`مرحباً ${user.name} 👋`);
       setAdminModalOpen(false);
-      router.push(user.role?.isSystem ? "/dashboard/admin" : "/dashboard/teacher");
+      router.push(
+        user.role?.isSystem ? "/dashboard/admin" : "/dashboard/teacher",
+      );
     } catch (err) {
       const msg = err.response?.data?.message || "البيانات غير صحيحة";
       toast.error(msg);
@@ -191,7 +196,10 @@ export default function LoginPage() {
               {googleLoading ? (
                 <div className="w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
               ) : (
-                <svg className="w-6 h-6 flex-shrink-0 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                <svg
+                  className="w-6 h-6 flex-shrink-0 group-hover:scale-110 transition-transform"
+                  viewBox="0 0 24 24"
+                >
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -264,7 +272,11 @@ export default function LoginPage() {
                 onClick={() => setShowAdminPassword(!showAdminPassword)}
                 className="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1 cursor-pointer select-none"
               >
-                <span>{showAdminPassword ? "🔒 إخفاء كلمة المرور" : "👁️ إظهار كلمة المرور (إلغاء التشفير)"}</span>
+                <span>
+                  {showAdminPassword
+                    ? "🔒 إخفاء كلمة المرور"
+                    : "👁️ إظهار كلمة المرور (إلغاء التشفير)"}
+                </span>
               </button>
             </div>
             <div className="relative">
@@ -281,22 +293,58 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => setShowAdminPassword(!showAdminPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors p-1 cursor-pointer"
-                title={showAdminPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+                title={
+                  showAdminPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"
+                }
               >
                 {showAdminPassword ? (
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                  <svg
+                    className="w-4 h-4 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"
+                    />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  <svg
+                    className="w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
                   </svg>
                 )}
               </button>
             </div>
             <div className="flex items-center justify-between mt-1 text-[11px] text-gray-500 font-medium">
-              <span>يمكنك استخدام: <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono">Admin@123456</code> أو <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono">123456</code></span>
+              <span>
+                يمكنك استخدام:{" "}
+                <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono">
+                  Admin@123456
+                </code>{" "}
+                أو{" "}
+                <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono">
+                  123456
+                </code>
+              </span>
             </div>
           </div>
 

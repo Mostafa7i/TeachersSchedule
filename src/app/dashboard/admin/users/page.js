@@ -611,7 +611,8 @@ export default function AdminUsersPage() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs text-gray-500">
-              أدخل كلمة المرور الجديدة للمستخدم وسيتمكن من تسجيل الدخول بها فوراً.
+              أدخل كلمة المرور الجديدة للمستخدم وسيتمكن من تسجيل الدخول بها
+              فوراً.
             </p>
             <button
               type="button"
