@@ -90,6 +90,13 @@ export default function TeacherWeeklyPlanPreviewPage() {
     }
   };
 
+  // List of subjects taught by this teacher
+  const teacherSubjectsList = subjects.filter((s) =>
+    (user?.subjects || []).some(
+      (us) => (us._id ? us._id.toString() : us.toString()) === s._id.toString(),
+    ),
+  );
+
   const handleEditCell = (cell, day, period, classForCell) => {
     setActiveCell(cell);
     setActiveDay(day);
@@ -102,16 +109,35 @@ export default function TeacherWeeklyPlanPreviewPage() {
     setSaving(true);
     try {
       if (formData.id) {
-        const res = await schedulesService.update(formData.id, {
+        const payload = {
           lessonTitle: formData.lessonTitle,
           homework: formData.homework,
           activities: formData.activities,
           notes: formData.notes,
-        });
-        setSchedules((prev) =>
-          prev.map((item) => (item._id === formData.id ? res.data : item)),
-        );
-        toast.success("تم تحديث تحضير الحصة بنجاح ✅");
+        };
+        if (formData.subject) {
+          payload.subject = formData.subject;
+        }
+        if (formData.applyToClass) {
+          payload.applyToClass = true;
+        }
+
+        await schedulesService.update(formData.id, payload);
+
+        // If applied to class, reload all teacher schedules for this week
+        if (formData.applyToClass && currentWeek?._id) {
+          const schedRes = await schedulesService.getForTeacher(
+            currentWeek._id,
+          );
+          setSchedules(schedRes.data?.schedules || []);
+        } else {
+          // Re-fetch or update single
+          const schedRes = await schedulesService.getForTeacher(
+            currentWeek._id,
+          );
+          setSchedules(schedRes.data?.schedules || []);
+        }
+        toast.success("تم حفظ وتحديث بيانات الحصة بنجاح ✅");
       }
       setModalOpen(false);
     } catch (err) {
@@ -119,6 +145,26 @@ export default function TeacherWeeklyPlanPreviewPage() {
       toast.error(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Quick subject change for an entire class
+  const handleSetClassSubject = async (clsName, newSubjectId) => {
+    if (!currentWeek?._id || !clsName || !newSubjectId) return;
+    try {
+      setLoading(true);
+      const res = await schedulesService.setClassSubject({
+        weekId: currentWeek._id,
+        className: clsName,
+        subjectId: newSubjectId,
+      });
+      toast.success(res.message || "تم تحديث مادة الفصل بنجاح ✅");
+      const schedRes = await schedulesService.getForTeacher(currentWeek._id);
+      setSchedules(schedRes.data?.schedules || []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "فشل تغيير مادة الفصل");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -193,13 +239,44 @@ export default function TeacherWeeklyPlanPreviewPage() {
         </div>
 
         {selectedClass && (
-          <button
-            type="button"
-            onClick={() => setSelectedClass("")}
-            className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors"
-          >
-            ✕ إلغاء التصفية
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Quick Class Subject Switcher for Multi-subject Teacher */}
+            {teacherSubjectsList.length > 1 && (
+              <div className="flex items-center gap-1.5 bg-blue-50/80 border border-blue-200 px-3 py-1.5 rounded-xl text-xs">
+                <span className="font-bold text-blue-900 flex items-center gap-1">
+                  <span>📚</span>
+                  <span>مادة فصل {selectedClass}:</span>
+                </span>
+                <select
+                  value={
+                    schedules.find((s) => s.className === selectedClass)
+                      ?.subject?._id ||
+                    schedules.find((s) => s.className === selectedClass)
+                      ?.subject ||
+                    ""
+                  }
+                  onChange={(e) =>
+                    handleSetClassSubject(selectedClass, e.target.value)
+                  }
+                  className="px-2.5 py-1 text-xs font-black bg-white border border-blue-300 text-blue-950 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-xs"
+                >
+                  {teacherSubjectsList.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setSelectedClass("")}
+              className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors cursor-pointer"
+            >
+              ✕ إلغاء التصفية
+            </button>
+          </div>
         )}
       </div>
 

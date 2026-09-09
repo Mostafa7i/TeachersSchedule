@@ -13,6 +13,7 @@ import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
 import CopyWeekModal from "@/components/schedule/CopyWeekModal";
 import ClassScheduleShareModal from "@/components/schedule/ClassScheduleShareModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
+import TeacherWeeklyPlanModal from "@/components/schedule/TeacherWeeklyPlanModal";
 import { TableSkeleton } from "@/components/ui";
 
 const COMMON_CLASSES = [
@@ -48,6 +49,7 @@ export default function AdminSchedulesPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
   const [shareClass, setShareClass] = useState("");
   const [activeCell, setActiveCell] = useState(null);
   const [activeDay, setActiveDay] = useState("الأحد");
@@ -390,6 +392,18 @@ export default function AdminSchedulesPage() {
               إلغاء كل التصفية ✕
             </button>
           )}
+
+          {filterTeacher && (
+            <button
+              type="button"
+              onClick={() => setPlanModalOpen(true)}
+              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+              title="استعراض الخطة الأسبوعية والتحضير لهذا المعلم"
+            >
+              <span>📋</span>
+              <span>استعراض خطة المعلم وتحضيره</span>
+            </button>
+          )}
         </div>
 
         <div className="text-xs text-gray-500 font-semibold">
@@ -467,6 +481,20 @@ export default function AdminSchedulesPage() {
         settings={settings}
         allClasses={allClassesList}
         onSwitchClass={(cls) => setShareClass(cls)}
+      />
+
+      {/* Teacher Weekly Plan Modal for Admin */}
+      <TeacherWeeklyPlanModal
+        isOpen={planModalOpen}
+        onClose={() => setPlanModalOpen(false)}
+        teacher={teachers.find((t) => t._id === filterTeacher)}
+        initialWeekId={currentWeek?._id}
+        weeks={weeks}
+        settings={settings}
+        subjects={subjects}
+        onSaveSuccess={() => {
+          if (currentWeek) fetchSchedules(currentWeek._id);
+        }}
       />
     </div>
   );

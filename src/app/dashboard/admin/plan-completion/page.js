@@ -3,9 +3,12 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/contexts/ToastContext";
 import { schedulesService, weeksService } from "@/services/schedules.service";
+import { subjectsService } from "@/services/subjects.service";
+import { settingsService } from "@/services/settings.service";
 import { notificationsService } from "@/services/notifications.service";
 import Modal from "@/components/ui/Modal";
 import { Skeleton } from "@/components/ui";
+import TeacherWeeklyPlanModal from "@/components/schedule/TeacherWeeklyPlanModal";
 
 export default function AdminPlanCompletionPage() {
   const toast = useToast();
@@ -21,9 +24,16 @@ export default function AdminPlanCompletionPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedTeacherId, setExpandedTeacherId] = useState(null);
 
+  // Teacher Plan Preview Modal
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [selectedTeacherForPlan, setSelectedTeacherForPlan] = useState(null);
+  const [subjects, setSubjects] = useState([]);
+  const [settings, setSettings] = useState(null);
+
   // Single Reminder Modal
   const [singleModalOpen, setSingleModalOpen] = useState(false);
-  const [selectedTeacherForReminder, setSelectedTeacherForReminder] = useState(null);
+  const [selectedTeacherForReminder, setSelectedTeacherForReminder] =
+    useState(null);
   const [reminderTitle, setReminderTitle] = useState("");
   const [reminderMessage, setReminderMessage] = useState("");
   const [sendingReminder, setSendingReminder] = useState(false);
@@ -35,27 +45,32 @@ export default function AdminPlanCompletionPage() {
   const [sendingBulk, setSendingBulk] = useState(false);
 
   useEffect(() => {
-    const initWeeks = async () => {
+    const initData = async () => {
       try {
         setLoading(true);
-        const [weeksRes, currWeekRes] = await Promise.all([
-          weeksService.getAll(),
-          weeksService.getCurrent(),
-        ]);
+        const [weeksRes, currWeekRes, subjectsRes, settingsRes] =
+          await Promise.all([
+            weeksService.getAll(),
+            weeksService.getCurrent(),
+            subjectsService.getAll({ isActive: true }),
+            settingsService.get(),
+          ]);
         const weeksList = weeksRes.data || [];
         setWeeks(weeksList);
+        setSubjects(subjectsRes.data || []);
+        setSettings(settingsRes.data || null);
 
         const activeWk = currWeekRes.data || weeksList[0];
         if (activeWk) {
           setSelectedWeekId(activeWk._id);
         }
       } catch (err) {
-        toast.error("فشل تحميل الأسابيع الدراسية");
+        toast.error("فشل تحميل البيانات الأساسية");
       } finally {
         setLoading(false);
       }
     };
-    initWeeks();
+    initData();
   }, []);
 
   const fetchStats = async (weekId = selectedWeekId) => {
@@ -77,10 +92,17 @@ export default function AdminPlanCompletionPage() {
     }
   }, [selectedWeekId]);
 
+  const handleOpenPlanModal = (teacher) => {
+    setSelectedTeacherForPlan(teacher);
+    setPlanModalOpen(true);
+  };
+
   const handleOpenSingleReminder = (teacherItem) => {
     setSelectedTeacherForReminder(teacherItem);
     const weekLabel = completionData?.week?.label || "الأسبوع الحالي";
-    setReminderTitle("تنبيه: إكمال الخطة والتحضير الأسبوعي (" + weekLabel + ")");
+    setReminderTitle(
+      "تنبيه: إكمال الخطة والتحضير الأسبوعي (" + weekLabel + ")",
+    );
     setReminderMessage(
       "الأستاذ الفاضل / " +
         teacherItem.teacher?.name +
@@ -88,7 +110,7 @@ export default function AdminPlanCompletionPage() {
         teacherItem.missingSlotsCount +
         " حصة بحاجة لإكمال) في خطة " +
         weekLabel +
-        "."
+        ".",
     );
     setSingleModalOpen(true);
   };
@@ -109,7 +131,7 @@ export default function AdminPlanCompletionPage() {
       toast.success(
         "تم إرسال التنبيه إلى المعلم (" +
           selectedTeacherForReminder.teacher.name +
-          ") بنجاح 🔔"
+          ") بنجاح 🔔",
       );
       setSingleModalOpen(false);
     } catch (err) {
@@ -125,7 +147,7 @@ export default function AdminPlanCompletionPage() {
     setBulkMessage(
       "السادة المعلمين الأفاضل، يُرجى سرعة استكمال تعبئة موضوعات الدروس والواجبات المنزلية للحصص المتبقية في خطة " +
         weekLabel +
-        " قبل نهاية دوام اليوم ليتسنى اعتمادها."
+        " قبل نهاية دوام اليوم ليتسنى اعتمادها.",
     );
     setBulkModalOpen(true);
   };
@@ -141,10 +163,14 @@ export default function AdminPlanCompletionPage() {
         message: bulkMessage,
         type: "WARNING",
       });
-      toast.success(res.message || "تم إرسال التنبيهات لجميع المعلمين المتأخرين بنجاح 🎉");
+      toast.success(
+        res.message || "تم إرسال التنبيهات لجميع المعلمين المتأخرين بنجاح 🎉",
+      );
       setBulkModalOpen(false);
     } catch (err) {
-      toast.error(err.response?.data?.message || "فشل إرسال التنبيهات الجماعية");
+      toast.error(
+        err.response?.data?.message || "فشل إرسال التنبيهات الجماعية",
+      );
     } finally {
       setSendingBulk(false);
     }
@@ -153,7 +179,8 @@ export default function AdminPlanCompletionPage() {
   const allTeachers = completionData?.teachers || [];
   const filteredTeachers = allTeachers.filter((item) => {
     if (statusFilter === "incomplete") {
-      if (item.status !== "PARTIAL" && item.status !== "NOT_STARTED") return false;
+      if (item.status !== "PARTIAL" && item.status !== "NOT_STARTED")
+        return false;
     } else if (statusFilter === "completed") {
       if (item.status !== "COMPLETED") return false;
     }
@@ -164,9 +191,10 @@ export default function AdminPlanCompletionPage() {
       const matchEmail = item.teacher?.email?.toLowerCase().includes(q);
       const matchPhone = item.teacher?.phone?.includes(q);
       const matchSubject = item.teacher?.subjects?.some((s) =>
-        s.name?.toLowerCase().includes(q)
+        s.name?.toLowerCase().includes(q),
       );
-      if (!matchName && !matchEmail && !matchPhone && !matchSubject) return false;
+      if (!matchName && !matchEmail && !matchPhone && !matchSubject)
+        return false;
     }
 
     return true;
@@ -193,7 +221,8 @@ export default function AdminPlanCompletionPage() {
             متابعة إنجاز الخطط الأسبوعية والتنبيهات
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
-            رصد الحصص غير المكتملة (نقص موضوع الدرس أو الواجب) وإرسال تنبيهات فورية ومباشرة لحسابات المعلمين.
+            رصد الحصص غير المكتملة (نقص موضوع الدرس أو الواجب) وإرسال تنبيهات
+            فورية ومباشرة لحسابات المعلمين.
           </p>
         </div>
 
@@ -235,7 +264,9 @@ export default function AdminPlanCompletionPage() {
             title="تحديث البيانات"
           >
             <svg
-              className={"w-5 h-5 " + (refreshing ? "animate-spin text-blue-600" : "")}
+              className={
+                "w-5 h-5 " + (refreshing ? "animate-spin text-blue-600" : "")
+              }
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -269,45 +300,81 @@ export default function AdminPlanCompletionPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-500">معلمون لديهم حصص</span>
-            <span className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-base">👨‍🏫</span>
+            <span className="text-xs font-bold text-gray-500">
+              معلمون لديهم حصص
+            </span>
+            <span className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-base">
+              👨‍🏫
+            </span>
           </div>
-          <p className="text-2xl font-black text-slate-900 mt-2">{summary.totalTeachersWithClasses}</p>
-          <p className="text-[11px] text-gray-400 mt-1 font-medium">إجمالي المعلمين المسند لهم جدول</p>
+          <p className="text-2xl font-black text-slate-900 mt-2">
+            {summary.totalTeachersWithClasses}
+          </p>
+          <p className="text-[11px] text-gray-400 mt-1 font-medium">
+            إجمالي المعلمين المسند لهم جدول
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-500">مكتملو الخطة 100%</span>
-            <span className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-base">✅</span>
+            <span className="text-xs font-bold text-gray-500">
+              مكتملو الخطة 100%
+            </span>
+            <span className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-base">
+              ✅
+            </span>
           </div>
-          <p className="text-2xl font-black text-emerald-600 mt-2">{summary.fullyCompletedTeachers}</p>
-          <p className="text-[11px] text-emerald-700 mt-1 font-semibold">أكملوا جميع الدروس والواجبات</p>
+          <p className="text-2xl font-black text-emerald-600 mt-2">
+            {summary.fullyCompletedTeachers}
+          </p>
+          <p className="text-[11px] text-emerald-700 mt-1 font-semibold">
+            أكملوا جميع الدروس والواجبات
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-500">متأخرون / غير مكتمل</span>
-            <span className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-base">⚠️</span>
+            <span className="text-xs font-bold text-gray-500">
+              متأخرون / غير مكتمل
+            </span>
+            <span className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-base">
+              ⚠️
+            </span>
           </div>
-          <p className="text-2xl font-black text-amber-600 mt-2">{summary.incompleteTeachers}</p>
-          <p className="text-[11px] text-amber-700 mt-1 font-semibold">معلمون بحاجة لتنبيه ومتابعة</p>
+          <p className="text-2xl font-black text-amber-600 mt-2">
+            {summary.incompleteTeachers}
+          </p>
+          <p className="text-[11px] text-amber-700 mt-1 font-semibold">
+            معلمون بحاجة لتنبيه ومتابعة
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-500">الحصص الناقصة</span>
-            <span className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center font-bold text-base">📋</span>
+            <span className="text-xs font-bold text-gray-500">
+              الحصص الناقصة
+            </span>
+            <span className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center font-bold text-base">
+              📋
+            </span>
           </div>
           <div className="flex items-center gap-3 mt-2">
             <div>
-              <span className="text-xl font-black text-red-600">{summary.totalMissingLessons}</span>
-              <span className="text-[10px] text-gray-500 block font-semibold">درس فارغ</span>
+              <span className="text-xl font-black text-red-600">
+                {summary.totalMissingLessons}
+              </span>
+              <span className="text-[10px] text-gray-500 block font-semibold">
+                درس فارغ
+              </span>
             </div>
             <div className="w-px h-6 bg-gray-200" />
             <div>
-              <span className="text-xl font-black text-purple-600">{summary.totalMissingHomework}</span>
-              <span className="text-[10px] text-gray-500 block font-semibold">واجب فارغ</span>
+              <span className="text-xl font-black text-purple-600">
+                {summary.totalMissingHomework}
+              </span>
+              <span className="text-[10px] text-gray-500 block font-semibold">
+                واجب فارغ
+              </span>
             </div>
           </div>
         </div>
@@ -318,19 +385,34 @@ export default function AdminPlanCompletionPage() {
         <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl">
           <button
             onClick={() => setStatusFilter("all")}
-            className={"px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer " + (statusFilter === "all" ? "bg-white text-blue-900 shadow-xs" : "text-gray-600 hover:text-gray-900")}
+            className={
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer " +
+              (statusFilter === "all"
+                ? "bg-white text-blue-900 shadow-xs"
+                : "text-gray-600 hover:text-gray-900")
+            }
           >
             الكل ({allTeachers.length})
           </button>
           <button
             onClick={() => setStatusFilter("incomplete")}
-            className={"px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer " + (statusFilter === "incomplete" ? "bg-amber-500 text-white shadow-xs" : "text-gray-600 hover:text-gray-900")}
+            className={
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer " +
+              (statusFilter === "incomplete"
+                ? "bg-amber-500 text-white shadow-xs"
+                : "text-gray-600 hover:text-gray-900")
+            }
           >
             ⚠️ المتأخرون ({summary.incompleteTeachers})
           </button>
           <button
             onClick={() => setStatusFilter("completed")}
-            className={"px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer " + (statusFilter === "completed" ? "bg-emerald-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900")}
+            className={
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer " +
+              (statusFilter === "completed"
+                ? "bg-emerald-600 text-white shadow-xs"
+                : "text-gray-600 hover:text-gray-900")
+            }
           >
             ✅ المكتملون ({summary.fullyCompletedTeachers})
           </button>
@@ -344,8 +426,18 @@ export default function AdminPlanCompletionPage() {
             placeholder="بحث باسم المعلم، المادة، الهاتف..."
             className="w-full pr-8 pl-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
-          <svg className="w-4 h-4 text-gray-400 absolute right-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <svg
+            className="w-4 h-4 text-gray-400 absolute right-2.5 top-2.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
         </div>
       </div>
@@ -354,8 +446,12 @@ export default function AdminPlanCompletionPage() {
       {filteredTeachers.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm">
           <span className="text-4xl block mb-2">🎉</span>
-          <h3 className="text-base font-bold text-gray-800">لا توجد سجلات تطابق الفلتر المختار</h3>
-          <p className="text-xs text-gray-500 mt-1">جميع المعلمين قاموا بتعبئة خططهم أو لا توجد نتائج مطابقة للبحث.</p>
+          <h3 className="text-base font-bold text-gray-800">
+            لا توجد سجلات تطابق الفلتر المختار
+          </h3>
+          <p className="text-xs text-gray-500 mt-1">
+            جميع المعلمين قاموا بتعبئة خططهم أو لا توجد نتائج مطابقة للبحث.
+          </p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -365,27 +461,42 @@ export default function AdminPlanCompletionPage() {
                 <tr className="bg-slate-800 text-white text-xs">
                   <th className="px-4 py-3.5 font-bold">المعلم</th>
                   <th className="px-3 py-3.5 font-bold">المادة الدراسية</th>
-                  <th className="px-3 py-3.5 text-center font-bold">الحصص المسندة</th>
+                  <th className="px-3 py-3.5 text-center font-bold">
+                    الحصص المسندة
+                  </th>
                   <th className="px-4 py-3.5 font-bold">نسبة الإنجاز</th>
                   <th className="px-3 py-3.5 text-center font-bold">الحالة</th>
                   <th className="px-3 py-3.5 font-bold">النواقص</th>
-                  <th className="px-4 py-3.5 text-center font-bold">الإجراء والتنبيه</th>
+                  <th className="px-4 py-3.5 text-center font-bold">
+                    الإجراء والتنبيه
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-slate-800">
                 {filteredTeachers.map((item) => {
-                  const isIncomplete = item.status === "PARTIAL" || item.status === "NOT_STARTED";
+                  const isIncomplete =
+                    item.status === "PARTIAL" || item.status === "NOT_STARTED";
                   return (
-                    <tr key={item.teacher._id} className={"hover:bg-slate-50/80 transition-colors " + (isIncomplete ? "bg-amber-50/20" : "")}>
+                    <tr
+                      key={item.teacher._id}
+                      className={
+                        "hover:bg-slate-50/80 transition-colors " +
+                        (isIncomplete ? "bg-amber-50/20" : "")
+                      }
+                    >
                       <td className="px-4 py-3.5 align-middle">
                         <div className="flex items-center gap-2.5">
                           <div className="w-9 h-9 rounded-full bg-blue-700 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 shadow-xs">
                             {item.teacher.name?.charAt(0) || "م"}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 leading-tight">{item.teacher.name}</p>
+                            <p className="font-bold text-slate-900 leading-tight">
+                              {item.teacher.name}
+                            </p>
                             {item.teacher.phone && (
-                              <p className="text-[11px] text-gray-500 font-mono mt-0.5">📞 {item.teacher.phone}</p>
+                              <p className="text-[11px] text-gray-500 font-mono mt-0.5">
+                                📞 {item.teacher.phone}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -402,7 +513,8 @@ export default function AdminPlanCompletionPage() {
                               {s.name}
                             </span>
                           ))}
-                          {(!item.teacher.subjects || item.teacher.subjects.length === 0) && (
+                          {(!item.teacher.subjects ||
+                            item.teacher.subjects.length === 0) && (
                             <span className="text-gray-400 text-xs">—</span>
                           )}
                         </div>
@@ -417,7 +529,15 @@ export default function AdminPlanCompletionPage() {
                       <td className="px-4 py-3.5 align-middle min-w-[140px]">
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-[11px] font-bold">
-                            <span className={item.completionRate === 100 ? "text-emerald-700" : item.completionRate > 50 ? "text-amber-700" : "text-red-700"}>
+                            <span
+                              className={
+                                item.completionRate === 100
+                                  ? "text-emerald-700"
+                                  : item.completionRate > 50
+                                    ? "text-amber-700"
+                                    : "text-red-700"
+                              }
+                            >
                               {item.completionRate}%
                             </span>
                             <span className="text-gray-400 text-[10px]">
@@ -426,7 +546,14 @@ export default function AdminPlanCompletionPage() {
                           </div>
                           <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                             <div
-                              className={"h-full rounded-full transition-all duration-500 " + (item.completionRate === 100 ? "bg-emerald-500" : item.completionRate > 50 ? "bg-amber-500" : "bg-red-500")}
+                              className={
+                                "h-full rounded-full transition-all duration-500 " +
+                                (item.completionRate === 100
+                                  ? "bg-emerald-500"
+                                  : item.completionRate > 50
+                                    ? "bg-amber-500"
+                                    : "bg-red-500")
+                              }
                               style={{ width: item.completionRate + "%" }}
                             />
                           </div>
@@ -450,7 +577,9 @@ export default function AdminPlanCompletionPage() {
                             <span>لم يبدأ</span>
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-xs">بدون حصص</span>
+                          <span className="text-gray-400 text-xs">
+                            بدون حصص
+                          </span>
                         )}
                       </td>
 
@@ -471,23 +600,36 @@ export default function AdminPlanCompletionPage() {
                             </div>
                           </div>
                         ) : (
-                          <span className="text-emerald-600 text-xs font-bold">لا توجد نواقص 👍</span>
+                          <span className="text-emerald-600 text-xs font-bold">
+                            لا توجد نواقص 👍
+                          </span>
                         )}
                       </td>
 
                       <td className="px-4 py-3.5 text-center align-middle">
-                        {isIncomplete ? (
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
                           <button
-                            onClick={() => handleOpenSingleReminder(item)}
-                            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-xl shadow-xs transition-all text-xs cursor-pointer"
-                            title="إرسال تنبيه مباشر للمعلم"
+                            type="button"
+                            onClick={() => handleOpenPlanModal(item.teacher)}
+                            className="inline-flex items-center gap-1 bg-slate-900 hover:bg-slate-800 text-white font-bold px-2.5 py-1.5 rounded-xl shadow-xs transition-all text-xs cursor-pointer"
+                            title="استعراض ورؤية خطة المعلم كاملة لهذا الأسبوع"
                           >
-                            <span>🔔</span>
-                            <span>تنبيه</span>
+                            <span>👁️</span>
+                            <span>استعراض الخطة</span>
                           </button>
-                        ) : (
-                          <span className="text-gray-300 text-xs">—</span>
-                        )}
+
+                          {isIncomplete && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenSingleReminder(item)}
+                              className="inline-flex items-center gap-1 bg-amber-600 hover:bg-amber-700 text-white font-bold px-2.5 py-1.5 rounded-xl shadow-xs transition-all text-xs cursor-pointer"
+                              title="إرسال تنبيه مباشر للمعلم"
+                            >
+                              <span>🔔</span>
+                              <span>تنبيه</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -502,7 +644,10 @@ export default function AdminPlanCompletionPage() {
       <Modal
         isOpen={singleModalOpen}
         onClose={() => setSingleModalOpen(false)}
-        title={"إرسال تنبيه للمعلم: " + (selectedTeacherForReminder?.teacher?.name || "")}
+        title={
+          "إرسال تنبيه للمعلم: " +
+          (selectedTeacherForReminder?.teacher?.name || "")
+        }
         size="md"
         footer={
           <div className="flex items-center justify-end gap-2 w-full">
@@ -527,7 +672,10 @@ export default function AdminPlanCompletionPage() {
       >
         <form onSubmit={handleSendSingleReminder} className="space-y-4">
           <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-900 font-semibold">
-            <span>💡 سيصل هذا الإشعار والتنبيه فوراً إلى حساب المعلم وبوابته الرسمية.</span>
+            <span>
+              💡 سيصل هذا الإشعار والتنبيه فوراً إلى حساب المعلم وبوابته
+              الرسمية.
+            </span>
           </div>
 
           <div>
@@ -587,7 +735,10 @@ export default function AdminPlanCompletionPage() {
       >
         <form onSubmit={handleSendBulkReminder} className="space-y-4">
           <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-900 font-semibold">
-            <span>⚠️ سيتم إرسال هذا التنبيه آلياً إلى جميع المعلمين الذين لديهم حصص ناقصة ({summary.incompleteTeachers} معلم) في خطة هذا الأسبوع.</span>
+            <span>
+              ⚠️ سيتم إرسال هذا التنبيه آلياً إلى جميع المعلمين الذين لديهم حصص
+              ناقصة ({summary.incompleteTeachers} معلم) في خطة هذا الأسبوع.
+            </span>
           </div>
 
           <div>
@@ -617,6 +768,18 @@ export default function AdminPlanCompletionPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Teacher Weekly Plan Preview & Edit Modal for Admin */}
+      <TeacherWeeklyPlanModal
+        isOpen={planModalOpen}
+        onClose={() => setPlanModalOpen(false)}
+        teacher={selectedTeacherForPlan}
+        initialWeekId={selectedWeekId}
+        weeks={weeks}
+        settings={settings}
+        subjects={subjects}
+        onSaveSuccess={() => fetchStats(selectedWeekId)}
+      />
     </div>
   );
 }

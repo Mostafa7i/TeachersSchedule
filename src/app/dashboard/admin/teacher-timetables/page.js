@@ -12,6 +12,7 @@ import MasterTimetableGrid from "@/components/schedule/MasterTimetableGrid";
 import PeriodTimingsModal from "@/components/schedule/PeriodTimingsModal";
 import TemplateEntriesEditorModal from "@/components/schedule/TemplateEntriesEditorModal";
 import PdfTimetableImportModal from "@/components/schedule/PdfTimetableImportModal";
+import TeacherWeeklyPlanModal from "@/components/schedule/TeacherWeeklyPlanModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import Modal from "@/components/ui/Modal";
 import { Skeleton, ErrorBoundary } from "@/components/ui";
@@ -80,6 +81,9 @@ export default function AdminTeacherTimetablesPage() {
 
   // PDF Import Modal
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+
+  // Plan Modal
+  const [planModalOpen, setPlanModalOpen] = useState(false);
 
   // 1. Load Initial Metadata
   useEffect(() => {
@@ -525,24 +529,35 @@ export default function AdminTeacherTimetablesPage() {
 
               {/* Single Teacher View Selector */}
               {activeMainTab === "single" && (
-                <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
-                  <span className="text-xs font-bold text-blue-800">
-                    المعلم:
-                  </span>
-                  <select
-                    value={selectedTeacherId}
-                    onChange={(e) => setSelectedTeacherId(e.target.value)}
-                    className="text-xs font-black text-blue-950 bg-transparent focus:outline-none cursor-pointer"
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
+                    <span className="text-xs font-bold text-blue-800">
+                      المعلم:
+                    </span>
+                    <select
+                      value={selectedTeacherId}
+                      onChange={(e) => setSelectedTeacherId(e.target.value)}
+                      className="text-xs font-black text-blue-950 bg-transparent focus:outline-none cursor-pointer"
+                    >
+                      {teachers.map((t) => (
+                        <option key={t._id} value={t._id}>
+                          {t.name}
+                          {t.subjects && t.subjects.length > 0
+                            ? ` (${t.subjects.map((s) => s.name).join("، ")})`
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setPlanModalOpen(true)}
+                    className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    {teachers.map((t) => (
-                      <option key={t._id} value={t._id}>
-                        {t.name}
-                        {t.subjects && t.subjects.length > 0
-                          ? ` (${t.subjects.map((s) => s.name).join("، ")})`
-                          : ""}
-                      </option>
-                    ))}
-                  </select>
+                    <span>📋</span>
+                    <span>استعراض خطة المعلم وتحضيره</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -929,7 +944,9 @@ export default function AdminTeacherTimetablesPage() {
                 className="text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer w-full justify-center"
               >
                 <span>🔄</span>
-                <span>نقل أو تبديل هذه الحصة (مع الحفاظ التام على التحضير والواجب)</span>
+                <span>
+                  نقل أو تبديل هذه الحصة (مع الحفاظ التام على التحضير والواجب)
+                </span>
               </button>
             ) : (
               <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-3.5 space-y-3">
@@ -947,7 +964,9 @@ export default function AdminTeacherTimetablesPage() {
                   </button>
                 </div>
                 <p className="text-[11px] text-blue-800 leading-relaxed">
-                  سيتم نقل محتويات الحصة (الفصل، المادة، عنوان الدرس، والواجب) بالكامل إلى الموقع الجديد دون أي ضياع. وإذا كانت الحصة المستهدفة تحتوي على حصة أخرى، سيتم تبديلهما معاً فوراً.
+                  سيتم نقل محتويات الحصة (الفصل، المادة، عنوان الدرس، والواجب)
+                  بالكامل إلى الموقع الجديد دون أي ضياع. وإذا كانت الحصة
+                  المستهدفة تحتوي على حصة أخرى، سيتم تبديلهما معاً فوراً.
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
@@ -987,7 +1006,7 @@ export default function AdminTeacherTimetablesPage() {
                     >
                       {Array.from(
                         { length: settings?.periodsCount || 6 },
-                        (_, i) => i + 1
+                        (_, i) => i + 1,
                       ).map((p) => (
                         <option key={p} value={p}>
                           حصة {p}
@@ -1002,7 +1021,9 @@ export default function AdminTeacherTimetablesPage() {
                   disabled={swapping}
                   className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-xs disabled:opacity-60 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  {swapping ? "جاري النقل والتبديل..." : "تأكيد النقل أو التبديل 🔄"}
+                  {swapping
+                    ? "جاري النقل والتبديل..."
+                    : "تأكيد النقل أو التبديل 🔄"}
                 </button>
               </div>
             )}
@@ -1234,6 +1255,23 @@ export default function AdminTeacherTimetablesPage() {
           if (selectedTeacherId) {
             fetchTeacherSchedule(selectedTeacherId, selectedWeekId);
           }
+        }}
+      />
+
+      {/* Teacher Weekly Plan & Preparation Modal */}
+      <TeacherWeeklyPlanModal
+        isOpen={planModalOpen}
+        onClose={() => setPlanModalOpen(false)}
+        teacher={selectedTeacher}
+        weeks={weeks}
+        currentWeek={selectedWeek}
+        subjects={subjects}
+        settings={settings}
+        onPlanUpdated={() => {
+          if (selectedTeacherId) {
+            fetchTeacherSchedule(selectedTeacherId, selectedWeekId);
+          }
+          fetchWeekData(selectedWeekId);
         }}
       />
     </div>

@@ -35,7 +35,7 @@ export const schedulesService = {
   },
 
   async createVacantSlot(payload) {
-    const { data } = await api.post('/schedules/create-vacant-slot', payload);
+    const { data } = await api.post("/schedules/create-vacant-slot", payload);
     return data;
   },
 
@@ -79,6 +79,11 @@ export const schedulesService = {
 
   async swapPeriod(payload) {
     const { data } = await api.post("/schedules/swap-period", payload);
+    return data;
+  },
+
+  async setClassSubject(payload) {
+    const { data } = await api.post("/schedules/set-class-subject", payload);
     return data;
   },
 

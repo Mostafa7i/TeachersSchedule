@@ -54,8 +54,9 @@ export default function ScheduleCellEditModal({
       );
 
   const [showWarningPrompt, setShowWarningPrompt] = useState(false);
-  const [showBulkConfirmPrompt, setShowBulkConfirmPrompt] = useState(false);
   const [bulkFilling, setBulkFilling] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null); // { targetClasses: [], gradePrefix: '', targetDetails: [] }
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [bulkScope, setBulkScope] = useState("week"); // "week" | "day"
 
   // Helper to extract grade prefix from class names
@@ -66,22 +67,22 @@ export default function ScheduleCellEditModal({
 
     // "الصف الأول", "الصف الثاني", ...
     const fullMatch = cleaned.match(
-      /^(الصف\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي\s+عشر|الثاني\s+عشر))/i
+      /^(الصف\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي\s+عشر|الثاني\s+عشر))/i,
     );
     if (fullMatch) return fullMatch[1];
 
     // "أولى", "أول", "ثاني", "ثالث", "رابع", "خامس", "سادس", "سابع", "ثامن", "تاسع", "عاشر"
     const wordMatch = cleaned.match(
-      /^(أولى|أول|ثانية|ثاني|ثالثة|ثالث|رابعة|رابع|خامسة|خامس|سادسة|سادس|سابعة|سابع|ثامنة|ثامن|تاسعة|تاسع|عاشرة|عاشر)/i
+      /^(أولى|أول|ثانية|ثاني|ثالثة|ثالث|رابعة|رابع|خامسة|خامس|سادسة|سادس|سابعة|سابع|ثامنة|ثامن|تاسعة|تاسع|عاشرة|عاشر)/i,
     );
     if (wordMatch) {
       const map = {
-        "أولى": "أول",
-        "ثانية": "ثاني",
-        "ثالثة": "ثالث",
-        "رابعة": "رابع",
-        "خامسة": "خامس",
-        "سادسة": "سادس",
+        أولى: "أول",
+        ثانية: "ثاني",
+        ثالثة: "ثالث",
+        رابعة: "رابع",
+        خامسة: "خامس",
+        سادسة: "سادس",
       };
       return map[wordMatch[1]] || wordMatch[1];
     }
@@ -100,9 +101,9 @@ export default function ScheduleCellEditModal({
 
   useEffect(() => {
     setShowWarningPrompt(false);
-    setShowBulkConfirmPrompt(false);
-    setBulkFilling(false);
-    if (schedule && typeof schedule === "object") {
+    setBulkResult(null);
+    setShowBulkConfirm(false);
+    if (schedule) {
       setFormData({
         subject: schedule.subject?._id || schedule.subject || "",
         teacher: schedule.teacher?._id || schedule.teacher || "",
@@ -140,7 +141,7 @@ export default function ScheduleCellEditModal({
   };
 
   const handleSubmit = (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
 
     const isLessonEmpty =
       !formData.lessonTitle || formData.lessonTitle.trim() === "";
@@ -153,40 +154,12 @@ export default function ScheduleCellEditModal({
       return;
     }
 
-    // إذا كان الفصل يتبع صفاً (مثل أول، ثاني، ثالث...) ولم تظهر نافذة تأكيد الإملاء الجماعي
-    if (
-      schedule?._id &&
-      gradePrefix &&
-      (canEditTitle || canEditHomework) &&
-      !showBulkConfirmPrompt
-    ) {
-      setShowBulkConfirmPrompt(true);
-      return;
-    }
-
     executeSave();
   };
 
-  const handleSaveAnyway = () => {
-    setShowWarningPrompt(false);
-    if (
-      schedule?._id &&
-      gradePrefix &&
-      (canEditTitle || canEditHomework) &&
-      !showBulkConfirmPrompt
-    ) {
-      setShowBulkConfirmPrompt(true);
-      return;
-    }
-    executeSave();
-  };
-
-  // إملاء وتطبيق تلقائي لجميع فصول نفس الصف
+  // إملاء تلقائي لكل فصول نفس الصف
   const handleBulkFill = async () => {
-    if (!schedule?._id) {
-      executeSave();
-      return;
-    }
+    if (!schedule?._id) return;
     setBulkFilling(true);
     try {
       const res = await schedulesService.bulkFillGrade({
@@ -197,18 +170,20 @@ export default function ScheduleCellEditModal({
         notes: formData.notes,
         scope: bulkScope,
       });
-      setShowBulkConfirmPrompt(false);
+      setBulkResult({
+        gradePrefix: res.data?.gradePrefix,
+        targetClasses: res.data?.targetClasses || [],
+        targetDetails: res.data?.targetDetails || [],
+        updatedCount: res.data?.updatedCount,
+        scope: res.data?.scope,
+        schedules: res.data?.schedules || [],
+      });
+      setShowBulkConfirm(false);
       // Notify parent to update local state
       if (onBulkFill) onBulkFill(res.data?.schedules || []);
-      onClose();
     } catch (err) {
-      const msg = err.response?.data?.message || "فشل التطبيق الجماعي";
-      // If error status 400 (e.g. no other classes found), save current schedule normally
-      if (err.response?.status === 400) {
-        executeSave();
-      } else {
-        alert(msg);
-      }
+      const msg = err.response?.data?.message || "فشل الملئ التلقائي";
+      alert(msg);
     } finally {
       setBulkFilling(false);
     }
@@ -228,185 +203,78 @@ export default function ScheduleCellEditModal({
       onClose={onClose}
       title={
         schedule
-          ? `تحضير وتعديل الحصة (${period ?? "—"}) - يوم ${day ?? "—"} ${schedule.className ? `(فصل ${schedule.className})` : ""}`
-          : `إضافة حصة جديدة${period ? ` (${period})` : ""}${day ? ` - يوم ${day}` : ""}`
+          ? `تحضير وتعديل الحصة (${period}) - يوم ${day} ${schedule.className ? `(فصل ${schedule.className})` : ""}`
+          : `إضافة حصة (${period}) - يوم ${day}`
       }
       size="lg"
       footer={
         <>
-          {showBulkConfirmPrompt ? (
-            /* Confirmation step footer */
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between w-full gap-2.5">
-              <button
-                type="button"
-                onClick={() => setShowBulkConfirmPrompt(false)}
-                disabled={bulkFilling}
-                className="px-4 py-2.5 text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-xl transition-all cursor-pointer"
-              >
-                تراجع للتعديل
-              </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            إلغاء
+          </button>
 
-              <div className="flex flex-wrap items-center gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={executeSave}
-                  disabled={loading || bulkFilling}
-                  className="px-4 py-2.5 text-xs font-bold text-gray-800 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-xl transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  حفظ لهذه الحصة فقط
-                </button>
-                <button
-                  type="button"
-                  onClick={handleBulkFill}
-                  disabled={loading || bulkFilling}
-                  className="px-5 py-2.5 text-xs font-black text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-                >
-                  {bulkFilling ? (
-                    <>
-                      <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
-                      <span>جاري التطبيق والحفظ...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>⚡</span>
-                      <span>نعم، تطبيق وحفظ لجميع فصول ({gradePrefix})</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          ) : showWarningPrompt ? (
-            /* Warning prompt footer */
-            <div className="flex items-center justify-between w-full">
+          {showWarningPrompt ? (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={onClose}
-                disabled={loading}
-                className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                onClick={() => setShowWarningPrompt(false)}
+                className="px-4 py-2.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-xl transition-all"
               >
-                إلغاء
+                ✏️ إكمال الحقول الآن
               </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowWarningPrompt(false)}
-                  className="px-4 py-2.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-xl transition-all"
-                >
-                  ✏️ إكمال الحقول الآن
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveAnyway}
-                  disabled={loading}
-                  className="px-5 py-2.5 text-xs font-bold text-white bg-slate-700 hover:bg-slate-800 rounded-xl transition-all disabled:opacity-50"
-                >
-                  حفظ على أي حال
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={executeSave}
+                disabled={loading}
+                className="px-5 py-2.5 text-xs font-bold text-white bg-slate-700 hover:bg-slate-800 rounded-xl transition-all disabled:opacity-50"
+              >
+                حفظ على أي حال
+              </button>
             </div>
           ) : (
-            /* Standard modal footer */
-            <>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={loading}
-                className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                إلغاء
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={loading}
-                className="px-6 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm hover:shadow transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
-              >
-                {loading ? (
-                  <>
-                    <svg
-                      className="animate-spin w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    <span>جاري الحفظ...</span>
-                  </>
-                ) : (
-                  <span>حفظ التحضير</span>
-                )}
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="px-6 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm hover:shadow transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+            >
+              {loading ? (
+                <>
+                  <svg
+                    className="animate-spin w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  <span>جاري الحفظ...</span>
+                </>
+              ) : (
+                <span>حفظ التحضير</span>
+              )}
+            </button>
           )}
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Bulk Confirmation Banner on Save */}
-        {showBulkConfirmPrompt && (
-          <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border-2 border-violet-300 rounded-2xl p-4 text-xs text-violet-950 shadow-sm space-y-3 animate-fadeIn">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl flex-shrink-0">⚡</span>
-              <div className="flex-1 space-y-1">
-                <p className="font-black text-violet-950 text-sm">
-                  هل تريد تطبيق هذا التحضير على باقي فصول صف "{gradePrefix}"؟
-                </p>
-                <p className="font-medium text-violet-800 leading-relaxed">
-                  سيتم حفظ وتطبيق <span className="font-black underline">عنوان الدرس والواجبات والأنشطة</span> من فصل{" "}
-                  <span className="font-black bg-violet-200 text-violet-900 px-2 py-0.5 rounded-md">
-                    {formData.className}
-                  </span>{" "}
-                  على باقي فصول صف "{gradePrefix}" في جدول هذا الأسبوع (مثل {gradePrefix} أول، {gradePrefix} ثاني، {gradePrefix} ثالث...).
-                </p>
-              </div>
-            </div>
-
-            {/* Scope selector tabs */}
-            <div className="bg-white/90 p-2.5 rounded-xl border border-violet-200 flex items-center justify-between gap-2 flex-wrap">
-              <span className="text-[11px] font-bold text-violet-900 pr-1">
-                نطاق التطبيق التلقائي:
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setBulkScope("week")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    bulkScope === "week"
-                      ? "bg-violet-700 text-white shadow-xs"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  🗓️ كامل الأسبوع
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBulkScope("day")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    bulkScope === "day"
-                      ? "bg-violet-700 text-white shadow-xs"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  📅 يوم ${day} فقط
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* System Warning Banner if fields are empty */}
         {showWarningPrompt && (
           <div className="bg-amber-50 border-2 border-amber-300 p-4 rounded-2xl text-amber-900 flex items-start gap-3 animate-bounce-short shadow-sm">
@@ -426,7 +294,6 @@ export default function ScheduleCellEditModal({
             </div>
           </div>
         )}
-
         {/* Info Banner */}
         <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700">
           <div>
@@ -446,6 +313,109 @@ export default function ScheduleCellEditModal({
             {week?.label}
           </div>
         </div>
+
+        {/* ======================================================= */}
+        {/* زر الإملاء التلقائي (يظهر فقط إذا كان الاسم يحتوي فصل) */}
+        {/* ======================================================= */}
+        {schedule?._id && gradePrefix && (canEditTitle || canEditHomework) && (
+          <div className="space-y-2">
+            {/* Success result banner */}
+            {bulkResult ? (
+              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-900">
+                <span className="text-lg shrink-0">✅</span>
+                <div>
+                  <p className="font-black text-emerald-950">
+                    تم الملئ التلقائي بنجاح!
+                  </p>
+                  <p className="font-medium mt-0.5">
+                    تم نسخ عنوان الدرس والواجبات لـ{" "}
+                    <span className="font-black">
+                      {bulkResult.updatedCount} فصل
+                    </span>{" "}
+                    من صف "{bulkResult.gradePrefix}":
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {bulkResult.targetClasses.map((cls) => (
+                      <span
+                        key={cls}
+                        className="bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-md font-bold"
+                      >
+                        {cls}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : showBulkConfirm ? (
+              /* Confirmation step */
+              <div className="bg-violet-50 border border-violet-300 rounded-xl p-3 flex items-start gap-2.5 text-xs text-violet-900">
+                <span className="text-lg flex-shrink-0">📋</span>
+                <div className="flex-1 space-y-2">
+                  <p className="font-black text-violet-950">
+                    تأكيد الملئ التلقائي لصف "{gradePrefix}"
+                  </p>
+                  <p className="font-medium leading-relaxed">
+                    سيتم نسخ{" "}
+                    <span className="font-black">
+                      عنوان الدرس والواجبات والأنشطة والملاحظات
+                    </span>{" "}
+                    من فصل{" "}
+                    <span className="font-black bg-violet-200 px-1.5 rounded">
+                      {formData.className}
+                    </span>{" "}
+                    إلى جميع فصول صف "{gradePrefix}" في نفس اليوم والحصة
+                    والأسبوع.
+                  </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleBulkFill}
+                      disabled={bulkFilling}
+                      className="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
+                    >
+                      {bulkFilling ? (
+                        <>
+                          <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
+                          <span>جاري الإملاء...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>✅</span>
+                          <span>نعم، إملاء الآن</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkConfirm(false)}
+                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-xs cursor-pointer"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Auto-fill trigger button */
+              <button
+                type="button"
+                onClick={() => setShowBulkConfirm(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-50 hover:bg-violet-100 border border-violet-300 text-violet-800 font-bold rounded-xl text-xs transition-all cursor-pointer group"
+              >
+                <span className="text-base group-hover:scale-110 transition-transform">
+                  📋
+                </span>
+                <span>
+                  إملاء تلقائي لكل فصول صف "
+                  <span className="font-black text-violet-950">
+                    {gradePrefix}
+                  </span>
+                  " في نفس اليوم والحصة
+                </span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Admin only: Class, Subject, Teacher and Room edit */}
         {isSuperAdmin ? (
