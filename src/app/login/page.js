@@ -284,7 +284,6 @@ export default function LoginPage() {
                 type={showAdminPassword ? "text" : "password"}
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder="Admin@123456 أو 123456"
                 required
                 className="w-full px-3.5 py-2.5 pr-10 text-xs bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 font-bold"
                 dir="ltr"
@@ -333,18 +332,6 @@ export default function LoginPage() {
                   </svg>
                 )}
               </button>
-            </div>
-            <div className="flex items-center justify-between mt-1 text-[11px] text-gray-500 font-medium">
-              <span>
-                يمكنك استخدام:{" "}
-                <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono">
-                  Admin@123456
-                </code>{" "}
-                أو{" "}
-                <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800 font-mono">
-                  123456
-                </code>
-              </span>
             </div>
           </div>
 
