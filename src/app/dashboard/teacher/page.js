@@ -15,10 +15,10 @@ import AvailableTimetablesModal from "@/components/schedule/AvailableTimetablesM
 import { TableSkeleton, ErrorBoundary } from "@/components/ui";
 
 export default function TeacherDashboardPage() {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState("plan"); // 'plan' | 'timetable'
+  const [activeTab, setActiveTab] = useState("plan"); // 'plan' | 'timetable' | 'settings'
   const [weeks, setWeeks] = useState([]);
   const [currentWeek, setCurrentWeek] = useState(null);
   const [schedules, setSchedules] = useState([]);
@@ -36,6 +36,8 @@ export default function TeacherDashboardPage() {
   const [planScale, setPlanScale] = useState(85); // 70 | 85 | 100
   const [selectedPlanDay, setSelectedPlanDay] = useState("الأحد");
   const [saving, setSaving] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const daysList = settings?.workDays || [
     "الأحد",
@@ -47,6 +49,9 @@ export default function TeacherDashboardPage() {
   const periodsCount = settings?.periodsCount || 6;
   const periodsList = Array.from({ length: periodsCount }, (_, i) => i + 1);
 
+  useEffect(() => {
+    setProfileName(user?.name || "");
+  }, [user?.name]);
   // Group teacher's schedules into day-period matrix
   const teacherMatrix = {};
   daysList.forEach((day) => {
@@ -148,6 +153,24 @@ export default function TeacherDashboardPage() {
     }
   };
 
+  const handleProfileNameSave = async (event) => {
+    event.preventDefault();
+    const name = profileName.trim();
+    if (name.length < 2) {
+      toast.error("يرجى إدخال الاسم الكامل بشكل صحيح");
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      await updateProfile({ name });
+      toast.success("تم تحديث اسمك بنجاح ✅");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "فشل تحديث الاسم");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
   // Update local schedules state after bulk-fill
   const handleBulkFill = (updatedSchedules) => {
     if (!Array.isArray(updatedSchedules)) return;
@@ -324,7 +347,7 @@ export default function TeacherDashboardPage() {
 
       {/* View Switcher Tabs */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-gray-200 pb-2">
-        <div className="flex items-center gap-2 bg-gray-200/70 p-1 rounded-2xl max-w-md">
+        <div className="flex items-center gap-2 bg-gray-200/70 p-1 rounded-2xl max-w-2xl">
           <button
             onClick={() => setActiveTab("plan")}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
@@ -348,36 +371,97 @@ export default function TeacherDashboardPage() {
             <span>🗓️</span>
             <span>جدول الحصص المدرسي</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              activeTab === "settings"
+                ? "bg-white text-blue-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <span>⚙️</span>
+            <span>إعدادات الحساب</span>
+          </button>
         </div>
 
         {/* Export Buttons */}
-        <ExportButtons
-          targetElementId={
-            activeTab === "plan"
-              ? "teacher-weekly-plan-container"
-              : "teacher-official-timetable-container"
-          }
-          weekLabel={
-            activeTab === "plan"
-              ? `خطة_${user?.name}_${currentWeek?.label || ""}`
-              : `جدول_حصص_${user?.name}`
-          }
-        />
+        {activeTab !== "settings" && (
+          <ExportButtons
+            targetElementId={
+              activeTab === "plan"
+                ? "teacher-weekly-plan-container"
+                : "teacher-official-timetable-container"
+            }
+            weekLabel={
+              activeTab === "plan"
+                ? `خطة_${user?.name}_${currentWeek?.label || ""}`
+                : `جدول_حصص_${user?.name}`
+            }
+          />
+        )}
       </div>
 
       {/* Week Navigator Bar */}
-      <WeekNavigator
-        weeks={weeks}
-        currentWeek={currentWeek}
-        onSelectWeek={handleSelectWeek}
-        canCopy={false}
-        canAdd={false}
-      />
+      {activeTab !== "settings" && (
+        <WeekNavigator
+          weeks={weeks}
+          currentWeek={currentWeek}
+          onSelectWeek={handleSelectWeek}
+          canCopy={false}
+          canAdd={false}
+        />
+      )}
 
       <ErrorBoundary title="تعذر عرض بيانات خطة المعلم">
         {loading ? (
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
             <TableSkeleton rows={8} cols={6} />
+          </div>
+        ) : activeTab === "settings" ? (
+          <div className="max-w-2xl mx-auto bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-6 sm:p-8 bg-gradient-to-l from-slate-900 via-blue-900 to-indigo-950 text-white">
+              <div className="flex items-center gap-3">
+                <span className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center text-2xl">⚙️</span>
+                <div>
+                  <h2 className="text-xl font-black">إعدادات الحساب</h2>
+                  <p className="text-sm text-blue-100 mt-1">حدّث الاسم الظاهر في لوحة المعلم والجداول.</p>
+                </div>
+              </div>
+            </div>
+            <form onSubmit={handleProfileNameSave} className="p-6 sm:p-8 space-y-6">
+              <div>
+                <label htmlFor="teacher-profile-name" className="block text-sm font-black text-gray-800 mb-2">
+                  الاسم الكامل
+                </label>
+                <input
+                  id="teacher-profile-name"
+                  type="text"
+                  value={profileName}
+                  onChange={(event) => setProfileName(event.target.value)}
+                  maxLength={100}
+                  required
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 font-medium outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="اكتب اسمك الكامل"
+                />
+                <p className="mt-2 text-xs text-gray-500">سيظهر الاسم الجديد فورًا في حسابك والقائمة الجانبية.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-black text-gray-800 mb-2">البريد الإلكتروني</label>
+                <div className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-600 text-sm" dir="ltr">
+                  {user?.email}
+                </div>
+              </div>
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={savingProfile || profileName.trim().length < 2}
+                  className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-black shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingProfile ? "جاري الحفظ..." : "حفظ الاسم"}
+                </button>
+              </div>
+            </form>
           </div>
         ) : activeTab === "timetable" ? (
           /* ========================================================================= */

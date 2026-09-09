@@ -55,9 +55,7 @@ export default function ScheduleCellEditModal({
 
   const [showWarningPrompt, setShowWarningPrompt] = useState(false);
   const [bulkFilling, setBulkFilling] = useState(false);
-  const [bulkResult, setBulkResult] = useState(null); // { targetClasses: [], gradePrefix: '', targetDetails: [] }
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
-  const [bulkScope, setBulkScope] = useState("week"); // "week" | "day"
 
   // Helper to extract grade prefix from class names
   // e.g. "أول أول" -> "أول", "أول/2" -> "أول", "الصف الأول أ" -> "الصف الأول", "1/1" -> "1"
@@ -101,7 +99,6 @@ export default function ScheduleCellEditModal({
 
   useEffect(() => {
     setShowWarningPrompt(false);
-    setBulkResult(null);
     setShowBulkConfirm(false);
     if (schedule) {
       setFormData({
@@ -140,6 +137,28 @@ export default function ScheduleCellEditModal({
     });
   };
 
+  const shouldPromptForPreparationBroadcast = Boolean(
+    schedule?._id &&
+      formData.className?.trim() &&
+      gradePrefix &&
+      (canEditTitle || canEditHomework || canEditActivities || canEditNotes) &&
+      [
+        formData.lessonTitle,
+        formData.homework,
+        formData.activities,
+        formData.notes,
+      ].some((value) => value?.trim()),
+  );
+
+  const saveWithOptionalBroadcast = () => {
+    if (shouldPromptForPreparationBroadcast) {
+      setShowBulkConfirm(true);
+      return;
+    }
+
+    executeSave();
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -154,10 +173,10 @@ export default function ScheduleCellEditModal({
       return;
     }
 
-    executeSave();
+    saveWithOptionalBroadcast();
   };
 
-  // إملاء تلقائي لكل فصول نفس الصف
+  // تعميم بيانات التحضير المكتوبة لكل فصول نفس الصف
   const handleBulkFill = async () => {
     if (!schedule?._id) return;
     setBulkFilling(true);
@@ -168,21 +187,12 @@ export default function ScheduleCellEditModal({
         homework: formData.homework,
         activities: formData.activities,
         notes: formData.notes,
-        scope: bulkScope,
       });
-      setBulkResult({
-        gradePrefix: res.data?.gradePrefix,
-        targetClasses: res.data?.targetClasses || [],
-        targetDetails: res.data?.targetDetails || [],
-        updatedCount: res.data?.updatedCount,
-        scope: res.data?.scope,
-        schedules: res.data?.schedules || [],
-      });
-      setShowBulkConfirm(false);
-      // Notify parent to update local state
       if (onBulkFill) onBulkFill(res.data?.schedules || []);
+      setShowBulkConfirm(false);
+      onClose();
     } catch (err) {
-      const msg = err.response?.data?.message || "فشل الملئ التلقائي";
+      const msg = err.response?.data?.message || "فشل تعميم بيانات التحضير";
       alert(msg);
     } finally {
       setBulkFilling(false);
@@ -198,8 +208,9 @@ export default function ScheduleCellEditModal({
   }
 
   return (
+    <>
     <Modal
-      isOpen={isOpen}
+      isOpen={isOpen && !showBulkConfirm}
       onClose={onClose}
       title={
         schedule
@@ -229,7 +240,7 @@ export default function ScheduleCellEditModal({
               </button>
               <button
                 type="button"
-                onClick={executeSave}
+                onClick={saveWithOptionalBroadcast}
                 disabled={loading}
                 className="px-5 py-2.5 text-xs font-bold text-white bg-slate-700 hover:bg-slate-800 rounded-xl transition-all disabled:opacity-50"
               >
@@ -313,109 +324,6 @@ export default function ScheduleCellEditModal({
             {week?.label}
           </div>
         </div>
-
-        {/* ======================================================= */}
-        {/* زر الإملاء التلقائي (يظهر فقط إذا كان الاسم يحتوي فصل) */}
-        {/* ======================================================= */}
-        {schedule?._id && gradePrefix && (canEditTitle || canEditHomework) && (
-          <div className="space-y-2">
-            {/* Success result banner */}
-            {bulkResult ? (
-              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-900">
-                <span className="text-lg shrink-0">✅</span>
-                <div>
-                  <p className="font-black text-emerald-950">
-                    تم الملئ التلقائي بنجاح!
-                  </p>
-                  <p className="font-medium mt-0.5">
-                    تم نسخ عنوان الدرس والواجبات لـ{" "}
-                    <span className="font-black">
-                      {bulkResult.updatedCount} فصل
-                    </span>{" "}
-                    من صف "{bulkResult.gradePrefix}":
-                  </p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {bulkResult.targetClasses.map((cls) => (
-                      <span
-                        key={cls}
-                        className="bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-md font-bold"
-                      >
-                        {cls}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : showBulkConfirm ? (
-              /* Confirmation step */
-              <div className="bg-violet-50 border border-violet-300 rounded-xl p-3 flex items-start gap-2.5 text-xs text-violet-900">
-                <span className="text-lg flex-shrink-0">📋</span>
-                <div className="flex-1 space-y-2">
-                  <p className="font-black text-violet-950">
-                    تأكيد الملئ التلقائي لصف "{gradePrefix}"
-                  </p>
-                  <p className="font-medium leading-relaxed">
-                    سيتم نسخ{" "}
-                    <span className="font-black">
-                      عنوان الدرس والواجبات والأنشطة والملاحظات
-                    </span>{" "}
-                    من فصل{" "}
-                    <span className="font-black bg-violet-200 px-1.5 rounded">
-                      {formData.className}
-                    </span>{" "}
-                    إلى جميع فصول صف "{gradePrefix}" في نفس اليوم والحصة
-                    والأسبوع.
-                  </p>
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={handleBulkFill}
-                      disabled={bulkFilling}
-                      className="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
-                    >
-                      {bulkFilling ? (
-                        <>
-                          <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
-                          <span>جاري الإملاء...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>✅</span>
-                          <span>نعم، إملاء الآن</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowBulkConfirm(false)}
-                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg text-xs cursor-pointer"
-                    >
-                      إلغاء
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Auto-fill trigger button */
-              <button
-                type="button"
-                onClick={() => setShowBulkConfirm(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-50 hover:bg-violet-100 border border-violet-300 text-violet-800 font-bold rounded-xl text-xs transition-all cursor-pointer group"
-              >
-                <span className="text-base group-hover:scale-110 transition-transform">
-                  📋
-                </span>
-                <span>
-                  إملاء تلقائي لكل فصول صف "
-                  <span className="font-black text-violet-950">
-                    {gradePrefix}
-                  </span>
-                  " في نفس اليوم والحصة
-                </span>
-              </button>
-            )}
-          </div>
-        )}
 
         {/* Admin only: Class, Subject, Teacher and Room edit */}
         {isSuperAdmin ? (
@@ -583,5 +491,56 @@ export default function ScheduleCellEditModal({
         </div>
       </form>
     </Modal>
+    <Modal
+      isOpen={isOpen && showBulkConfirm}
+      onClose={() => setShowBulkConfirm(false)}
+      title="تعميم التحضير"
+      size="md"
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={() => setShowBulkConfirm(false)}
+            disabled={bulkFilling}
+            className="px-4 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            رجوع للتعديل
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowBulkConfirm(false);
+              executeSave();
+            }}
+            disabled={bulkFilling}
+            className="px-4 py-2.5 text-sm font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors disabled:opacity-50"
+          >
+            لا، لهذه الحصة فقط
+          </button>
+          <button
+            type="button"
+            onClick={handleBulkFill}
+            disabled={bulkFilling}
+            className="px-4 py-2.5 text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {bulkFilling && (
+              <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+            )}
+            {bulkFilling ? "جاري التعميم..." : "نعم، عمّم التحضير"}
+          </button>
+        </>
+      }
+    >
+      <div className="flex items-start gap-3 text-sm text-gray-700 leading-relaxed">
+        <span className="text-2xl shrink-0">📚</span>
+        <p>
+          هل تريد تعميم بيانات التحضير على جميع فصول صف{" "}
+          <span className="font-black text-violet-900">"{gradePrefix}"</span>{" "}
+          مثل "{formData.className}"؟ سيتم تحديث <strong>كل الحقول المكتوبة</strong>{" "}
+          — عنوان الدرس والواجبات والأنشطة والملاحظات — في حصص المادة نفسها خلال هذا الأسبوع.
+        </p>
+      </div>
+    </Modal>
+    </>
   );
 }

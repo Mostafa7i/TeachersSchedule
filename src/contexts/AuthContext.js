@@ -66,6 +66,13 @@ export function AuthProvider({ children }) {
     return updatedUser;
   };
 
+  const updateProfile = async (payload) => {
+    const res = await authService.updateProfile(payload);
+    const updatedUser = res.data?.user || res.data;
+    setUser(updatedUser);
+    return updatedUser;
+  };
+
   const logout = async () => {
     try {
       await authService.logout();
@@ -98,6 +105,7 @@ export function AuthProvider({ children }) {
     login,
     googleLogin,
     completeProfile,
+    updateProfile,
     logout,
     hasPermission,
     isAdmin,
