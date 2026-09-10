@@ -602,7 +602,29 @@ export default function WeeklyScheduleTable({
 
                       {/* Lesson Title */}
                       <td className="border border-slate-300 p-2.5 align-top">
-                        {cell?.lessonTitle ? (
+                        {!selectedClass && cellEntries.length > 1 ? (
+                          // "All classes" view: show per-class lesson status
+                          <div className="space-y-1">
+                            {cellEntries.map((c, ci) => (
+                              <div key={ci} className="flex items-start gap-1.5 text-xs">
+                                {c.className && (
+                                  <span className="flex-shrink-0 font-bold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded text-[10px]">
+                                    {c.className}
+                                  </span>
+                                )}
+                                {c.lessonTitle ? (
+                                  <span className="text-slate-900 font-semibold leading-snug">
+                                    {c.lessonTitle}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300 italic">
+                                    لم يتم التحضير بعد
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : cell?.lessonTitle ? (
                           <p className="text-slate-900 leading-relaxed font-bold">
                             {cell.lessonTitle}
                           </p>
@@ -615,33 +637,58 @@ export default function WeeklyScheduleTable({
 
                       {/* Homework & Activities */}
                       <td className="border border-slate-300 p-2.5 align-top">
-                        <div className="space-y-1.5">
-                          {cell?.homework && (
-                            <div className="flex items-start gap-1.5 text-xs text-slate-800">
-                              <span className="font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
-                                واجب:
+                        {!selectedClass && cellEntries.length > 1 ? (
+                          // "All classes" view: show per-class homework status
+                          <div className="space-y-1">
+                            {cellEntries.map((c, ci) => (
+                              <div key={ci} className="flex items-start gap-1.5 text-xs">
+                                {c.className && (
+                                  <span className="flex-shrink-0 font-bold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded text-[10px]">
+                                    {c.className}
+                                  </span>
+                                )}
+                                <div className="space-y-0.5">
+                                  {c.homework ? (
+                                    <span className="text-slate-800 font-medium">{c.homework}</span>
+                                  ) : (
+                                    <span className="text-slate-300 italic">لا يوجد</span>
+                                  )}
+                                  {c.activities && (
+                                    <p className="text-[10px] text-emerald-700">{c.activities}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {cell?.homework && (
+                              <div className="flex items-start gap-1.5 text-xs text-slate-800">
+                                <span className="font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
+                                  واجب:
+                                </span>
+                                <span className="leading-snug font-medium">
+                                  {cell.homework}
+                                </span>
+                              </div>
+                            )}
+                            {cell?.activities && (
+                              <div className="flex items-start gap-1.5 text-xs text-slate-800">
+                                <span className="font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
+                                  نشاط:
+                                </span>
+                                <span className="leading-snug font-medium">
+                                  {cell.activities}
+                                </span>
+                              </div>
+                            )}
+                            {!cell?.homework && !cell?.activities && (
+                              <span className="text-slate-300 text-xs italic">
+                                لا يوجد
                               </span>
-                              <span className="leading-snug font-medium">
-                                {cell.homework}
-                              </span>
-                            </div>
-                          )}
-                          {cell?.activities && (
-                            <div className="flex items-start gap-1.5 text-xs text-slate-800">
-                              <span className="font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
-                                نشاط:
-                              </span>
-                              <span className="leading-snug font-medium">
-                                {cell.activities}
-                              </span>
-                            </div>
-                          )}
-                          {!cell?.homework && !cell?.activities && (
-                            <span className="text-slate-300 text-xs italic">
-                              لا يوجد
-                            </span>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </td>
 
                       {/* Notes */}
