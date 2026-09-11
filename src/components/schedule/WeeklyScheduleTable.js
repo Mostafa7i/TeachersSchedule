@@ -493,7 +493,7 @@ export default function WeeklyScheduleTable({
             </p>
 
             {selectedClass && onShareClass && (
-              <div className="pt-1 no-print">
+              <div className="pt-1 no-print no-export">
                 <button
                   type="button"
                   onClick={() => onShareClass(selectedClass)}
@@ -528,7 +528,7 @@ export default function WeeklyScheduleTable({
 
       {unsavedCount > 0 && !readOnly && (
         <div
-          className="bg-blue-50 border border-blue-200 text-blue-900 p-3 rounded-2xl flex items-center gap-2 no-print"
+          className="bg-blue-50 border border-blue-200 text-blue-900 p-3 rounded-2xl flex items-center gap-2 no-print no-export"
           role="status"
           aria-live="polite"
         >
@@ -541,7 +541,7 @@ export default function WeeklyScheduleTable({
 
       {/* 2) Summary Banner when "All Classes" is selected with Distinct Class Colors */}
       {!selectedClass && classesSummary.length > 0 && (
-        <div className="bg-slate-50 border border-slate-200 rounded-3xl p-4 space-y-3 no-print">
+        <div className="bg-slate-50 border border-slate-200 rounded-3xl p-4 space-y-3 no-print no-export">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <span>📊</span>
@@ -590,7 +590,7 @@ export default function WeeklyScheduleTable({
       )}
 
       {/* View Switcher Controls on Mobile */}
-      <div className="flex md:hidden items-center justify-between bg-slate-900 p-1.5 rounded-2xl text-xs no-print shadow-sm">
+      <div className="flex md:hidden items-center justify-between bg-slate-900 p-1.5 rounded-2xl text-xs no-print no-export shadow-sm">
         <span className="font-bold text-white/80 px-2">طريقة العرض</span>
         <div className="flex items-center gap-1">
           <button
@@ -614,9 +614,9 @@ export default function WeeklyScheduleTable({
       {/* MOBILE CARDS VIEW: Direct Inline Inputs on Phone                          */}
       {/* ========================================================================= */}
       <div
-        className={
+        className={`schedule-mobile-cards-container no-export ${
           mobileLayout === "cards" ? "block md:hidden space-y-3.5" : "hidden"
-        }
+        }`}
       >
         {/* Day Selector Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
@@ -919,7 +919,11 @@ export default function WeeklyScheduleTable({
       {/* ========================================================================= */}
       {/* DESKTOP / TABLE VIEW: Direct Inline Table Inputs                         */}
       {/* ========================================================================= */}
-      <div className={mobileLayout === "table" ? "block" : "hidden md:block"}>
+      <div
+        className={`schedule-desktop-table-container ${
+          mobileLayout === "table" ? "block" : "hidden md:block"
+        }`}
+      >
         <div className="overflow-x-auto schedule-table-wrap rounded-2xl border border-slate-300">
           <table className="w-full text-right border-separate border-spacing-0 min-w-[980px]">
             <thead className="sticky top-0 z-10">
@@ -956,7 +960,7 @@ export default function WeeklyScheduleTable({
               {daysList.map((day, dayIndex) => {
                 const dayDateFormatted = getDayDateFormatted(day);
                 const dayBg =
-                  dayIndex % 2 === 0 ? "bg-white" : "bg-indigo-50/35";
+                  dayIndex % 2 === 0 ? "bg-white" : "bg-slate-100/70";
 
                 return periodsList.map((period, periodIndex) => {
                   const cellEntries = scheduleMatrix[day]?.[period] || [];
@@ -964,8 +968,14 @@ export default function WeeklyScheduleTable({
                   const canEdit = checkCanEditCell(cell) && !readOnly;
                   const dayBorderTop =
                     dayIndex > 0 && periodIndex === 0
-                      ? "border-t-[3px] border-t-slate-800"
+                      ? "!border-t-[4px] !border-t-slate-900 day-separator-border"
                       : "";
+                  const dayBorderBottom =
+                    dayIndex < daysList.length - 1 &&
+                    periodIndex === periodsCount - 1
+                      ? "!border-b-[3px] !border-b-slate-900"
+                      : "";
+                  const daySeparation = `${dayBorderTop} ${dayBorderBottom}`.trim();
                   const isMySubject = isTeacherSubject(cell);
                   const isDirty = cell && Boolean(localEdits[cell._id]);
                   const isSaved = cell && Boolean(savedRowSuccess[cell._id]);
@@ -988,13 +998,17 @@ export default function WeeklyScheduleTable({
                       {periodIndex === 0 && (
                         <td
                           rowSpan={periodsCount}
-                          className={`border border-slate-300 p-3 text-center align-middle font-bold bg-slate-900 text-white border-r-4 border-r-blue-600 ${
+                          className={`border border-slate-400 p-3 text-center align-middle font-bold text-white border-r-4 ${
                             dayIndex > 0
-                              ? "border-t-[3px] border-t-slate-900"
+                              ? "!border-t-[4px] !border-t-slate-900 day-separator-border"
                               : ""
+                          } ${
+                            dayIndex % 2 === 0
+                              ? "bg-slate-900 border-r-blue-500"
+                              : "bg-slate-950 border-r-indigo-500"
                           }`}
                         >
-                          <div className="text-base font-extrabold tracking-wide">
+                          <div className="text-base font-black tracking-wide">
                             {day}
                           </div>
                           <div className="text-xs text-blue-200 font-bold mt-1 bg-white/10 px-2 py-0.5 rounded-md inline-block">
@@ -1005,7 +1019,7 @@ export default function WeeklyScheduleTable({
 
                       {/* Period Number */}
                       <td
-                        className={`border border-slate-300 px-2 py-2.5 text-center font-bold text-slate-700 bg-slate-100/60 align-middle ${dayBorderTop}`}
+                        className={`border border-slate-300 px-2 py-2.5 text-center font-bold text-slate-700 bg-slate-100/60 align-middle ${daySeparation}`}
                       >
                         <span className="inline-flex items-center justify-center w-7 h-7 rounded-xl bg-slate-800 text-white text-xs font-black shadow-xs">
                           {period}
@@ -1015,7 +1029,7 @@ export default function WeeklyScheduleTable({
                       {/* Class Column if in "All Classes" View with Distinct Colors */}
                       {!selectedClass && (
                         <td
-                          className={`border border-slate-300 p-2 text-center align-middle ${dayBorderTop}`}
+                          className={`border border-slate-300 p-2 text-center align-middle ${daySeparation}`}
                         >
                           {cellEntries.length > 0 ? (
                             <div className="flex flex-wrap gap-1 justify-center">
@@ -1048,7 +1062,7 @@ export default function WeeklyScheduleTable({
 
                       {/* Subject & Teacher */}
                       <td
-                        className={`border border-slate-300 p-2.5 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${dayBorderTop}`}
+                        className={`border border-slate-300 p-2.5 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${daySeparation}`}
                       >
                         {cell?.subject ? (
                           <div className="space-y-1">
@@ -1088,7 +1102,7 @@ export default function WeeklyScheduleTable({
 
                       {/* Lesson Title — Direct Inline Input */}
                       <td
-                        className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${dayBorderTop}`}
+                        className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${daySeparation}`}
                       >
                         {cell ? (
                           canEdit && enableInlineEdit ? (
@@ -1159,7 +1173,7 @@ export default function WeeklyScheduleTable({
 
                       {/* Homework & Activities — Direct Inline Input */}
                       <td
-                        className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${dayBorderTop}`}
+                        className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${daySeparation}`}
                       >
                         {cell ? (
                           canEdit && enableInlineEdit ? (
@@ -1254,7 +1268,7 @@ export default function WeeklyScheduleTable({
 
                       {/* Notes */}
                       <td
-                        className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${dayBorderTop}`}
+                        className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${daySeparation}`}
                       >
                         {cell ? (
                           canEdit && enableInlineEdit ? (
@@ -1291,7 +1305,7 @@ export default function WeeklyScheduleTable({
 
                       {/* Auto-save status */}
                       <td
-                        className={`border border-slate-300 p-2 text-center align-middle no-export no-print ${dayBorderTop}`}
+                        className={`border border-slate-300 p-2 text-center align-middle no-export no-print ${daySeparation}`}
                       >
                         {cell ? (
                           <div className="flex flex-col items-center gap-1.5">

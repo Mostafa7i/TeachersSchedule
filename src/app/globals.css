@@ -63,12 +63,67 @@ body {
 
 /* Print Styles */
 @media print {
-  .no-print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .no-print, .no-export {
     display: none !important;
   }
-  body {
-    background: white;
+  #weekly-schedule-print-container {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
   }
+  .schedule-desktop-table-container {
+    display: block !important;
+  }
+  .schedule-mobile-cards-container {
+    display: none !important;
+  }
+  .day-separator-border {
+    border-top: 4px solid #000000 !important;
+  }
+  .schedule-table-wrap {
+    overflow: visible !important;
+    width: 100% !important;
+  }
+  table {
+    width: 100% !important;
+    min-width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+  thead {
+    display: table-header-group !important;
+  }
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+
+/* Day separator border for high visibility */
+.day-separator-border {
+  border-top: 4px solid #0f172a !important;
+  box-shadow: inset 0 2px 0 0 #0f172a !important;
 }
 
 /* Mobile responsive table */
