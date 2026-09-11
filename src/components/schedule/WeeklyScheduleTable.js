@@ -975,7 +975,8 @@ export default function WeeklyScheduleTable({
                     periodIndex === periodsCount - 1
                       ? "!border-b-[3px] !border-b-slate-900"
                       : "";
-                  const daySeparation = `${dayBorderTop} ${dayBorderBottom}`.trim();
+                  const daySeparation =
+                    `${dayBorderTop} ${dayBorderBottom}`.trim();
                   const isMySubject = isTeacherSubject(cell);
                   const isDirty = cell && Boolean(localEdits[cell._id]);
                   const isSaved = cell && Boolean(savedRowSuccess[cell._id]);

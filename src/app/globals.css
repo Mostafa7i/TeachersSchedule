@@ -67,11 +67,14 @@ body {
     size: A4 landscape;
     margin: 8mm;
   }
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  html, body {
+  html,
+  body {
     background: #ffffff !important;
     color: #000000 !important;
     width: 100% !important;
@@ -79,7 +82,8 @@ body {
     padding: 0 !important;
     overflow: visible !important;
   }
-  .no-print, .no-export {
+  .no-print,
+  .no-export {
     display: none !important;
   }
   #weekly-schedule-print-container {

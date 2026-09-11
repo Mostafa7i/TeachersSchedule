@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { toPng } from "html-to-image";
+import { toPng, toJpeg } from "html-to-image";
+import jsPDF from "jspdf";
 import { useToast } from "@/contexts/ToastContext";
 import { getLogoUrl } from "@/lib/utils";
 
@@ -553,6 +554,61 @@ export default function ClassScheduleShareModal({
     printWindow.document.close();
   };
 
+  const handleExportPDF = async () => {
+    const element = document.getElementById(cardId);
+    if (!element) {
+      toast.error("لم يتم العثور على البطاقة للتصدير");
+      return;
+    }
+
+    setExporting(true);
+    try {
+      // التقاط البطاقة بجودة عالية
+      const imgData = await toJpeg(element, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2.2,
+        quality: 0.96,
+        style: {
+          fontFamily: "'Tajawal', 'Cairo', sans-serif",
+          minWidth: `${Math.max(element.scrollWidth, 600)}px`,
+          width: `${Math.max(element.scrollWidth, 600)}px`,
+        },
+        skipFonts: true,
+        fontEmbedCSS: "",
+      });
+
+      // تحميل الصورة لقياس أبعادها
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+      });
+
+      // إنشاء PDF بأبعاد تتناسب مع البطاقة (عمودي A4)
+      const pdfWidthMm = 210; // عرض A4
+      const pdfHeightMm = (img.height / img.width) * pdfWidthMm;
+
+      const pdf = new jsPDF({
+        orientation: pdfHeightMm > pdfWidthMm ? "portrait" : "landscape",
+        unit: "mm",
+        format: [pdfWidthMm, pdfHeightMm],
+      });
+
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidthMm, pdfHeightMm, undefined, "FAST");
+      pdf.save(
+        `جدول_فصل_${className?.replace(/\s+/g, "_")}_${week?.label || "الأسبوع"}_${Date.now()}.pdf`
+      );
+
+      toast.success("تم تصدير بطاقة الجدول كملف PDF بنجاح 📄");
+    } catch (err) {
+      console.error("PDF export error:", err);
+      toast.error("حدث خطأ أثناء تصدير ملف PDF");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     /* Backdrop */
     <div
@@ -639,7 +695,29 @@ export default function ClassScheduleShareModal({
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            {exporting ? "جاري..." : "تنزيل صورة PNG"}
+            {exporting ? "جاري..." : "تنزيل PNG"}
+          </button>
+
+          {/* Export PDF */}
+          <button
+            onClick={handleExportPDF}
+            disabled={exporting}
+            className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all disabled:opacity-60 cursor-pointer shadow-sm"
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            {exporting ? "جاري..." : "حفظ PDF"}
           </button>
 
           {/* Copy to clipboard */}

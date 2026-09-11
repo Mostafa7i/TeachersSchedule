@@ -51,16 +51,26 @@ export default function ExportButtons({
 
   // Helper to ensure desktop table container is active during snapshot
   const prepareElementForSnapshot = (element) => {
-    const desktopTable = element.querySelector(".schedule-desktop-table-container");
-    const mobileCards = element.querySelector(".schedule-mobile-cards-container");
+    const desktopTable = element.querySelector(
+      ".schedule-desktop-table-container",
+    );
+    const mobileCards = element.querySelector(
+      ".schedule-mobile-cards-container",
+    );
     let prevDesktopDisplay = "";
     let prevCardsDisplay = "";
 
-    if (desktopTable && window.getComputedStyle(desktopTable).display === "none") {
+    if (
+      desktopTable &&
+      window.getComputedStyle(desktopTable).display === "none"
+    ) {
       prevDesktopDisplay = desktopTable.style.display;
       desktopTable.style.display = "block";
     }
-    if (mobileCards && window.getComputedStyle(mobileCards).display !== "none") {
+    if (
+      mobileCards &&
+      window.getComputedStyle(mobileCards).display !== "none"
+    ) {
       prevCardsDisplay = mobileCards.style.display;
       mobileCards.style.display = "none";
     }
@@ -141,8 +151,19 @@ export default function ExportButtons({
           format: [pdfWidthMm, pdfHeightMm],
         });
 
-        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidthMm, pdfHeightMm, undefined, "FAST");
-        pdf.save(`جدول_${weekLabel.replace(/\s+/g, "_")}_ملء_الشاشة_${Date.now()}.pdf`);
+        pdf.addImage(
+          imgData,
+          "JPEG",
+          0,
+          0,
+          pdfWidthMm,
+          pdfHeightMm,
+          undefined,
+          "FAST",
+        );
+        pdf.save(
+          `جدول_${weekLabel.replace(/\s+/g, "_")}_ملء_الشاشة_${Date.now()}.pdf`,
+        );
         toast.success("تم تصدير الجدول كملف PDF عريض ملء الشاشة بنجاح 📄✨");
       } else {
         // =========================================================================
@@ -177,7 +198,7 @@ export default function ExportButtons({
           const remainingPxHeight = img.height - currentYPx;
           const currentSlicePxHeight = Math.min(
             pageSlicePxHeight,
-            remainingPxHeight
+            remainingPxHeight,
           );
 
           sliceCanvas.width = img.width;
@@ -195,7 +216,7 @@ export default function ExportButtons({
             0,
             0,
             img.width,
-            currentSlicePxHeight
+            currentSlicePxHeight,
           );
 
           const sliceDataUrl = sliceCanvas.toDataURL("image/jpeg", 0.95);
@@ -207,14 +228,16 @@ export default function ExportButtons({
             margin,
             margin,
             printWidth,
-            sliceMmHeight
+            sliceMmHeight,
           );
 
           currentYPx += pageSlicePxHeight;
           pageIndex++;
         }
 
-        pdf.save(`جدول_${weekLabel.replace(/\s+/g, "_")}_صفحات_A4_${Date.now()}.pdf`);
+        pdf.save(
+          `جدول_${weekLabel.replace(/\s+/g, "_")}_صفحات_A4_${Date.now()}.pdf`,
+        );
         toast.success("تم تصدير الجدول كملف PDF مقسم لصفحات A4 بنجاح 📑");
       }
     } catch (err) {
@@ -359,7 +382,9 @@ export default function ExportButtons({
             >
               <span className="text-base leading-none">📱</span>
               <div>
-                <div className="font-bold text-slate-900">ملء الشاشة (100% عرض كامل)</div>
+                <div className="font-bold text-slate-900">
+                  ملء الشاشة (100% عرض كامل)
+                </div>
                 <div className="text-[10px] text-slate-500 mt-0.5">
                   عرض عريض متصل بدون فراغات جانبية (ممتاز للموبايل والكمبيوتر)
                 </div>
@@ -375,7 +400,9 @@ export default function ExportButtons({
             >
               <span className="text-base leading-none">🖨️</span>
               <div>
-                <div className="font-bold text-slate-900">مقسم لصفحات A4 (جاهز للطباعة)</div>
+                <div className="font-bold text-slate-900">
+                  مقسم لصفحات A4 (جاهز للطباعة)
+                </div>
                 <div className="text-[10px] text-slate-500 mt-0.5">
                   مقسم تلقائيًا لصفحات A4 أفقية بعرض كامل مناسب للطباعة الورقية
                 </div>
