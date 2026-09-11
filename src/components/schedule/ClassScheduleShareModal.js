@@ -135,14 +135,14 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
       style={{
         fontFamily: "'Tajawal', 'Cairo', 'Noto Sans Arabic', sans-serif",
       }}
-      className="bg-white w-full overflow-hidden"
+      className="bg-white w-full overflow-hidden "
     >
       {/* ── Header ── */}
-      <div className="bg-gradient-to-l from-blue-700 via-blue-600 to-indigo-700 text-white px-6 py-5">
+      <div className="bg-linear-to-l from-blue-700 via-blue-600 to-indigo-700 text-white px-6 py-5">
         <div className="flex items-center justify-between gap-4">
           {/* Right: school info */}
           <div className="text-right space-y-1">
-            <p className="text-blue-200 text-xs font-medium">
+            <p className="text-green- text-xs font-medium">
               المملكة العربية السعودية • وزارة التعليم
             </p>
             <h1 className="text-xl font-black leading-tight">
@@ -155,7 +155,7 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
           </div>
 
           {/* Center: class badge */}
-          <div className="flex flex-col items-center gap-1 shrink-0">
+          <div className="flex flex-col items-center gap-1 shrink-0 ">
             <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur border border-white/20 flex items-center justify-center">
               {settings?.logo ? (
                 <img
@@ -189,7 +189,7 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
       </div>
 
       {/* ── Stats strip ── */}
-      <div className="bg-slate-800 text-white px-6 py-2.5 flex items-center justify-between text-xs font-semibold">
+      <div className="bg-slate-800  text-white px-3 py-2 flex items-center justify-between text-xs font-semibold">
         <span>
           📅{" "}
           {week?.startDate
@@ -205,12 +205,7 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
             إجمالي الحصص:{" "}
             <strong className="text-amber-300">{totalCount}</strong>
           </span>
-          <span>
-            مكتملة الخطة:{" "}
-            <strong className="text-emerald-400">
-              {completedCount}/{totalCount}
-            </strong>
-          </span>
+      
         </div>
         <span>
           📅{" "}
@@ -225,7 +220,7 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
       </div>
 
       {/* ── Schedule grid: one column per day ── */}
-      <div className="p-4 space-y-3">
+      <div className="p-1  space-y-3 ">
         {workDays.map((day, dayIdx) => {
           const daySchedules = periods.map((p) => matrix[day]?.[p] || null);
           const hasAny = daySchedules.some(Boolean);
@@ -234,11 +229,11 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
           return (
             <div
               key={day}
-              className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm"
+              className="rounded  overflow-hidden border-b-4 border-slate-900 shadow-sm"
             >
               {/* Day header */}
               <div
-                className={`px-4 py-2.5 flex items-center justify-between ${dayIdx % 2 === 0 ? "bg-slate-800" : "bg-blue-700"} text-white`}
+                className={`px-3 py-2.5 flex  items-center justify-between ${dayIdx % 2 === 0 ? "bg-slate-800" : "bg-blue-700"} text-white`}
               >
                 <div>
                   <span className="font-black text-sm">{day}</span>
@@ -259,7 +254,7 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
                   لا توجد حصص مسجلة لهذا اليوم
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 ">
                   {periods.map((period) => {
                     const cell = matrix[day]?.[period];
                     const color =
@@ -270,11 +265,11 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
                     return (
                       <div
                         key={period}
-                        className={`flex items-stretch gap-0 ${!cell ? "opacity-40" : ""}`}
+                        className={`flex items-stretch  border-t-2 border-slate-400 gap-0 ${!cell ? "opacity-40" : ""}`}
                       >
                         {/* Period number badge */}
                         <div
-                          className={`${color.bg} ${color.text} flex flex-col items-center justify-center px-3 py-2 shrink-0 min-w-[48px]`}
+                          className={`${color.bg} ${color.text} flex flex-col items-center justify-center px-3 py-2 shrink-0 min-w-12`}
                         >
                           <span className="text-lg font-black leading-none">
                             {period}
@@ -300,21 +295,7 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
                                   {cell.subject?.name || "مادة غير محددة"}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {hasLesson && hasHomework ? (
-                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                    ✅ مكتمل
-                                  </span>
-                                ) : hasLesson ? (
-                                  <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                                    📖 درس فقط
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                                    ⚠️ بدون خطة
-                                  </span>
-                                )}
-                              </div>
+                  
                             </div>
 
                             {/* Teacher */}
@@ -400,7 +381,7 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
       </div>
 
       {/* Watermark / branding strip */}
-      <div className="bg-gradient-to-l from-blue-700 via-blue-600 to-indigo-700 text-white/60 text-[10px] text-center py-1.5 font-medium">
+      <div className="bg-linear-to-l from-blue-700 via-blue-600 to-indigo-700 text-white/60 text-[10px] text-center py-1.5 font-medium">
         تم إنشاؤه بواسطة نظام إدارة الجداول المدرسية
       </div>
     </div>
@@ -595,9 +576,18 @@ export default function ClassScheduleShareModal({
         format: [pdfWidthMm, pdfHeightMm],
       });
 
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidthMm, pdfHeightMm, undefined, "FAST");
+      pdf.addImage(
+        imgData,
+        "JPEG",
+        0,
+        0,
+        pdfWidthMm,
+        pdfHeightMm,
+        undefined,
+        "FAST",
+      );
       pdf.save(
-        `جدول_فصل_${className?.replace(/\s+/g, "_")}_${week?.label || "الأسبوع"}_${Date.now()}.pdf`
+        `جدول_فصل_${className?.replace(/\s+/g, "_")}_${week?.label || "الأسبوع"}_${Date.now()}.pdf`,
       );
 
       toast.success("تم تصدير بطاقة الجدول كملف PDF بنجاح 📄");
