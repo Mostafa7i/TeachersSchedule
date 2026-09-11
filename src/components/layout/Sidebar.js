@@ -224,7 +224,7 @@ const adminNavItems = [
 const teacherNavItems = [
   {
     href: "/dashboard/teacher",
-    label: "خطة التحضير الأسبوعية",
+    label: "الخطة الأسبوعية والدروس",
     icon: (
       <svg
         className="w-5 h-5"

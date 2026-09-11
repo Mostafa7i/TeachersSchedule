@@ -14,19 +14,8 @@ import CopyWeekModal from "@/components/schedule/CopyWeekModal";
 import ClassScheduleShareModal from "@/components/schedule/ClassScheduleShareModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherWeeklyPlanModal from "@/components/schedule/TeacherWeeklyPlanModal";
+import PdfTimetableImportModal from "@/components/schedule/PdfTimetableImportModal";
 import { TableSkeleton } from "@/components/ui";
-
-const COMMON_CLASSES = [
-  "ثاني ثاني",
-  "أول أول",
-  "أول ثاني",
-  "أول ثالث",
-  "ثاني أول",
-  "ثاني ثالث",
-  "ثالث أول",
-  "ثالث ثاني",
-  "ثالث ثالث",
-];
 
 export default function AdminSchedulesPage() {
   const { user } = useAuth();
@@ -50,6 +39,7 @@ export default function AdminSchedulesPage() {
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [shareClass, setShareClass] = useState("");
   const [activeCell, setActiveCell] = useState(null);
   const [activeDay, setActiveDay] = useState("الأحد");
@@ -58,22 +48,17 @@ export default function AdminSchedulesPage() {
   const [saving, setSaving] = useState(false);
   const [copying, setCopying] = useState(false);
 
+  // Compute available classes dynamically purely from active schedules
+  const allClassesList = [
+    ...new Set(
+      schedules.map((s) => (s.className || "").trim()).filter(Boolean),
+    ),
+  ].sort();
+
   const handleOpenShare = (clsName) => {
-    setShareClass(clsName || selectedClass || allClassesList[0] || "أول أول");
+    setShareClass(clsName || selectedClass || allClassesList[0] || "");
     setShareModalOpen(true);
   };
-
-  // Compute available classes dynamically from schedules + defaults
-  const availableClasses = useState(() => {
-    return COMMON_CLASSES;
-  })[0];
-
-  const allClassesList = [
-    ...new Set([
-      ...COMMON_CLASSES,
-      ...schedules.map((s) => s.className).filter(Boolean),
-    ]),
-  ];
 
   // Load all initial metadata
   useEffect(() => {
@@ -158,7 +143,7 @@ export default function AdminSchedulesPage() {
 
   const handleAddSchedule = () => {
     setActiveCell(null);
-    setActiveDay("الأحد");
+    setActiveDay(settings?.workDays?.[0] || "الأحد");
     setActivePeriod(1);
     setActiveDefaultClass(selectedClass || "");
     setEditModalOpen(true);
@@ -225,23 +210,26 @@ export default function AdminSchedulesPage() {
     : currentWeek?.label || "الجدول_الأسبوعي";
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+    <div dir="rtl" className="min-h-screen bg-slate-50/80 p-3 sm:p-5 lg:p-8 space-y-5 sm:space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-            <span>إدارة الخطة والجداول الأسبوعية</span>
-          </h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            عرض وتعديل وتصدير الخطة الأسبوعية والتحضير المدرسي ومشاركتها مع
-            أولياء الأمور والطلاب والمعلمين.
-          </p>
-        </div>
+      <header className="relative overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5 shadow-sm no-print">
+        <div className="absolute -left-16 -top-20 h-52 w-52 rounded-full bg-blue-100/60 blur-3xl pointer-events-none" />
+        <div className="relative flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white text-lg shadow-sm">▦</span>
+              <span className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700">إدارة الجداول</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">الخطة والجدول الأسبوعي</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">تنظيم الحصص، متابعة الخطة، وتجهيز نسخة واضحة للطباعة والمشاركة.</p>
+          </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
           {/* Share for WhatsApp button */}
           <button
+            type="button"
             onClick={() => handleOpenShare(selectedClass)}
+            aria-label="مشاركة الخطة الأسبوعية عبر واتساب"
             className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white text-xs sm:text-sm font-extrabold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-500"
             title="إنشاء بطاقة مصممة للفصل ومشاركتها عبر واتساب"
           >
@@ -254,9 +242,11 @@ export default function AdminSchedulesPage() {
             weekLabel={exportFilename}
           />
         </div>
-      </div>
+        </div>
+      </header>
 
       {/* Week Navigator Bar */}
+      <section className="rounded-[1.5rem] border border-slate-200 bg-white shadow-sm overflow-hidden no-print">
       <WeekNavigator
         weeks={weeks}
         currentWeek={currentWeek}
@@ -266,13 +256,14 @@ export default function AdminSchedulesPage() {
         canCopy={true}
         canAdd={true}
       />
+      </section>
 
       {/* Class Selector Tabs Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+      <section className="bg-white rounded-[1.5rem] p-3.5 sm:p-4 border border-slate-200 shadow-sm space-y-3 no-print">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs font-bold text-gray-800">
             <span className="text-base">🏫</span>
-            <span>عرض الخطة الأسبوعية حسب الفصل الدراسي:</span>
+            <span>اختر الفصل لعرض خطته وتجهيز بطاقة مشاركة مستقلة</span>
           </div>
           <div className="flex items-center gap-2">
             {selectedClass && (
@@ -344,10 +335,10 @@ export default function AdminSchedulesPage() {
             );
           })}
         </div>
-      </div>
+      </section>
 
       {/* Filtering Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <section className="bg-slate-100/80 rounded-[1.5rem] p-3 sm:p-4 border border-slate-200 flex flex-wrap items-center justify-between gap-3 no-print">
         <div className="flex flex-wrap items-center gap-3 flex-1">
           <span className="text-xs font-bold text-gray-600">تصفية إضافية:</span>
 
@@ -355,7 +346,7 @@ export default function AdminSchedulesPage() {
           <select
             value={filterTeacher}
             onChange={(e) => handleFilterTeacherChange(e.target.value)}
-            className="px-3.5 py-2 text-xs font-semibold bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="min-w-[190px] px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm"
           >
             <option value="">جميع المعلمين (الكل)</option>
             {teachers.map((t) => (
@@ -369,7 +360,7 @@ export default function AdminSchedulesPage() {
           <select
             value={filterSubject}
             onChange={(e) => handleFilterSubjectChange(e.target.value)}
-            className="px-3.5 py-2 text-xs font-semibold bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="min-w-[190px] px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm"
           >
             <option value="">جميع المواد الدراسية (الكل)</option>
             {subjects.map((s) => (
@@ -398,10 +389,10 @@ export default function AdminSchedulesPage() {
               type="button"
               onClick={() => setPlanModalOpen(true)}
               className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-              title="استعراض الخطة الأسبوعية والتحضير لهذا المعلم"
+              title="استعراض الخطة الأسبوعية لهذا المعلم"
             >
               <span>📋</span>
-              <span>استعراض خطة المعلم وتحضيره</span>
+              <span>استعراض الخطة الأسبوعية للمعلم</span>
             </button>
           )}
         </div>
@@ -414,11 +405,52 @@ export default function AdminSchedulesPage() {
               : schedules.length}
           </span>
         </div>
-      </div>
+      </section>
 
-      {/* Main Schedule Table */}
+      {/* Empty Week Quick Setup Wizard */}
+      {!loading && schedules.length === 0 && currentWeek && (
+        <div className="bg-slate-900 text-white rounded-[1.75rem] p-5 sm:p-6 shadow-lg border border-slate-800 space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">💡</span>
+            <div>
+              <h3 className="text-lg font-black">
+                {currentWeek.label} لا يحتوي على أي حصص بعد!
+              </h3>
+              <p className="text-xs text-blue-200 mt-0.5">
+                يمكنك تجهيز خطة هذا الأسبوع وتوزيع الحصص على جميع المعلمين
+                تلقائياً بضغطة زر واحدة:
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => setPdfModalOpen(true)}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <span>📄</span>
+              <span>استيراد جدول المدرسة (PDF) وتوزيع الحصص تلقائياً</span>
+            </button>
+
+            {weeks.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setCopyModalOpen(true)}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black shadow-md transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <span>📋</span>
+                <span>نسخ وتكرار حصص الأسبوع السابق</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Schedule Table / Export Artifact */}
+      <section className="rounded-[1.75rem] border border-slate-200 bg-white shadow-sm overflow-hidden">
       {loading ? (
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-[1.5rem] p-5 sm:p-7 border border-slate-200 shadow-sm">
           <TableSkeleton rows={8} cols={6} />
         </div>
       ) : (
@@ -430,9 +462,24 @@ export default function AdminSchedulesPage() {
           selectedClass={selectedClass}
           onSelectClass={(cls) => setSelectedClass(cls)}
           onEditCell={handleEditCell}
+          onSaveCell={async (formData) => {
+            if (!formData.id) return;
+            await schedulesService.update(formData.id, formData);
+            setSchedules((prev) =>
+              prev.map((item) =>
+                item._id === formData.id ? { ...item, ...formData } : item,
+              ),
+            );
+          }}
+          onBulkSave={async (updates) => {
+            await schedulesService.bulkUpdateLessons(updates);
+            if (currentWeek) fetchSchedules(currentWeek._id);
+          }}
           onShareClass={handleOpenShare}
+          enableInlineEdit={true}
         />
       )}
+      </section>
 
       {/* Edit Cell Modal */}
       <ScheduleCellEditModal
@@ -467,6 +514,16 @@ export default function AdminSchedulesPage() {
         weeks={weeks}
         onCopy={handleCopyWeek}
         loading={copying}
+      />
+
+      {/* PDF Timetable Import Modal */}
+      <PdfTimetableImportModal
+        isOpen={pdfModalOpen}
+        onClose={() => setPdfModalOpen(false)}
+        weekId={currentWeek?._id}
+        onSuccess={() => {
+          if (currentWeek) fetchSchedules(currentWeek._id);
+        }}
       />
 
       {/* WhatsApp Share Card Modal */}

@@ -100,9 +100,7 @@ export default function AdminPlanCompletionPage() {
   const handleOpenSingleReminder = (teacherItem) => {
     setSelectedTeacherForReminder(teacherItem);
     const weekLabel = completionData?.week?.label || "الأسبوع الحالي";
-    setReminderTitle(
-      "تنبيه: إكمال الخطة والتحضير الأسبوعي (" + weekLabel + ")",
-    );
+    setReminderTitle("تنبيه: إكمال الخطة الأسبوعية للدروس (" + weekLabel + ")");
     setReminderMessage(
       "الأستاذ الفاضل / " +
         teacherItem.teacher?.name +
@@ -143,7 +141,9 @@ export default function AdminPlanCompletionPage() {
 
   const handleOpenBulkReminder = () => {
     const weekLabel = completionData?.week?.label || "الأسبوع الحالي";
-    setBulkTitle("تنبيه عاجل: إكمال خطة التحضير الأسبوعية (" + weekLabel + ")");
+    setBulkTitle(
+      "تنبيه عاجل: إكمال الخطة الأسبوعية للدروس (" + weekLabel + ")",
+    );
     setBulkMessage(
       "السادة المعلمين الأفاضل، يُرجى سرعة استكمال تعبئة موضوعات الدروس والواجبات المنزلية للحصص المتبقية في خطة " +
         weekLabel +

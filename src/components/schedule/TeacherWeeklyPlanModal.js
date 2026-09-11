@@ -115,7 +115,7 @@ export default function TeacherWeeklyPlanModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`📋 خطة وتحضير المعلم: ${teacher.name}`}
+      title={`📘 خطة الدروس والواجبات - المعلم: ${teacher.name}`}
       size="2xl"
       footer={
         <div className="flex items-center justify-between w-full">
@@ -209,7 +209,7 @@ export default function TeacherWeeklyPlanModal({
 
           <div className="bg-emerald-50/60 border border-emerald-200 p-3 rounded-xl text-center">
             <span className="text-[11px] text-emerald-700 font-bold block">
-              مكتمل التحضير
+              مكتملة الخطة
             </span>
             <span className="text-lg font-black text-emerald-700">
               {completedCount} ({completionRate}%)
@@ -300,6 +300,24 @@ export default function TeacherWeeklyPlanModal({
               selectedClass={selectedClass}
               onSelectClass={(cls) => setSelectedClass(cls)}
               onEditCell={handleEditCell}
+              onSaveCell={async (formData) => {
+                if (!formData.id) return;
+                await schedulesService.update(formData.id, formData);
+                setSchedules((prev) =>
+                  prev.map((item) =>
+                    item._id === formData.id ? { ...item, ...formData } : item,
+                  ),
+                );
+                if (onSaveSuccess) onSaveSuccess();
+              }}
+              onBulkSave={async (updates) => {
+                await schedulesService.bulkUpdateLessons(updates);
+                if (teacher?._id && selectedWeekId) {
+                  fetchTeacherSchedules(teacher._id, selectedWeekId);
+                }
+                if (onSaveSuccess) onSaveSuccess();
+              }}
+              enableInlineEdit={true}
               readOnly={false}
             />
           </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/contexts/ToastContext";
-import { weeksService } from "@/services/schedules.service";
+import { schedulesService, weeksService } from "@/services/schedules.service";
 import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Skeleton } from "@/components/ui";
@@ -28,6 +28,11 @@ export default function AdminWeeksPage() {
     academicYear: "1447-1448هـ / 2026-2027م",
     isActive: true,
   });
+
+  // Week Schedule Auto-Setup Options
+  const [setupMode, setSetupMode] = useState("copy_prev"); // 'copy_prev' | 'pdf' | 'empty'
+  const [sourceWeekId, setSourceWeekId] = useState("");
+  const [pdfFile, setPdfFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const fetchWeeks = async () => {
@@ -35,6 +40,9 @@ export default function AdminWeeksPage() {
       setLoading(true);
       const res = await weeksService.getAll();
       setWeeks(res.data || []);
+      if (res.data?.length > 0 && !sourceWeekId) {
+        setSourceWeekId(res.data[res.data.length - 1]._id);
+      }
     } catch (err) {
       toast.error("فشل جلب قائمة الأسابيع الدراسية");
     } finally {
@@ -59,6 +67,9 @@ export default function AdminWeeksPage() {
       academicYear: "1447-1448هـ / 2026-2027م",
       isActive: true,
     });
+    setSetupMode(weeks.length > 0 ? "copy_prev" : "pdf");
+    setSourceWeekId(weeks.length > 0 ? weeks[weeks.length - 1]._id : "");
+    setPdfFile(null);
     setModalOpen(true);
   };
 
@@ -94,9 +105,42 @@ export default function AdminWeeksPage() {
         );
         toast.success("تم تحديث الأسبوع الدراسي بنجاح ✅");
       } else {
+        // 1. Create the week
         const res = await weeksService.create(formData);
-        setWeeks((prev) => [...prev, res.data]);
-        toast.success("تم إنشاء الأسبوع الدراسي بنجاح ✅");
+        const createdWeek = res.data;
+        setWeeks((prev) => [...prev, createdWeek]);
+
+        // 2. Automated Schedule Setup
+        if (setupMode === "copy_prev" && sourceWeekId) {
+          try {
+            await schedulesService.copyWeek({
+              sourceWeekId,
+              targetWeekId: createdWeek._id,
+              overwrite: true,
+            });
+            toast.success("تم إنشاء الأسبوع ونسخ توزيع الحصص بنجاح 🎉");
+          } catch (copyErr) {
+            console.error("Copy week error:", copyErr);
+            toast.warning("تم إنشاء الأسبوع، لكن تعذر نسخ الحصص السابقة");
+          }
+        } else if (setupMode === "pdf" && pdfFile) {
+          try {
+            const pdfFormData = new FormData();
+            pdfFormData.append("file", pdfFile);
+            pdfFormData.append("weekId", createdWeek._id);
+            await schedulesService.importPdf(pdfFormData);
+            toast.success(
+              "تم إنشاء الأسبوع واستيراد وتوزيع جداول الـ PDF آلياً 🎉",
+            );
+          } catch (pdfErr) {
+            console.error("PDF import error:", pdfErr);
+            toast.warning(
+              "تم إنشاء الأسبوع، ولكن حدث خطأ أثناء معالجة ملف الـ PDF",
+            );
+          }
+        } else {
+          toast.success("تم إنشاء الأسبوع الدراسي بنجاح ✅");
+        }
       }
       setModalOpen(false);
     } catch (err) {
@@ -389,6 +433,108 @@ export default function AdminWeeksPage() {
               />
             </div>
           </div>
+
+          {!editingWeek && (
+            <div className="pt-3 border-t border-gray-100 space-y-3">
+              <label className="block text-xs font-bold text-gray-800">
+                ⚡ تهيئة وتوزيع الحصص للأسبوع الجديد تلقائياً:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setSetupMode("copy_prev")}
+                  className={`p-3 rounded-xl border text-right transition-all flex flex-col justify-between ${
+                    setupMode === "copy_prev"
+                      ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20 text-blue-900 shadow-sm"
+                      : "border-gray-200 hover:border-gray-300 text-gray-700 bg-white"
+                  }`}
+                >
+                  <div className="text-lg mb-1">📋</div>
+                  <div className="font-bold text-xs">نسخ من أسبوع سابق</div>
+                  <div className="text-[10px] text-gray-500 mt-0.5">
+                    تكرار توزيع الحصص بالكامل
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSetupMode("pdf")}
+                  className={`p-3 rounded-xl border text-right transition-all flex flex-col justify-between ${
+                    setupMode === "pdf"
+                      ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20 text-blue-900 shadow-sm"
+                      : "border-gray-200 hover:border-gray-300 text-gray-700 bg-white"
+                  }`}
+                >
+                  <div className="text-lg mb-1">📄</div>
+                  <div className="font-bold text-xs">استيراد PDF الجداول</div>
+                  <div className="text-[10px] text-gray-500 mt-0.5">
+                    استخراج وتوزيع آلي
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSetupMode("empty")}
+                  className={`p-3 rounded-xl border text-right transition-all flex flex-col justify-between ${
+                    setupMode === "empty"
+                      ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20 text-blue-900 shadow-sm"
+                      : "border-gray-200 hover:border-gray-300 text-gray-700 bg-white"
+                  }`}
+                >
+                  <div className="text-lg mb-1">📝</div>
+                  <div className="font-bold text-xs">أسبوع فارغ</div>
+                  <div className="text-[10px] text-gray-500 mt-0.5">
+                    بدون توزيع حصص مسبق
+                  </div>
+                </button>
+              </div>
+
+              {setupMode === "copy_prev" && (
+                <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 text-xs space-y-1.5 animate-fadeIn">
+                  <label className="block font-bold text-blue-950">
+                    اختر الأسبوع المراد نسخ الحصص منه:
+                  </label>
+                  {weeks.length === 0 ? (
+                    <p className="text-amber-700 font-medium">
+                      لا توجد أسابيع سابقة متاحة للنسخ منها.
+                    </p>
+                  ) : (
+                    <select
+                      value={sourceWeekId}
+                      onChange={(e) => setSourceWeekId(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-xs font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      {weeks.map((w) => (
+                        <option key={w._id} value={w._id}>
+                          {w.label} (أسبوع {w.weekNumber})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {setupMode === "pdf" && (
+                <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 text-xs space-y-2 animate-fadeIn">
+                  <label className="block font-bold text-blue-950">
+                    اختر ملف جدول الحصص الأسبوعي (PDF):
+                  </label>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
+                    className="w-full text-xs text-gray-700 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                  />
+                  {pdfFile && (
+                    <p className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                      ✓ تم اختيار: {pdfFile.name} (
+                      {(pdfFile.size / 1024).toFixed(0)} KB)
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </form>
       </Modal>
 

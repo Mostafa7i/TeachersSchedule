@@ -45,7 +45,7 @@ export default function NotificationBell() {
     try {
       await notificationsService.markAsRead(id);
       setNotifications((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
+        prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)),
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
@@ -137,8 +137,12 @@ export default function NotificationBell() {
             {notifications.length === 0 ? (
               <div className="text-center py-10 px-4">
                 <span className="text-3xl block mb-2">🎉</span>
-                <p className="text-xs font-bold text-gray-700">لا توجد أي تنبيهات حالياً</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">خطتك الأسبوعية والتحضيرات تسير على ما يرام!</p>
+                <p className="text-xs font-bold text-gray-700">
+                  لا توجد أي تنبيهات حالياً
+                </p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  خطتك الأسبوعية وجدولك يسيران على ما يرام!
+                </p>
               </div>
             ) : (
               notifications.map((n) => (
@@ -155,17 +159,19 @@ export default function NotificationBell() {
                     {n.type === "WARNING"
                       ? "⚠️"
                       : n.type === "SUCCESS"
-                      ? "✅"
-                      : n.type === "INFO"
-                      ? "ℹ️"
-                      : "🔔"}
+                        ? "✅"
+                        : n.type === "INFO"
+                          ? "ℹ️"
+                          : "🔔"}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-1">
                       <p
                         className={`text-xs font-bold truncate ${
-                          !n.isRead ? "text-slate-900 font-black" : "text-gray-700"
+                          !n.isRead
+                            ? "text-slate-900 font-black"
+                            : "text-gray-700"
                         }`}
                       >
                         {n.title}

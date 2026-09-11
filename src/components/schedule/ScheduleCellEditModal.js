@@ -139,15 +139,15 @@ export default function ScheduleCellEditModal({
 
   const shouldPromptForPreparationBroadcast = Boolean(
     schedule?._id &&
-      formData.className?.trim() &&
-      gradePrefix &&
-      (canEditTitle || canEditHomework || canEditActivities || canEditNotes) &&
-      [
-        formData.lessonTitle,
-        formData.homework,
-        formData.activities,
-        formData.notes,
-      ].some((value) => value?.trim()),
+    formData.className?.trim() &&
+    gradePrefix &&
+    (canEditTitle || canEditHomework || canEditActivities || canEditNotes) &&
+    [
+      formData.lessonTitle,
+      formData.homework,
+      formData.activities,
+      formData.notes,
+    ].some((value) => value?.trim()),
   );
 
   const saveWithOptionalBroadcast = () => {
@@ -209,338 +209,339 @@ export default function ScheduleCellEditModal({
 
   return (
     <>
-    <Modal
-      isOpen={isOpen && !showBulkConfirm}
-      onClose={onClose}
-      title={
-        schedule
-          ? `تحضير وتعديل الحصة (${period}) - يوم ${day} ${schedule.className ? `(فصل ${schedule.className})` : ""}`
-          : `إضافة حصة (${period}) - يوم ${day}`
-      }
-      size="lg"
-      footer={
-        <>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            إلغاء
-          </button>
-
-          {showWarningPrompt ? (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowWarningPrompt(false)}
-                className="px-4 py-2.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-xl transition-all"
-              >
-                ✏️ إكمال الحقول الآن
-              </button>
-              <button
-                type="button"
-                onClick={saveWithOptionalBroadcast}
-                disabled={loading}
-                className="px-5 py-2.5 text-xs font-bold text-white bg-slate-700 hover:bg-slate-800 rounded-xl transition-all disabled:opacity-50"
-              >
-                حفظ على أي حال
-              </button>
-            </div>
-          ) : (
+      <Modal
+        isOpen={isOpen && !showBulkConfirm}
+        onClose={onClose}
+        title={
+          schedule
+            ? `تعديل بيانات وخطة الحصة (${period}) - يوم ${day} ${schedule.className ? `(فصل ${schedule.className})` : ""}`
+            : `إضافة حصة (${period}) - يوم ${day}`
+        }
+        size="lg"
+        footer={
+          <>
             <button
               type="button"
-              onClick={handleSubmit}
+              onClick={onClose}
               disabled={loading}
-              className="px-6 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm hover:shadow transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
-              {loading ? (
-                <>
-                  <svg
-                    className="animate-spin w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                  <span>جاري الحفظ...</span>
-                </>
-              ) : (
-                <span>حفظ التحضير</span>
-              )}
+              إلغاء
             </button>
+
+            {showWarningPrompt ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowWarningPrompt(false)}
+                  className="px-4 py-2.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-xl transition-all"
+                >
+                  ✏️ إكمال الحقول الآن
+                </button>
+                <button
+                  type="button"
+                  onClick={saveWithOptionalBroadcast}
+                  disabled={loading}
+                  className="px-5 py-2.5 text-xs font-bold text-white bg-slate-700 hover:bg-slate-800 rounded-xl transition-all disabled:opacity-50"
+                >
+                  حفظ على أي حال
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                className="px-6 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm hover:shadow transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              >
+                {loading ? (
+                  <>
+                    <svg
+                      className="animate-spin w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    <span>جاري الحفظ...</span>
+                  </>
+                ) : (
+                  <span>حفظ الخطة</span>
+                )}
+              </button>
+            )}
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* System Warning Banner if fields are empty */}
+          {showWarningPrompt && (
+            <div className="bg-amber-50 border-2 border-amber-300 p-4 rounded-2xl text-amber-900 flex items-start gap-3 animate-bounce-short shadow-sm">
+              <span className="text-2xl flex-shrink-0">⚠️</span>
+              <div className="space-y-1">
+                <p className="text-xs font-black text-amber-950">
+                  تنبيه من النظام: تركت حقول أساسية فارغة!
+                </p>
+                <p className="text-xs font-medium text-amber-800 leading-relaxed">
+                  لم تقم بتعبئة{" "}
+                  <span className="font-bold underline">
+                    {missingFieldsNames.join(" و ")}
+                  </span>
+                  . يوصى بإكمالها لتظهر خطتك كـ "مكتملة 100%" في لوحة المتابعة
+                  وتفادي إرسال تنبيهات من إدارة المدرسة.
+                </p>
+              </div>
+            </div>
           )}
-        </>
-      }
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* System Warning Banner if fields are empty */}
-        {showWarningPrompt && (
-          <div className="bg-amber-50 border-2 border-amber-300 p-4 rounded-2xl text-amber-900 flex items-start gap-3 animate-bounce-short shadow-sm">
-            <span className="text-2xl flex-shrink-0">⚠️</span>
-            <div className="space-y-1">
-              <p className="text-xs font-black text-amber-950">
-                تنبيه من النظام: تركت حقول أساسية فارغة!
-              </p>
-              <p className="text-xs font-medium text-amber-800 leading-relaxed">
-                لم تقم بتعبئة{" "}
-                <span className="font-bold underline">
-                  {missingFieldsNames.join(" و ")}
+          {/* Info Banner */}
+          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700">
+            <div>
+              <span className="font-bold text-slate-900">اليوم:</span> {day}
+            </div>
+            <div>
+              <span className="font-bold text-slate-900">الحصة:</span> الحصة{" "}
+              {period}
+            </div>
+            {formData.className && (
+              <div className="bg-blue-100 text-blue-900 px-2.5 py-0.5 rounded-lg font-bold">
+                <span>الصف/الفصل:</span> {formData.className}
+              </div>
+            )}
+            <div>
+              <span className="font-bold text-slate-900">الأسبوع:</span>{" "}
+              {week?.label}
+            </div>
+          </div>
+
+          {/* Admin only: Class, Subject, Teacher and Room edit */}
+          {isSuperAdmin ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  اسم الفصل / الصف <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.className}
+                  onChange={(e) =>
+                    setFormData({ ...formData, className: e.target.value })
+                  }
+                  required
+                  placeholder="مثال: ثاني ثاني / أول أول"
+                  className="w-full px-3 py-2 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  المادة الدراسية <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.subject}
+                  onChange={(e) =>
+                    setFormData({ ...formData, subject: e.target.value })
+                  }
+                  required
+                  className="w-full px-3 py-2 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                >
+                  <option value="">-- اختر المادة --</option>
+                  {availableSubjects.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name} ({s.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  المعلم المسند
+                </label>
+                <select
+                  value={formData.teacher}
+                  onChange={(e) =>
+                    setFormData({ ...formData, teacher: e.target.value })
+                  }
+                  className="w-full px-3 py-2 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                >
+                  <option value="">-- اختر المعلم --</option>
+                  {teachers.map((t) => (
+                    <option key={t._id} value={t._id}>
+                      👨‍🏫 {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  القاعة / المعمل
+                </label>
+                <input
+                  type="text"
+                  value={formData.room}
+                  onChange={(e) =>
+                    setFormData({ ...formData, room: e.target.value })
+                  }
+                  placeholder="مثال: معمل الحاسب 1"
+                  className="w-full px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {/* Lesson Title */}
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+              <span>عنوان وموضوع الدرس</span>
+              {!canEditTitle && (
+                <span className="text-xs text-amber-600 font-normal">
+                  قراءة فقط
                 </span>
-                . يوصى بإكمالها لتظهر خطتك كـ "مكتملة 100%" في لوحة المتابعة
-                وتفادي إرسال تنبيهات من إدارة المدرسة.
-              </p>
-            </div>
+              )}
+            </label>
+            <input
+              type="text"
+              value={formData.lessonTitle}
+              onChange={(e) =>
+                setFormData({ ...formData, lessonTitle: e.target.value })
+              }
+              disabled={!canEditTitle}
+              placeholder="مثال: ترتيب العمليات الحسابية والمعادلات"
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-gray-400 font-medium"
+            />
           </div>
-        )}
-        {/* Info Banner */}
-        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700">
+
+          {/* Homework */}
           <div>
-            <span className="font-bold text-slate-900">اليوم:</span> {day}
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+              <span>الواجبات والمهام المنزلية</span>
+              {!canEditHomework && (
+                <span className="text-xs text-amber-600 font-normal">
+                  قراءة فقط
+                </span>
+              )}
+            </label>
+            <textarea
+              rows={2}
+              value={formData.homework}
+              onChange={(e) =>
+                setFormData({ ...formData, homework: e.target.value })
+              }
+              disabled={!canEditHomework}
+              placeholder="مثال: حل تدريبات الكتاب ص 35 الفقرات (1، 2، 3)"
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-gray-400"
+            />
           </div>
+
+          {/* Activities */}
           <div>
-            <span className="font-bold text-slate-900">الحصة:</span> الحصة{" "}
-            {period}
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+              <span>الأنشطة الصفية والتطبيقات</span>
+              {!canEditActivities && (
+                <span className="text-xs text-amber-600 font-normal">
+                  قراءة فقط
+                </span>
+              )}
+            </label>
+            <textarea
+              rows={2}
+              value={formData.activities}
+              onChange={(e) =>
+                setFormData({ ...formData, activities: e.target.value })
+              }
+              disabled={!canEditActivities}
+              placeholder="مثال: تطبيق عملي على الأجهزة في معمل الحاسب"
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-gray-400"
+            />
           </div>
-          {formData.className && (
-            <div className="bg-blue-100 text-blue-900 px-2.5 py-0.5 rounded-lg font-bold">
-              <span>الصف/الفصل:</span> {formData.className}
-            </div>
-          )}
+
+          {/* Notes */}
           <div>
-            <span className="font-bold text-slate-900">الأسبوع:</span>{" "}
-            {week?.label}
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+              <span>الملاحظات</span>
+              {!canEditNotes && (
+                <span className="text-xs text-amber-600 font-normal">
+                  قراءة فقط
+                </span>
+              )}
+            </label>
+            <textarea
+              rows={2}
+              value={formData.notes}
+              onChange={(e) =>
+                setFormData({ ...formData, notes: e.target.value })
+              }
+              disabled={!canEditNotes}
+              placeholder="مثال: إحضار كتاب التمارين للحصة القادمة"
+              className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-gray-400"
+            />
           </div>
+        </form>
+      </Modal>
+      <Modal
+        isOpen={isOpen && showBulkConfirm}
+        onClose={() => setShowBulkConfirm(false)}
+        title="تعميم بيانات الدرس والواجب"
+        size="md"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowBulkConfirm(false)}
+              disabled={bulkFilling}
+              className="px-4 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              رجوع للتعديل
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowBulkConfirm(false);
+                executeSave();
+              }}
+              disabled={bulkFilling}
+              className="px-4 py-2.5 text-sm font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors disabled:opacity-50"
+            >
+              لا، لهذه الحصة فقط
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkFill}
+              disabled={bulkFilling}
+              className="px-4 py-2.5 text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {bulkFilling && (
+                <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+              )}
+              {bulkFilling ? "جاري التعميم..." : "نعم، عمّم الخطة"}
+            </button>
+          </>
+        }
+      >
+        <div className="flex items-start gap-3 text-sm text-gray-700 leading-relaxed">
+          <span className="text-2xl shrink-0">📚</span>
+          <p>
+            هل تريد تعميم بيانات الخطة والدرس على جميع فصول صف{" "}
+            <span className="font-black text-violet-900">"{gradePrefix}"</span>{" "}
+            مثل "{formData.className}"؟ سيتم تحديث{" "}
+            <strong>كل الحقول المكتوبة</strong> — عنوان الدرس والواجبات والأنشطة
+            والملاحظات — في حصص المادة نفسها خلال هذا الأسبوع.
+          </p>
         </div>
-
-        {/* Admin only: Class, Subject, Teacher and Room edit */}
-        {isSuperAdmin ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
-                اسم الفصل / الصف <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.className}
-                onChange={(e) =>
-                  setFormData({ ...formData, className: e.target.value })
-                }
-                required
-                placeholder="مثال: ثاني ثاني / أول أول"
-                className="w-full px-3 py-2 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
-                المادة الدراسية <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.subject}
-                onChange={(e) =>
-                  setFormData({ ...formData, subject: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="">-- اختر المادة --</option>
-                {availableSubjects.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name} ({s.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
-                المعلم المسند
-              </label>
-              <select
-                value={formData.teacher}
-                onChange={(e) =>
-                  setFormData({ ...formData, teacher: e.target.value })
-                }
-                className="w-full px-3 py-2 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="">-- اختر المعلم --</option>
-                {teachers.map((t) => (
-                  <option key={t._id} value={t._id}>
-                    👨‍🏫 {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
-                القاعة / المعمل
-              </label>
-              <input
-                type="text"
-                value={formData.room}
-                onChange={(e) =>
-                  setFormData({ ...formData, room: e.target.value })
-                }
-                placeholder="مثال: معمل الحاسب 1"
-                className="w-full px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
-            </div>
-          </div>
-        ) : null}
-
-        {/* Lesson Title */}
-        <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
-            <span>عنوان وموضوع الدرس</span>
-            {!canEditTitle && (
-              <span className="text-xs text-amber-600 font-normal">
-                قراءة فقط
-              </span>
-            )}
-          </label>
-          <input
-            type="text"
-            value={formData.lessonTitle}
-            onChange={(e) =>
-              setFormData({ ...formData, lessonTitle: e.target.value })
-            }
-            disabled={!canEditTitle}
-            placeholder="مثال: ترتيب العمليات الحسابية والمعادلات"
-            className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-gray-400 font-medium"
-          />
-        </div>
-
-        {/* Homework */}
-        <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
-            <span>الواجبات والمهام المنزلية</span>
-            {!canEditHomework && (
-              <span className="text-xs text-amber-600 font-normal">
-                قراءة فقط
-              </span>
-            )}
-          </label>
-          <textarea
-            rows={2}
-            value={formData.homework}
-            onChange={(e) =>
-              setFormData({ ...formData, homework: e.target.value })
-            }
-            disabled={!canEditHomework}
-            placeholder="مثال: حل تدريبات الكتاب ص 35 الفقرات (1، 2، 3)"
-            className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-gray-400"
-          />
-        </div>
-
-        {/* Activities */}
-        <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
-            <span>الأنشطة الصفية والتطبيقات</span>
-            {!canEditActivities && (
-              <span className="text-xs text-amber-600 font-normal">
-                قراءة فقط
-              </span>
-            )}
-          </label>
-          <textarea
-            rows={2}
-            value={formData.activities}
-            onChange={(e) =>
-              setFormData({ ...formData, activities: e.target.value })
-            }
-            disabled={!canEditActivities}
-            placeholder="مثال: تطبيق عملي على الأجهزة في معمل الحاسب"
-            className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-gray-400"
-          />
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center justify-between">
-            <span>الملاحظات</span>
-            {!canEditNotes && (
-              <span className="text-xs text-amber-600 font-normal">
-                قراءة فقط
-              </span>
-            )}
-          </label>
-          <textarea
-            rows={2}
-            value={formData.notes}
-            onChange={(e) =>
-              setFormData({ ...formData, notes: e.target.value })
-            }
-            disabled={!canEditNotes}
-            placeholder="مثال: إحضار كتاب التمارين للحصة القادمة"
-            className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed placeholder:text-gray-400"
-          />
-        </div>
-      </form>
-    </Modal>
-    <Modal
-      isOpen={isOpen && showBulkConfirm}
-      onClose={() => setShowBulkConfirm(false)}
-      title="تعميم التحضير"
-      size="md"
-      footer={
-        <>
-          <button
-            type="button"
-            onClick={() => setShowBulkConfirm(false)}
-            disabled={bulkFilling}
-            className="px-4 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            رجوع للتعديل
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowBulkConfirm(false);
-              executeSave();
-            }}
-            disabled={bulkFilling}
-            className="px-4 py-2.5 text-sm font-bold text-blue-800 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors disabled:opacity-50"
-          >
-            لا، لهذه الحصة فقط
-          </button>
-          <button
-            type="button"
-            onClick={handleBulkFill}
-            disabled={bulkFilling}
-            className="px-4 py-2.5 text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            {bulkFilling && (
-              <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
-            )}
-            {bulkFilling ? "جاري التعميم..." : "نعم، عمّم التحضير"}
-          </button>
-        </>
-      }
-    >
-      <div className="flex items-start gap-3 text-sm text-gray-700 leading-relaxed">
-        <span className="text-2xl shrink-0">📚</span>
-        <p>
-          هل تريد تعميم بيانات التحضير على جميع فصول صف{" "}
-          <span className="font-black text-violet-900">"{gradePrefix}"</span>{" "}
-          مثل "{formData.className}"؟ سيتم تحديث <strong>كل الحقول المكتوبة</strong>{" "}
-          — عنوان الدرس والواجبات والأنشطة والملاحظات — في حصص المادة نفسها خلال هذا الأسبوع.
-        </p>
-      </div>
-    </Modal>
+      </Modal>
     </>
   );
 }

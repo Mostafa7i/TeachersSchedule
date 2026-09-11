@@ -8,10 +8,11 @@ import { subjectsService } from "@/services/subjects.service";
 import { settingsService } from "@/services/settings.service";
 import WeekNavigator from "@/components/schedule/WeekNavigator";
 import WeeklyScheduleTable from "@/components/schedule/WeeklyScheduleTable";
-import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
 import { TableSkeleton } from "@/components/ui";
+
+import { getLogoUrl, getClassBadgeStyle } from "@/lib/utils";
 
 export default function TeacherWeeklyPlanPreviewPage() {
   const { user } = useAuth();
@@ -27,20 +28,12 @@ export default function TeacherWeeklyPlanPreviewPage() {
   // Class Selection Filter
   const [selectedClass, setSelectedClass] = useState("");
 
-  // Edit Modal State
-  const [modalOpen, setModalOpen] = useState(false);
-  const [activeCell, setActiveCell] = useState(null);
-  const [activeDay, setActiveDay] = useState("الأحد");
-  const [activePeriod, setActivePeriod] = useState(1);
-  const [activeDefaultClass, setActiveDefaultClass] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  // Only show classes that are actually assigned to the logged-in teacher.
+  // Only show classes that are actually assigned to the logged-in teacher in active schedules
   const allClassesList = [
     ...new Set([
       ...schedules.map((s) => (s.className || "").trim()).filter(Boolean),
     ]),
-  ];
+  ].sort();
 
   // Load Initial Metadata
   useEffect(() => {
@@ -97,55 +90,31 @@ export default function TeacherWeeklyPlanPreviewPage() {
     ),
   );
 
-  const handleEditCell = (cell, day, period, classForCell) => {
-    setActiveCell(cell);
-    setActiveDay(day);
-    setActivePeriod(period);
-    setActiveDefaultClass(classForCell || selectedClass || "");
-    setModalOpen(true);
+  // Direct Inline Cell Save
+  const handleSaveInlineCell = async (formData) => {
+    if (!formData.id) return;
+    const res = await schedulesService.update(formData.id, formData);
+    setSchedules((prev) =>
+      prev.map((item) =>
+        item._id === formData.id ? { ...item, ...formData } : item,
+      ),
+    );
+    return res;
   };
 
-  const handleSaveCell = async (formData) => {
-    setSaving(true);
-    try {
-      if (formData.id) {
-        const payload = {
-          lessonTitle: formData.lessonTitle,
-          homework: formData.homework,
-          activities: formData.activities,
-          notes: formData.notes,
-        };
-        if (formData.subject) {
-          payload.subject = formData.subject;
-        }
-        if (formData.applyToClass) {
-          payload.applyToClass = true;
-        }
-
-        await schedulesService.update(formData.id, payload);
-
-        // If applied to class, reload all teacher schedules for this week
-        if (formData.applyToClass && currentWeek?._id) {
-          const schedRes = await schedulesService.getForTeacher(
-            currentWeek._id,
-          );
-          setSchedules(schedRes.data?.schedules || []);
-        } else {
-          // Re-fetch or update single
-          const schedRes = await schedulesService.getForTeacher(
-            currentWeek._id,
-          );
-          setSchedules(schedRes.data?.schedules || []);
-        }
-        toast.success("تم حفظ وتحديث بيانات الحصة بنجاح ✅");
-      }
-      setModalOpen(false);
-    } catch (err) {
-      const msg = err.response?.data?.message || "فشل حفظ التعديلات";
-      toast.error(msg);
-    } finally {
-      setSaving(false);
-    }
+  // Direct Bulk Save
+  const handleBulkSaveInline = async (updates) => {
+    const res = await schedulesService.bulkUpdateLessons(updates);
+    setSchedules((prev) => {
+      const updateMap = {};
+      updates.forEach((u) => {
+        updateMap[u.id] = u;
+      });
+      return prev.map((item) =>
+        updateMap[item._id] ? { ...item, ...updateMap[item._id] } : item,
+      );
+    });
+    return res;
   };
 
   // Quick subject change for an entire class
@@ -180,7 +149,8 @@ export default function TeacherWeeklyPlanPreviewPage() {
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-gray-500 font-medium">
-            حصصك المسندة في الجدول الأسبوعي، مع إمكانية التصدير والطباعة
+            اكتب موضوع الدرس والواجبات مباشرة في الجدول، مع إمكانية النسخ والحفظ
+            الفوري.
           </p>
         </div>
 
@@ -202,8 +172,8 @@ export default function TeacherWeeklyPlanPreviewPage() {
         )}
       </div>
 
-      {/* Class Filter Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+      {/* Class Filter Bar with Distinct Colors */}
+      <div className="bg-white rounded-3xl p-4 border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-bold text-gray-700 flex items-center gap-1">
             <span>🏫</span>
@@ -213,7 +183,7 @@ export default function TeacherWeeklyPlanPreviewPage() {
           <button
             type="button"
             onClick={() => setSelectedClass("")}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
               selectedClass === ""
                 ? "bg-slate-900 text-white shadow-xs"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -222,27 +192,31 @@ export default function TeacherWeeklyPlanPreviewPage() {
             جميع الفصول
           </button>
 
-          {allClassesList.map((cls) => (
-            <button
-              key={cls}
-              type="button"
-              onClick={() => setSelectedClass(cls)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                selectedClass === cls
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              {cls}
-            </button>
-          ))}
+          {allClassesList.map((cls) => {
+            const isSelected = selectedClass === cls;
+            const style = getClassBadgeStyle(cls);
+            return (
+              <button
+                key={cls}
+                type="button"
+                onClick={() => setSelectedClass(cls)}
+                className={`px-3.5 py-1.5 rounded-2xl text-xs font-black transition-all cursor-pointer border ${
+                  isSelected
+                    ? `${style.solid} shadow-xs scale-105`
+                    : `${style.badge} hover:scale-105`
+                }`}
+              >
+                {cls}
+              </button>
+            );
+          })}
         </div>
 
         {selectedClass && (
           <div className="flex items-center gap-2 flex-wrap">
             {/* Quick Class Subject Switcher for Multi-subject Teacher */}
             {teacherSubjectsList.length > 1 && (
-              <div className="flex items-center gap-1.5 bg-blue-50/80 border border-blue-200 px-3 py-1.5 rounded-xl text-xs">
+              <div className="flex items-center gap-1.5 bg-blue-50/80 border border-blue-200 px-3 py-1.5 rounded-2xl text-xs">
                 <span className="font-bold text-blue-900 flex items-center gap-1">
                   <span>📚</span>
                   <span>مادة فصل {selectedClass}:</span>
@@ -258,7 +232,7 @@ export default function TeacherWeeklyPlanPreviewPage() {
                   onChange={(e) =>
                     handleSetClassSubject(selectedClass, e.target.value)
                   }
-                  className="px-2.5 py-1 text-xs font-black bg-white border border-blue-300 text-blue-950 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-xs"
+                  className="px-2.5 py-1 text-xs font-black bg-white border border-blue-300 text-blue-950 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-xs"
                 >
                   {teacherSubjectsList.map((s) => (
                     <option key={s._id} value={s._id}>
@@ -297,9 +271,9 @@ export default function TeacherWeeklyPlanPreviewPage() {
         />
       </div>
 
-      {/* Weekly Schedule Table View */}
+      {/* Weekly Schedule Table View with Direct Inline Editing */}
       {loading ? (
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
+        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs">
           <TableSkeleton rows={8} cols={6} />
         </div>
       ) : (
@@ -310,34 +284,11 @@ export default function TeacherWeeklyPlanPreviewPage() {
           subjects={subjects}
           selectedClass={selectedClass}
           onSelectClass={(cls) => setSelectedClass(cls)}
-          onEditCell={handleEditCell}
+          onSaveCell={handleSaveInlineCell}
+          onBulkSave={handleBulkSaveInline}
+          enableInlineEdit={true}
         />
       )}
-
-      {/* Edit Cell Modal */}
-      <ScheduleCellEditModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        schedule={activeCell}
-        week={currentWeek}
-        day={activeDay}
-        period={activePeriod}
-        defaultClassName={activeDefaultClass}
-        subjects={subjects}
-        teachers={[user]}
-        onSave={handleSaveCell}
-        onBulkFill={(updatedSchedules) => {
-          if (!Array.isArray(updatedSchedules)) return;
-          setSchedules((prev) => {
-            const map = {};
-            updatedSchedules.forEach((s) => {
-              map[s._id] = s;
-            });
-            return prev.map((item) => map[item._id] || item);
-          });
-        }}
-        loading={saving}
-      />
 
       {/* Obligatory Teacher Onboarding Modal if not completed */}
       <TeacherOnboardingModal

@@ -132,6 +132,13 @@ export const schedulesService = {
     const { data } = await api.post("/schedules/confirm-import-pdf", payload);
     return data;
   },
+
+  async bulkUpdateLessons(updates) {
+    const { data } = await api.post("/schedules/bulk-update-lessons", {
+      updates,
+    });
+    return data;
+  },
 };
 
 export const weeksService = {

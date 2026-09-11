@@ -5,18 +5,6 @@ import Modal from "@/components/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
 import { schedulesService } from "@/services/schedules.service";
 
-const COMMON_CLASSES = [
-  "أول أول",
-  "أول ثاني",
-  "أول ثالث",
-  "ثاني أول",
-  "ثاني ثاني",
-  "ثاني ثالث",
-  "ثالث أول",
-  "ثالث ثاني",
-  "ثالث ثالث",
-];
-
 export default function MasterTimetableGrid({
   week,
   schedules = [],
@@ -94,12 +82,12 @@ export default function MasterTimetableGrid({
     });
   });
 
-  // Extract all existing class names from schedules + common classes
-  const allClassesSet = new Set(COMMON_CLASSES);
+  // Extract all existing class names strictly from actual schedules
+  const existingClasses = [
+    ...new Set(schedules.map((s) => s.className?.trim()).filter(Boolean)),
+  ].sort();
+  const allClassesSet = new Set(existingClasses);
   schedules.forEach((s) => {
-    if (s.className && s.className.trim()) {
-      allClassesSet.add(s.className.trim());
-    }
     if (
       s.day &&
       s.period &&
@@ -999,24 +987,26 @@ export default function MasterTimetableGrid({
               placeholder="مثال: ثاني ثاني / أول أول"
               className="w-full px-3.5 py-2 text-xs font-bold bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none mb-2"
             />
-            {/* Quick Chips */}
-            <div className="flex flex-wrap gap-1">
-              {COMMON_CLASSES.map((c) => (
-                <button
-                  type="button"
-                  key={c}
-                  onClick={() => setCustomClassName(c)}
-                  className={
-                    "px-2 py-0.5 text-[11px] rounded-lg border font-bold transition-all " +
-                    (customClassName === c
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100")
-                  }
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
+            {/* Quick Chips from actual schedules */}
+            {existingClasses.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {existingClasses.map((c) => (
+                  <button
+                    type="button"
+                    key={c}
+                    onClick={() => setCustomClassName(c)}
+                    className={
+                      "px-2 py-0.5 text-[11px] rounded-lg border font-bold transition-all " +
+                      (customClassName === c
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100")
+                    }
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Room Name */}

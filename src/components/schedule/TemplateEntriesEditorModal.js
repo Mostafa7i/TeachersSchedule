@@ -8,18 +8,6 @@ import { useToast } from "@/contexts/ToastContext";
 const DAYS = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"];
 const PERIODS = [1, 2, 3, 4, 5, 6, 7];
 
-const COMMON_CLASSES = [
-  "أول أول",
-  "أول ثاني",
-  "أول ثالث",
-  "ثاني أول",
-  "ثاني ثاني",
-  "ثاني ثالث",
-  "ثالث أول",
-  "ثالث ثاني",
-  "ثالث ثالث",
-];
-
 export default function TemplateEntriesEditorModal({
   isOpen,
   onClose,
@@ -34,7 +22,11 @@ export default function TemplateEntriesEditorModal({
 
   // Active cell for mini-editor popup
   const [activeCell, setActiveCell] = useState(null); // { day, period }
-  const [cellForm, setCellForm] = useState({ className: "", subject: "", room: "" });
+  const [cellForm, setCellForm] = useState({
+    className: "",
+    subject: "",
+    room: "",
+  });
 
   useEffect(() => {
     if (!isOpen || !template?._id) return;
@@ -54,7 +46,7 @@ export default function TemplateEntriesEditorModal({
           subject: e.subject?._id || e.subject || "",
           className: e.className || "",
           room: e.room || "",
-        }))
+        })),
       );
     } catch {
       toast.error("فشل تحميل تفاصيل الجدول");
@@ -64,8 +56,14 @@ export default function TemplateEntriesEditorModal({
   };
 
   const handleCellClick = (day, period) => {
-    const existing = entries.find((e) => e.day === day && Number(e.period) === Number(period));
-    const defaultSub = template?.subjects?.[0]?._id || template?.subjects?.[0] || subjects[0]?._id || "";
+    const existing = entries.find(
+      (e) => e.day === day && Number(e.period) === Number(period),
+    );
+    const defaultSub =
+      template?.subjects?.[0]?._id ||
+      template?.subjects?.[0] ||
+      subjects[0]?._id ||
+      "";
     if (existing) {
       setCellForm({
         className: existing.className || "",
@@ -90,7 +88,9 @@ export default function TemplateEntriesEditorModal({
     }
 
     const { day, period } = activeCell;
-    const updated = entries.filter((e) => !(e.day === day && Number(e.period) === Number(period)));
+    const updated = entries.filter(
+      (e) => !(e.day === day && Number(e.period) === Number(period)),
+    );
     updated.push({
       day,
       period: Number(period),
@@ -105,7 +105,11 @@ export default function TemplateEntriesEditorModal({
   const handleClearCell = () => {
     if (!activeCell) return;
     const { day, period } = activeCell;
-    setEntries(entries.filter((e) => !(e.day === day && Number(e.period) === Number(period))));
+    setEntries(
+      entries.filter(
+        (e) => !(e.day === day && Number(e.period) === Number(period)),
+      ),
+    );
     setActiveCell(null);
   };
 
@@ -123,99 +127,130 @@ export default function TemplateEntriesEditorModal({
     }
   };
 
-  const getSubjectById = (id) => subjects.find((s) => s._id === id);
+  const getSubject = (id) => subjects.find((s) => s._id === id);
+
+  const existingClasses = [
+    ...new Set(entries.map((e) => (e.className || "").trim()).filter(Boolean)),
+  ].sort();
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`✏️ تعديل حصص الجدول: ${template?.name || ""}`}
-      size="xl"
+      title={`📅 تحرير وتوزيع حصص الجدول الشاغر: ${template?.name || ""}`}
+      size="2xl"
       footer={
         <div className="flex items-center justify-between w-full">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
-          >
-            إلغاء
-          </button>
-          <button
-            type="button"
-            onClick={handleSaveAll}
-            disabled={saving || loadingDetail}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-sm rounded-xl shadow-sm disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer"
-          >
-            {saving ? (
-              <>
-                <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                <span>جاري الحفظ...</span>
-              </>
-            ) : (
-              <>
-                <span>💾</span>
-                <span>حفظ حصص الجدول ({entries.length} حصة)</span>
-              </>
-            )}
-          </button>
+          <div className="text-xs font-bold text-gray-500">
+            عدد الحصص المسندة:{" "}
+            <span className="text-blue-700 font-black">{entries.length}</span>{" "}
+            حصة
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveAll}
+              disabled={saving || loadingDetail}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-sm disabled:opacity-50 flex items-center gap-2 transition-all cursor-pointer"
+            >
+              {saving ? (
+                <>
+                  <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full" />
+                  <span>جاري الحفظ...</span>
+                </>
+              ) : (
+                <>
+                  <span>💾</span>
+                  <span>حفظ تعديلات الجدول بالكامل</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       }
     >
       <div className="space-y-4">
-        {/* Helper Banner */}
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex items-center justify-between gap-2 text-xs text-emerald-950 font-semibold">
-          <span>💡 انقر على أي خلية في الجدول لإضافة الفصل والمادة والقاعة.</span>
-          <span className="bg-emerald-200/70 text-emerald-900 px-2.5 py-1 rounded-lg font-black text-[11px] flex-shrink-0">
-            {entries.length} حصة مسجلة
+        {/* Helper Note */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 flex items-center justify-between gap-2">
+          <span>
+            💡 <strong>طريقة التعديل:</strong> اضغط على أي خانة لإسناد الفصل
+            والمادة، أو اضغط على حصة مسجلة لتعديلها أو حذفها.
           </span>
+          <button
+            type="button"
+            // onClick={handleClearAll}
+            className="text-[11px] font-bold text-red-600 hover:text-red-800 underline flex-shrink-0 cursor-pointer"
+          >
+            تفريغ الجدول بالكامل
+          </button>
         </div>
 
+        {/* Timetable Grid View */}
         {loadingDetail ? (
-          <div className="py-16 text-center text-gray-400 text-sm">جاري تحميل بيانات الجدول...</div>
+          <div className="py-16 text-center">
+            <span className="animate-spin inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+            <p className="text-xs font-bold text-gray-500 mt-2">
+              جاري تحميل بيانات الحصص...
+            </p>
+          </div>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-xs">
-            <table className="min-w-full text-center border-collapse">
+          <div className="overflow-x-auto border border-gray-200 rounded-2xl">
+            <table className="w-full text-center border-collapse">
               <thead>
-                <tr className="bg-slate-800 text-white text-xs font-bold">
-                  <th className="py-2.5 px-3 border-e border-slate-700 w-24">الحصة</th>
-                  {DAYS.map((d) => (
-                    <th key={d} className="py-2.5 px-3 border-e border-slate-700 last:border-e-0 min-w-[120px]">
-                      {d}
+                <tr className="bg-slate-900 text-white text-xs font-black">
+                  <th className="p-2.5 border-b border-slate-800 w-24">
+                    اليوم / الحصة
+                  </th>
+                  {PERIODS.map((p) => (
+                    <th
+                      key={p}
+                      className="p-2.5 border-b border-r border-slate-800 text-xs"
+                    >
+                      الحصة {p}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-xs bg-white">
-                {PERIODS.map((period) => (
-                  <tr key={period} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3 px-3 font-black text-slate-800 bg-slate-50 border-e border-gray-200">
-                      الحصة {period}
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {DAYS.map((day) => (
+                  <tr key={day} className="hover:bg-gray-50/50">
+                    <td className="p-2.5 font-bold text-xs bg-slate-50 text-slate-800 border-l border-gray-200">
+                      {day}
                     </td>
-                    {DAYS.map((day) => {
+                    {PERIODS.map((period) => {
                       const entry = entries.find(
-                        (e) => e.day === day && Number(e.period) === Number(period)
+                        (e) =>
+                          e.day === day && Number(e.period) === Number(period),
                       );
-                      const subObj = entry ? getSubjectById(entry.subject) : null;
-                      const isSelected = activeCell?.day === day && activeCell?.period === period;
+                      const isSelected =
+                        activeCell?.day === day &&
+                        Number(activeCell?.period) === Number(period);
+                      const subObj = getSubject(entry?.subject);
 
                       return (
                         <td
-                          key={day}
+                          key={period}
                           onClick={() => handleCellClick(day, period)}
-                          className={`py-2 px-2 border-e border-gray-100 last:border-e-0 cursor-pointer transition-all ${
-                            isSelected ? "ring-2 ring-blue-600 bg-blue-50/80" : ""
+                          className={`p-1.5 border-r border-gray-200 cursor-pointer transition-all ${
+                            isSelected
+                              ? "ring-2 ring-blue-500 bg-blue-50/80"
+                              : entry
+                                ? "bg-slate-50 hover:bg-blue-50/40"
+                                : "hover:bg-gray-100/60"
                           }`}
                         >
                           {entry ? (
-                            <div
-                              className="rounded-xl p-2 text-right transition-all hover:scale-[1.02] shadow-2xs space-y-1 border"
-                              style={{
-                                backgroundColor: (subObj?.color || "#3b82f6") + "12",
-                                borderColor: (subObj?.color || "#3b82f6") + "35",
-                              }}
-                            >
+                            <div className="rounded-xl p-1.5 border border-slate-200 shadow-2xs space-y-0.5 text-right">
                               <div className="flex items-center justify-between gap-1">
-                                <span className="font-black text-slate-900 text-xs truncate">
+                                <span className="text-[11px] font-black text-gray-900 truncate">
                                   {entry.className}
                                 </span>
                                 {entry.room && (
@@ -232,7 +267,7 @@ export default function TemplateEntriesEditorModal({
                               </div>
                             </div>
                           ) : (
-                            <div className="h-12 border-2 border-dashed border-gray-200 hover:border-emerald-400 hover:bg-emerald-50/50 rounded-xl flex items-center justify-center text-gray-300 hover:text-emerald-600 font-black text-sm transition-all">
+                            <div className="h-10 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-300 hover:text-emerald-500 hover:border-emerald-300 font-black text-sm transition-all">
                               +
                             </div>
                           )}
@@ -262,28 +297,32 @@ export default function TemplateEntriesEditorModal({
               </button>
             </div>
 
-            {/* Quick Class Pills */}
-            <div>
-              <span className="text-[11px] font-bold text-gray-600 block mb-1">
-                اختيار سريع للفصل:
-              </span>
-              <div className="flex flex-wrap gap-1">
-                {COMMON_CLASSES.map((cls) => (
-                  <button
-                    key={cls}
-                    type="button"
-                    onClick={() => setCellForm({ ...cellForm, className: cls })}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      cellForm.className === cls
-                        ? "bg-blue-700 text-white"
-                        : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
-                    }`}
-                  >
-                    {cls}
-                  </button>
-                ))}
+            {/* Quick Class Pills (if existing) */}
+            {existingClasses.length > 0 && (
+              <div>
+                <span className="text-[11px] font-bold text-gray-600 block mb-1">
+                  اختيار من الفصول المضافة:
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {existingClasses.map((cls) => (
+                    <button
+                      key={cls}
+                      type="button"
+                      onClick={() =>
+                        setCellForm({ ...cellForm, className: cls })
+                      }
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                        cellForm.className === cls
+                          ? "bg-blue-700 text-white"
+                          : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
+                      }`}
+                    >
+                      {cls}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
@@ -293,8 +332,10 @@ export default function TemplateEntriesEditorModal({
                 <input
                   type="text"
                   value={cellForm.className}
-                  onChange={(e) => setCellForm({ ...cellForm, className: e.target.value })}
-                  placeholder="مثال: أول أول"
+                  onChange={(e) =>
+                    setCellForm({ ...cellForm, className: e.target.value })
+                  }
+                  placeholder="مثال: أول/1 أو 2/أ"
                   className="w-full px-3 py-1.5 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   autoFocus
                 />
@@ -306,7 +347,9 @@ export default function TemplateEntriesEditorModal({
                 </label>
                 <select
                   value={cellForm.subject}
-                  onChange={(e) => setCellForm({ ...cellForm, subject: e.target.value })}
+                  onChange={(e) =>
+                    setCellForm({ ...cellForm, subject: e.target.value })
+                  }
                   className="w-full px-3 py-1.5 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 >
                   <option value="">-- اختر المادة --</option>
@@ -325,7 +368,9 @@ export default function TemplateEntriesEditorModal({
                 <input
                   type="text"
                   value={cellForm.room}
-                  onChange={(e) => setCellForm({ ...cellForm, room: e.target.value })}
+                  onChange={(e) =>
+                    setCellForm({ ...cellForm, room: e.target.value })
+                  }
                   placeholder="مثال: معمل 1"
                   className="w-full px-3 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />

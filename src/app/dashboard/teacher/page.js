@@ -8,7 +8,7 @@ import { subjectsService } from "@/services/subjects.service";
 import { settingsService } from "@/services/settings.service";
 import WeekNavigator from "@/components/schedule/WeekNavigator";
 import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
-import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
+import WeeklyScheduleTable from "@/components/schedule/WeeklyScheduleTable";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
 import AvailableTimetablesModal from "@/components/schedule/AvailableTimetablesModal";
@@ -231,7 +231,6 @@ export default function TeacherDashboardPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      
       {/* Empty State Banner if no classes assigned */}
       {totalAssignedClasses === 0 && !loading && (
         <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 border-2 border-blue-200 rounded-3xl p-6 sm:p-8 text-center space-y-4 shadow-sm animate-fade-in">
@@ -243,7 +242,8 @@ export default function TeacherDashboardPage() {
               لم يتم تعيين جدول حصص لحسابك لهذا الأسبوع بعد!
             </h2>
             <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed">
-              إذا كانت إدارة المدرسة قد قامت بإعداد جدول الحصص مسبقاً، يمكنك اختياره وربطه بحسابك فوراً للبدء في كتابة عناوين الدروس والواجبات.
+              إذا كانت إدارة المدرسة قد قامت بإعداد جدول الحصص مسبقاً، يمكنك
+              اختياره وربطه بحسابك فوراً للبدء في كتابة عناوين الدروس والواجبات.
             </p>
           </div>
           <div className="pt-2 flex items-center justify-center gap-3">
@@ -301,7 +301,7 @@ export default function TeacherDashboardPage() {
               {completedPlansCount}
             </span>
             <span className="text-[11px] text-blue-200 font-semibold">
-              دروس تم تحضيرها
+              دروس مسجلة بالخطة
             </span>
           </div>
           <div className="w-px h-8 bg-white/20" />
@@ -318,12 +318,12 @@ export default function TeacherDashboardPage() {
 
       {/* System Incomplete Plan Alert Banner */}
       {incompleteSlotsCount > 0 && (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-start sm:items-center gap-3">
             <span className="text-3xl flex-shrink-0">⚠️</span>
             <div>
               <h3 className="text-sm font-black text-amber-950">
-                تنبيه من النظام: خطة التحضير غير مكتملة لهذا الأسبوع!
+                تنبيه من النظام: الخطة الأسبوعية غير مكتملة لهذا الأسبوع!
               </h3>
               <p className="text-xs font-semibold text-amber-800 mt-0.5">
                 لديك{" "}
@@ -340,7 +340,7 @@ export default function TeacherDashboardPage() {
             onClick={() => setActiveTab("plan")}
             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs shadow-sm transition-all whitespace-nowrap cursor-pointer"
           >
-            ✏️ استكمال التحضير الآن
+            ✏️ استكمال الخطة الآن
           </button>
         </div>
       )}
@@ -357,7 +357,7 @@ export default function TeacherDashboardPage() {
             }`}
           >
             <span>📝</span>
-            <span>الخطة والتحضير الأسبوعي</span>
+            <span>الخطة الأسبوعية والدروس</span>
           </button>
 
           <button
@@ -422,16 +422,26 @@ export default function TeacherDashboardPage() {
           <div className="max-w-2xl mx-auto bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="p-6 sm:p-8 bg-gradient-to-l from-slate-900 via-blue-900 to-indigo-950 text-white">
               <div className="flex items-center gap-3">
-                <span className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center text-2xl">⚙️</span>
+                <span className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center text-2xl">
+                  ⚙️
+                </span>
                 <div>
                   <h2 className="text-xl font-black">إعدادات الحساب</h2>
-                  <p className="text-sm text-blue-100 mt-1">حدّث الاسم الظاهر في لوحة المعلم والجداول.</p>
+                  <p className="text-sm text-blue-100 mt-1">
+                    حدّث الاسم الظاهر في لوحة المعلم والجداول.
+                  </p>
                 </div>
               </div>
             </div>
-            <form onSubmit={handleProfileNameSave} className="p-6 sm:p-8 space-y-6">
+            <form
+              onSubmit={handleProfileNameSave}
+              className="p-6 sm:p-8 space-y-6"
+            >
               <div>
-                <label htmlFor="teacher-profile-name" className="block text-sm font-black text-gray-800 mb-2">
+                <label
+                  htmlFor="teacher-profile-name"
+                  className="block text-sm font-black text-gray-800 mb-2"
+                >
                   الاسم الكامل
                 </label>
                 <input
@@ -444,11 +454,18 @@ export default function TeacherDashboardPage() {
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 font-medium outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="اكتب اسمك الكامل"
                 />
-                <p className="mt-2 text-xs text-gray-500">سيظهر الاسم الجديد فورًا في حسابك والقائمة الجانبية.</p>
+                <p className="mt-2 text-xs text-gray-500">
+                  سيظهر الاسم الجديد فورًا في حسابك والقائمة الجانبية.
+                </p>
               </div>
               <div>
-                <label className="block text-sm font-black text-gray-800 mb-2">البريد الإلكتروني</label>
-                <div className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-600 text-sm" dir="ltr">
+                <label className="block text-sm font-black text-gray-800 mb-2">
+                  البريد الإلكتروني
+                </label>
+                <div
+                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-600 text-sm"
+                  dir="ltr"
+                >
                   {user?.email}
                 </div>
               </div>
@@ -479,474 +496,35 @@ export default function TeacherDashboardPage() {
           </div>
         ) : (
           /* ========================================================================= */
-          /* TAB 2: Weekly Plan & Preparation View (Only assigned classes are editable) */
+          /* TAB 2: Weekly Plan (Inline Direct Editable)                               */
           /* ========================================================================= */
-          <div
-            id="teacher-weekly-plan-container"
-            className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-4 sm:p-6 space-y-6"
-          >
-            {/* Header */}
-            <div className="border-b-2 border-slate-800 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-black text-slate-900">
-                  خطة التحضير والدروس الأسبوعية — {user?.name}
-                </h2>
-                <p className="text-xs text-slate-500 font-semibold mt-1">
-                  {currentWeek?.label} |{" "}
-                  {settings?.schoolName || "مدرسة المستقبل النموذجية"}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="bg-blue-50 text-blue-900 border border-blue-200 px-3.5 py-1.5 rounded-xl text-xs font-bold hidden sm:block">
-                  الخانات المفتوحة هي الحصص المسندة إليك من الإدارة
-                </div>
-
-                {/* View Switcher: Table vs Cards */}
-                <div className="flex flex-wrap items-center gap-2 no-print">
-                  {/* Scale Controller */}
-                  {planViewMode === "table" && (
-                    <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs border border-gray-200">
-                      <span className="text-[10px] font-black text-gray-500 px-1">
-                        🔍 المقياس:
-                      </span>
-                      {[70, 85, 100].map((sc) => (
-                        <button
-                          key={sc}
-                          type="button"
-                          onClick={() => setPlanScale(sc)}
-                          className={
-                            "px-2 py-0.5 rounded-lg font-bold transition-all text-xs cursor-pointer " +
-                            (planScale === sc
-                              ? "bg-blue-600 text-white shadow-xs font-black"
-                              : "text-gray-600 hover:text-gray-900")
-                          }
-                        >
-                          {sc}%
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs border border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => setPlanViewMode("table")}
-                      className={
-                        "px-2.5 sm:px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer " +
-                        (planViewMode === "table"
-                          ? "bg-white text-blue-900 shadow-xs font-black"
-                          : "text-gray-600 hover:text-gray-900")
-                      }
-                    >
-                      <span>📊</span>
-                      <span>عرض كجدول</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPlanViewMode("cards")}
-                      className={
-                        "px-2.5 sm:px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer " +
-                        (planViewMode === "cards"
-                          ? "bg-white text-blue-900 shadow-xs font-black"
-                          : "text-gray-600 hover:text-gray-900")
-                      }
-                    >
-                      <span>📱</span>
-                      <span>عرض كبطاقات</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ========================================================================= */}
-            {/* MOBILE CARDS VIEW: Teacher Weekly Plan (No Horizontal Overflow)           */}
-            {/* ========================================================================= */}
-            <div
-              className={
-                planViewMode === "cards" ? "block space-y-3.5" : "hidden"
-              }
-            >
-              {/* Day Selector Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
-                {daysList.map((day) => {
-                  const isSel = (selectedPlanDay || daysList[0]) === day;
-                  const assignedCount = periodsList.filter(
-                    (p) => !!teacherMatrix[day]?.[p],
-                  ).length;
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => setSelectedPlanDay(day)}
-                      className={
-                        "flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 " +
-                        (isSel
-                          ? "bg-blue-600 text-white shadow-sm ring-2 ring-blue-600 ring-offset-1"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200")
-                      }
-                    >
-                      <span>{day}</span>
-                      <span
-                        className={
-                          "text-[10px] px-1.5 py-0.2 rounded-full " +
-                          (isSel
-                            ? "bg-white/25 text-white"
-                            : "bg-gray-200 text-gray-600")
-                        }
-                      >
-                        {assignedCount}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Day Banner */}
-              <div className="flex items-center justify-between bg-blue-50/70 border border-blue-200 px-3.5 py-2 rounded-xl text-xs font-bold text-blue-900">
-                <span>
-                  📅 تحضير حصص يوم {selectedPlanDay || daysList[0]} (
-                  {getDayDateFormatted(selectedPlanDay || daysList[0])})
-                </span>
-              </div>
-
-              {/* Period Cards */}
-              <div className="space-y-3">
-                {periodsList.map((period) => {
-                  const currentDay = selectedPlanDay || daysList[0];
-                  const cell = teacherMatrix[currentDay]?.[period];
-                  const hasAssignedClass = !!cell;
-                  const hasLesson =
-                    cell && cell.lessonTitle && cell.lessonTitle.trim();
-                  const hasHomework =
-                    cell && cell.homework && cell.homework.trim();
-
-                  if (!hasAssignedClass) {
-                    return (
-                      <div
-                        key={period}
-                        className="p-3 bg-gray-50 border border-dashed border-gray-200 rounded-xl flex items-center justify-between text-xs text-gray-400"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded bg-gray-200 text-gray-600 flex items-center justify-center font-bold text-xs">
-                            {period}
-                          </span>
-                          <span>— حصة غير مسندة لجدولك —</span>
-                        </div>
-                        <span>—</span>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={period}
-                      className="p-3.5 rounded-2xl border border-blue-200 bg-white shadow-xs space-y-2.5"
-                    >
-                      {/* Top Row */}
-                      <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs">
-                            {period}
-                          </span>
-                          <span className="font-black text-sm text-slate-900">
-                            🏫 {cell.className || "حصة مسندة"}
-                          </span>
-                        </div>
-
-                        <div>
-                          {hasLesson && hasHomework ? (
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                              مكتمل ✅
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                              تحضير ناقص ⚠️
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Lesson Title */}
-                      <div className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-100 text-xs">
-                        <span className="text-[11px] font-bold text-slate-500 block mb-0.5">
-                          📖 عنوان وموضوع الدرس:
-                        </span>
-                        <p className="font-bold text-slate-900">
-                          {cell.lessonTitle || (
-                            <span className="text-red-500 italic font-normal">
-                              لم يتم إدخال عنوان الدرس بعد
-                            </span>
-                          )}
-                        </p>
-                      </div>
-
-                      {/* Homework & Activities */}
-                      <div className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-100 text-xs">
-                        <span className="text-[11px] font-bold text-slate-500 block mb-0.5">
-                          📝 الواجبات والأنشطة:
-                        </span>
-                        <p className="text-slate-800 font-medium">
-                          {cell.homework || (
-                            <span className="text-amber-600 italic font-normal">
-                              لا يوجد واجب مسجل
-                            </span>
-                          )}
-                        </p>
-                        {cell.activities && (
-                          <p className="text-[11px] text-gray-500 mt-1 border-t border-gray-200/50 pt-1">
-                            🎯 أنشطة: {cell.activities}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Bottom Action */}
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-[11px] text-gray-400 truncate max-w-[170px]">
-                          {cell.notes ? "💬 " + cell.notes : ""}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleEditCell(cell, currentDay, period)
-                          }
-                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>✏️</span>
-                          <span>تحضير الحصة</span>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ========================================================================= */}
-            {/* DESKTOP / FULL TABLE VIEW (Weekly Plan)                                   */}
-            {/* ========================================================================= */}
-            <div className={planViewMode === "table" ? "block" : "hidden"}>
-              {/* Mobile Swipe Hint Banner */}
-              <div className="md:hidden flex items-center justify-between text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg mb-2.5 no-print">
-                <span>
-                  👈 اسحب الجدول يميناً ويساراً لاستعراض باقي الحصص والتحضير
-                </span>
-                <span className="font-bold">👉</span>
-              </div>
-              {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-right border-collapse border border-slate-300 min-w-[900px]">
-                  <thead>
-                    <tr className="bg-slate-800 text-white text-xs sm:text-sm">
-                      <th className="border border-slate-700 px-2 py-2 w-24 text-center font-bold text-xs">
-                        اليوم والتاريخ
-                      </th>
-                      <th className="border border-slate-700 px-1.5 py-2 w-12 text-center font-bold text-xs">
-                        الحصة
-                      </th>
-                      <th className="border border-slate-700 px-2 py-2 w-28 font-bold text-xs">
-                        الصف / الفصل
-                      </th>
-                      <th className="border border-slate-700 px-2 py-2 w-48 font-bold text-xs">
-                        عنوان وموضوع الدرس
-                      </th>
-                      <th className="border border-slate-700 px-2 py-2 font-bold text-xs">
-                        الواجبات والأنشطة الصفية
-                      </th>
-                      <th className="border border-slate-700 px-2 py-2 w-32 font-bold text-xs">
-                        الملاحظات
-                      </th>
-                      <th className="border border-slate-700 px-1.5 py-2 w-14 text-center font-bold text-xs no-export no-print">
-                        تحضير
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-xs sm:text-sm divide-y divide-slate-200 text-slate-800">
-                    {daysList.map((day, dayIndex) => {
-                      const dayDateFormatted = getDayDateFormatted(day);
-                      const dayBg =
-                        dayIndex % 2 === 0 ? "bg-white" : "bg-slate-50/50";
-
-                      return periodsList.map((period, periodIndex) => {
-                        const cell = teacherMatrix[day]?.[period];
-                        const hasAssignedClass = !!cell;
-
-                        return (
-                          <tr
-                            key={`${day}-${period}`}
-                            className={`${dayBg} transition-colors ${
-                              hasAssignedClass
-                                ? "bg-blue-50/70 hover:bg-blue-100/50 font-medium"
-                                : "opacity-60 hover:bg-gray-50"
-                            }`}
-                          >
-                            {/* Day Column with Rowspan */}
-                            {periodIndex === 0 && (
-                              <td
-                                rowSpan={periodsCount}
-                                className="border border-slate-300 p-3 text-center align-middle font-bold bg-slate-100 text-slate-900 border-r-4 border-r-blue-700"
-                              >
-                                <div className="text-base font-extrabold text-blue-900">
-                                  {day}
-                                </div>
-                                <div className="text-xs text-slate-500 font-medium mt-1">
-                                  {dayDateFormatted}
-                                </div>
-                              </td>
-                            )}
-
-                            {/* Period Number */}
-                            <td className="border border-slate-300 px-2 py-2.5 text-center font-bold text-slate-700 bg-slate-100/50">
-                              <span
-                                className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold ${
-                                  hasAssignedClass
-                                    ? "bg-blue-600 text-white shadow-xs"
-                                    : "bg-slate-200 text-slate-600"
-                                }`}
-                              >
-                                {period}
-                              </span>
-                            </td>
-
-                            {/* Class Name / Grade */}
-                            <td className="border border-slate-300 p-2.5 align-middle">
-                              {hasAssignedClass ? (
-                                <div className="space-y-1">
-                                  <span className="inline-block bg-blue-700 text-white font-black px-2.5 py-1 rounded-lg text-xs shadow-xs">
-                                    {cell.className || "حصة مسندة"}
-                                  </span>
-                                  {cell.subject?.name && (
-                                    <p className="text-[11px] text-blue-900 font-semibold">
-                                      {cell.subject.name}
-                                    </p>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-gray-400 text-xs italic font-normal">
-                                  — غير مسندة لجدولك —
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Lesson Title */}
-                            <td className="border border-slate-300 p-2.5 align-top">
-                              {hasAssignedClass ? (
-                                cell.lessonTitle ? (
-                                  <p className="text-slate-900 font-bold leading-relaxed">
-                                    {cell.lessonTitle}
-                                  </p>
-                                ) : (
-                                  <span className="text-amber-700 text-xs italic font-medium bg-amber-50 px-2 py-0.5 rounded">
-                                    ✏️ انقر لتحضير موضوع الدرس
-                                  </span>
-                                )
-                              ) : (
-                                <span className="text-gray-300 text-xs">—</span>
-                              )}
-                            </td>
-
-                            {/* Homework & Activities */}
-                            <td className="border border-slate-300 p-2.5 align-top">
-                              {hasAssignedClass ? (
-                                <div className="space-y-1.5">
-                                  {cell.homework && (
-                                    <div className="flex items-start gap-1.5 text-xs text-slate-800">
-                                      <span className="font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
-                                        واجب:
-                                      </span>
-                                      <span className="leading-snug">
-                                        {cell.homework}
-                                      </span>
-                                    </div>
-                                  )}
-                                  {cell.activities && (
-                                    <div className="flex items-start gap-1.5 text-xs text-slate-800">
-                                      <span className="font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded text-[11px] flex-shrink-0">
-                                        نشاط:
-                                      </span>
-                                      <span className="leading-snug">
-                                        {cell.activities}
-                                      </span>
-                                    </div>
-                                  )}
-                                  {!cell.homework && !cell.activities && (
-                                    <span className="text-slate-400 text-xs italic">
-                                      لم تسجل واجبات
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-gray-300 text-xs">—</span>
-                              )}
-                            </td>
-
-                            {/* Notes */}
-                            <td className="border border-slate-300 p-2.5 align-top">
-                              {hasAssignedClass ? (
-                                cell.notes ? (
-                                  <p className="text-xs text-amber-900 bg-amber-50/80 p-1.5 rounded border border-amber-200/60 leading-relaxed">
-                                    {cell.notes}
-                                  </p>
-                                ) : (
-                                  <span className="text-slate-300 text-xs italic">
-                                    —
-                                  </span>
-                                )
-                              ) : (
-                                <span className="text-gray-300 text-xs">—</span>
-                              )}
-                            </td>
-
-                            {/* Edit Action Button */}
-                            <td className="border border-slate-300 p-2 text-center align-middle no-export no-print">
-                              {hasAssignedClass ? (
-                                <button
-                                  onClick={() =>
-                                    handleEditCell(cell, day, period)
-                                  }
-                                  className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                                  title="تعديل تحضير الحصة"
-                                >
-                                  <span>✏️</span>
-                                  <span>تحضير</span>
-                                </button>
-                              ) : (
-                                <span
-                                  className="text-gray-300 text-xs"
-                                  title="غير مسندة لجدولك"
-                                >
-                                  🔒
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          <div className="space-y-4">
+            <WeeklyScheduleTable
+              week={currentWeek}
+              schedules={schedules}
+              settings={settings}
+              subjects={subjects}
+              onSaveCell={async (formData) => {
+                if (!formData.id) return;
+                await schedulesService.update(formData.id, formData);
+                setSchedules((prev) =>
+                  prev.map((item) =>
+                    item._id === formData.id ? { ...item, ...formData } : item,
+                  ),
+                );
+              }}
+              onBulkSave={async (updates) => {
+                await schedulesService.bulkUpdateLessons(updates);
+                const schedRes = await schedulesService.getForTeacher(
+                  currentWeek._id,
+                );
+                setSchedules(schedRes.data?.schedules || []);
+              }}
+              enableInlineEdit={true}
+            />
           </div>
         )}
       </ErrorBoundary>
-
-      {/* Edit Cell Modal */}
-      <ScheduleCellEditModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        schedule={activeCell}
-        week={currentWeek}
-        day={activeDay}
-        period={activePeriod}
-        subjects={subjects}
-        teachers={[user]}
-        onSave={handleSaveCell}
-        onBulkFill={handleBulkFill}
-        loading={saving}
-      />
 
       {/* Obligatory Teacher Onboarding Modal if not completed */}
       <AvailableTimetablesModal

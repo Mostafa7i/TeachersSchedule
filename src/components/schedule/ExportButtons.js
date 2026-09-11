@@ -66,47 +66,95 @@ export default function ExportButtons({
 
     setExportingPdf(true);
     try {
+      // 1. التقاط العنصر بجودة عالية ودقة 2x
       const imgData = await toJpeg(element, {
         ...imgOptions(element),
         pixelRatio: 2,
         quality: 0.95,
       });
 
-      // صفحة A4 أفقية
+      // 2. تحميل الصورة لقياس أبعادها بدقة
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+      });
+
+      // 3. إنشاء مستند PDF أفقي A4
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "mm",
         format: "a4",
       });
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      const img = new Image();
-      img.src = imgData;
-      await new Promise((res) => {
-        img.onload = res;
-      });
+      const pdfWidth = pdf.internal.pageSize.getWidth(); // 297mm
+      const pdfHeight = pdf.internal.pageSize.getHeight(); // 210mm
+      const margin = 8; // هوامش 8 مم
+      const printWidth = pdfWidth - margin * 2; // 281mm - يملأ عرض الصفحة بالكامل!
+      const printHeight = pdfHeight - margin * 2; // 194mm الارتفاع المتاح لكل صفحة
 
-      const ratio = img.height / img.width;
-      const renderWidth = pdfWidth - 20;
-      const renderHeight = renderWidth * ratio;
+      // حساب عدد البكسل لكل مليمتر
+      const pxPerMm = img.width / printWidth;
+      const pageSlicePxHeight = printHeight * pxPerMm;
 
-      if (renderHeight > pdfHeight - 20) {
-        const scale = (pdfHeight - 20) / renderHeight;
-        pdf.addImage(
-          imgData,
-          "JPEG",
-          10,
-          10,
-          renderWidth * scale,
-          pdfHeight - 20,
+      // كانفاس لتقطيع الصورة لصفحات متتالية بعرض كامل وجودة فائقة
+      const sliceCanvas = document.createElement("canvas");
+      const sliceCtx = sliceCanvas.getContext("2d");
+
+      let currentYPx = 0;
+      let pageIndex = 0;
+
+      while (currentYPx < img.height) {
+        if (pageIndex > 0) {
+          pdf.addPage("a4", "landscape");
+        }
+
+        const remainingPxHeight = img.height - currentYPx;
+        const currentSlicePxHeight = Math.min(
+          pageSlicePxHeight,
+          remainingPxHeight,
         );
-      } else {
-        pdf.addImage(imgData, "JPEG", 10, 10, renderWidth, renderHeight);
+
+        sliceCanvas.width = img.width;
+        sliceCanvas.height = currentSlicePxHeight;
+
+        // خلفية بيضاء
+        sliceCtx.fillStyle = "#ffffff";
+        sliceCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+
+        // رسم الجزء الخاص بالصفحة الحالية
+        sliceCtx.drawImage(
+          img,
+          0,
+          currentYPx,
+          img.width,
+          currentSlicePxHeight,
+          0,
+          0,
+          img.width,
+          currentSlicePxHeight,
+        );
+
+        const sliceDataUrl = sliceCanvas.toDataURL("image/jpeg", 0.95);
+        const sliceMmHeight = currentSlicePxHeight / pxPerMm;
+
+        // إضافة الصورة بعرض كامل
+        pdf.addImage(
+          sliceDataUrl,
+          "JPEG",
+          margin,
+          margin,
+          printWidth,
+          sliceMmHeight,
+        );
+
+        currentYPx += pageSlicePxHeight;
+        pageIndex++;
       }
 
       pdf.save(`جدول_${weekLabel.replace(/\s+/g, "_")}_${Date.now()}.pdf`);
-      toast.success("تم تصدير الجدول كملف PDF بنجاح 📄");
+      toast.success("تم تصدير الجدول كملف PDF كامل ومنسق بنجاح 📄");
     } catch (err) {
       console.error("PDF export error:", err);
       toast.error("حدث خطأ أثناء تصدير ملف PDF");

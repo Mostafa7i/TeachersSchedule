@@ -20,13 +20,16 @@ import { Skeleton, ErrorBoundary } from "@/components/ui";
 const COMMON_CLASSES = [
   "أول أول",
   "أول ثاني",
-  "أول ثالث",
   "ثاني أول",
   "ثاني ثاني",
-  "ثاني ثالث",
   "ثالث أول",
   "ثالث ثاني",
-  "ثالث ثالث",
+  "رابع أول",
+  "رابع ثاني",
+  "خامس أول",
+  "خامس ثاني",
+  "سادس أول",
+  "سادس ثاني",
 ];
 
 export default function AdminTeacherTimetablesPage() {
@@ -75,7 +78,7 @@ export default function AdminTeacherTimetablesPage() {
 
   // Swap / Move Period States
   const [showSwapSection, setShowSwapSection] = useState(false);
-  const [swapTargetDay, setSwapTargetDay] = useState("الأحد");
+  const [swapTargetDay, setSwapTargetDay] = useState("");
   const [swapTargetPeriod, setSwapTargetPeriod] = useState(1);
   const [swapping, setSwapping] = useState(false);
 
@@ -90,23 +93,25 @@ export default function AdminTeacherTimetablesPage() {
     const init = async () => {
       try {
         setLoading(true);
-        const [teachersRes, weeksRes, subjectsRes, settingsRes] =
+        const [teachersRes, weeksRes, currentWeekRes, subjectsRes, settingsRes] =
           await Promise.all([
             usersService.getTeachers(),
             weeksService.getAll(),
+            weeksService.getCurrent(),
             subjectsService.getAll({ isActive: true }),
             settingsService.get(),
           ]);
 
         const teachersList = teachersRes.data || [];
         const weeksList = weeksRes.data || [];
+        const currentWeek = currentWeekRes.data || weeksList[0] || null;
         setTeachers(teachersList);
         setWeeks(weeksList);
         setSubjects(subjectsRes.data || []);
         setSettings(settingsRes.data || null);
 
         if (teachersList.length > 0) setSelectedTeacherId(teachersList[0]._id);
-        if (weeksList.length > 0) setSelectedWeekId(weeksList[0]._id);
+        if (currentWeek?._id) setSelectedWeekId(currentWeek._id);
       } catch {
         toast.error("فشل تحميل البيانات الأساسية");
       } finally {
@@ -247,9 +252,11 @@ export default function AdminTeacherTimetablesPage() {
         entries: payloadEntries,
       });
 
-      fetchWeekData(selectedWeekId);
+      await fetchWeekData(selectedWeekId);
+      return true;
     } catch (err) {
       toast.error(err.response?.data?.message || "فشل الحفظ التلقائي");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -284,9 +291,10 @@ export default function AdminTeacherTimetablesPage() {
       updated.push(cellObj);
     }
 
+    const saved = await persistSingleTimetable(updated);
+    if (!saved) return;
     setSingleSchedules(updated);
     setCellModalOpen(false);
-    await persistSingleTimetable(updated);
     toast.success(
       "تم حفظ الحصة (" +
         activePeriod +
@@ -400,8 +408,10 @@ export default function AdminTeacherTimetablesPage() {
     );
     setSingleSchedules(updated);
     setCellModalOpen(false);
-    await persistSingleTimetable(updated);
-    toast.info("تم تفريغ الحصة (" + activePeriod + ") يوم " + activeDay);
+    const saved = await persistSingleTimetable(updated);
+    if (saved) {
+      toast.info("تم تفريغ الحصة (" + activePeriod + ") يوم " + activeDay);
+    }
   };
 
   const handleMasterScheduleUpdated = () => {
@@ -412,7 +422,7 @@ export default function AdminTeacherTimetablesPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="min-h-screen bg-slate-50/80 p-3 sm:p-5 lg:p-8 space-y-5 sm:space-y-6">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -431,7 +441,7 @@ export default function AdminTeacherTimetablesPage() {
           <button
             type="button"
             onClick={() => setPdfModalOpen(true)}
-            className="flex items-center gap-2 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs sm:text-sm font-black px-4 py-2 sm:py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-500"
+            className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs sm:text-sm font-black px-4 py-2 sm:py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-500"
             title="استيراد جداول المعلمين دفعة واحدة من ملف PDF"
           >
             <span className="text-base">📥</span>
@@ -457,7 +467,7 @@ export default function AdminTeacherTimetablesPage() {
       </div>
 
       {/* Top Navigation & Controls Bar */}
-      <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-100 shadow-xs space-y-4">
+      <section className="bg-white rounded-[1.5rem] p-3.5 sm:p-5 border border-slate-200 shadow-sm space-y-4 no-print">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Main Tabs Selector */}
           <div className="flex items-center p-1.5 bg-gray-100/80 rounded-2xl gap-1">
@@ -556,7 +566,7 @@ export default function AdminTeacherTimetablesPage() {
                     className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>📋</span>
-                    <span>استعراض خطة المعلم وتحضيره</span>
+                    <span>استعراض خطة المعلم ودروسه</span>
                   </button>
                 </div>
               )}
@@ -574,8 +584,9 @@ export default function AdminTeacherTimetablesPage() {
                 : "الجداول الشاغرة هي قوالب مستقلة يعدها المشرف وينتظر اختيارها من المعلمين الجدد عند تسجيلهم."}
           </span>
         </div>
-      </div>
+      </section>
 
+      <main className="rounded-[1.75rem] border border-slate-200 bg-white shadow-sm overflow-hidden">
       <ErrorBoundary title="تعذر عرض جدول الحصص">
         {loading && !allWeekSchedules.length ? (
           <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm space-y-4">
@@ -615,7 +626,7 @@ export default function AdminTeacherTimetablesPage() {
           /* TAB 3: TIMETABLE TEMPLATES (Independent Vacant Slots)      */
           /* ========================================================== */
           <div className="space-y-6">
-            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-white rounded-[1.5rem] p-5 sm:p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
                   <span>📋</span>
@@ -806,6 +817,7 @@ export default function AdminTeacherTimetablesPage() {
           </div>
         )}
       </ErrorBoundary>
+      </main>
 
       {/* Single Cell Edit Modal */}
       <Modal
@@ -938,14 +950,15 @@ export default function AdminTeacherTimetablesPage() {
                 type="button"
                 onClick={() => {
                   setShowSwapSection(true);
-                  setSwapTargetDay(activeDay);
+                  setSwapTargetDay(activeDay || settings?.workDays?.[0] || "الأحد");
                   setSwapTargetPeriod(activePeriod === 1 ? 2 : 1);
                 }}
                 className="text-xs font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2 rounded-xl transition-all flex items-center gap-2 cursor-pointer w-full justify-center"
               >
                 <span>🔄</span>
                 <span>
-                  نقل أو تبديل هذه الحصة (مع الحفاظ التام على التحضير والواجب)
+                  نقل أو تبديل هذه الحصة (مع الحفاظ التام على بيانات الدرس
+                  والواجب)
                 </span>
               </button>
             ) : (
@@ -953,7 +966,7 @@ export default function AdminTeacherTimetablesPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-blue-950 flex items-center gap-1.5">
                     <span>🔄</span>
-                    <span>نقل / تبديل الحصة دون فقدان التحضير:</span>
+                    <span>نقل / تبديل الحصة دون فقدان بيانات الدرس:</span>
                   </span>
                   <button
                     type="button"
