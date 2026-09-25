@@ -286,6 +286,36 @@ export default function LessonPreparationWorkspace({
     );
   };
 
+  // AI Smart Lesson Plan Assistant Generator
+  const handleSmartAISuggest = (schedule) => {
+    const title = getFieldValue(schedule, "lessonTitle") || "الدرس";
+    const subjectName = typeof schedule.subject === "object" ? schedule.subject?.name : schedule.subject || "المادة";
+
+    const generatedObjectives = `1. أن يتعرف الطالب على المفاهيم والأسس الجوهرية لدرس (${title}) بدقة.\n2. أن يطبق الطالب المهارات المكتسبة في حل التدريبات والأنشطة العملية.\n3. أن يستنتج الطالب أهمية موضوع الدرس وتطبيقاته الواقعية والمستقبلية.`;
+    const generatedWarmUp = `طرح سؤال عصف ذهني تحفيزي: "كيف نستفيد من (${title}) في حياتنا اليومية؟"، وعرض مقطع مرئي قصير ومراجعة سريعة للمكتسبات السابقة لربط المفاهيم.`;
+    const generatedVocabulary = `المصطلحات والمفاهيم المحورية في (${title})، العلاقات الرياضية/اللغوية/العلمية المستهدفة.`;
+    const generatedAids = `السبورة التفاعلية الذكية، الكتاب المدرسي، منصة مدرستي، عرض تقديمي PowerPoint، بطاقات التعلم النشط، مجسمات ونماذج توضيحية.`;
+    const generatedActivities = `تطبيق استراتيجية (فكر - زاوج - شارك) لمناقشة فكرة الدرس، ثم العمل في مجموعات صغيرة لحل النشاط الصفي، ومناقشة الحلول نموذجياً.`;
+    const generatedHomework = `حل التمارين والأنشطة في الكتاب المدرسي، وإنجاز المهمة الأدائية التفاعلية عبر منصة مدرستي.`;
+    const generatedNotes = `مراعاة الفروق الفردية وتقديم إثراءات للطلاب المتميزين وتغذية راجعة فورية.`;
+
+    setLocalEdits((prev) => ({
+      ...prev,
+      [schedule._id]: {
+        ...(prev[schedule._id] || {}),
+        objectives: getFieldValue(schedule, "objectives") || generatedObjectives,
+        warmUp: getFieldValue(schedule, "warmUp") || generatedWarmUp,
+        vocabulary: getFieldValue(schedule, "vocabulary") || generatedVocabulary,
+        teachingAids: getFieldValue(schedule, "teachingAids") || generatedAids,
+        activities: getFieldValue(schedule, "activities") || generatedActivities,
+        homework: getFieldValue(schedule, "homework") || generatedHomework,
+        notes: getFieldValue(schedule, "notes") || generatedNotes,
+      },
+    }));
+
+    toast.success(`تم اقتراح تحضير ذكي متكامل لدرس (${title}) ✨ (يمكنك التعديل والضغط على حفظ)`);
+  };
+
   // Print preparation workspace
   const handlePrint = () => {
     const element = document.getElementById(printContainerId);
@@ -847,7 +877,18 @@ export default function LessonPreparationWorkspace({
                     </div>
 
                     {/* Card Actions */}
-                    <div className="flex items-center gap-1.5 no-print">
+                    <div className="flex items-center gap-1.5 no-print flex-wrap">
+                      {/* AI Smart Suggestion */}
+                      <button
+                        type="button"
+                        onClick={() => handleSmartAISuggest(schedule)}
+                        className="inline-flex items-center gap-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-[11px] font-black px-2.5 py-1.5 rounded-lg shadow-xs transition-all cursor-pointer hover:scale-105"
+                        title="توليد واقتراح تحضير ذكي متكامل للأهداف والتهيئة والأنشطة والوسائل والواجبات"
+                      >
+                        <span>✨</span>
+                        <span className="hidden sm:inline">تحضير ذكي AI</span>
+                      </button>
+
                       {/* Duplicate to other classes */}
                       {schedule.className && (
                         <button
@@ -893,10 +934,20 @@ export default function LessonPreparationWorkspace({
                   <div className="p-4 sm:p-5 space-y-4">
                     {/* Row 1: Lesson Title (Main Topic) */}
                     <div className="space-y-1">
-                      <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                        <span className="text-blue-600">📖</span>
-                        <span>عنوان الدرس والموضوع:</span>
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                          <span className="text-blue-600">📖</span>
+                          <span>عنوان الدرس والموضوع:</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => handleSmartAISuggest(schedule)}
+                          className="text-[11px] font-black text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+                        >
+                          <span>✨</span>
+                          <span>اقتراح أهداف وتهيئة ذكية</span>
+                        </button>
+                      </div>
                       <input
                         type="text"
                         value={getFieldValue(schedule, "lessonTitle")}
