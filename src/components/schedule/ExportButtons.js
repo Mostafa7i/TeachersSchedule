@@ -5,6 +5,11 @@ import { toPng, toJpeg } from "html-to-image";
 import jsPDF from "jspdf";
 import { useToast } from "@/contexts/ToastContext";
 
+// Safe ceiling for exported canvas dimensions (px). Many browsers start
+// failing/producing blank canvases well before their theoretical limits,
+// so we clamp pixelRatio dynamically to stay comfortably under this.
+const MAX_CANVAS_DIMENSION = 8000;
+
 export default function ExportButtons({
   targetElementId = "weekly-schedule-print-container",
   weekLabel = "الجدول_الأسبوعي",
@@ -14,6 +19,10 @@ export default function ExportButtons({
   const [pdfMenuOpen, setPdfMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const toast = useToast();
+
+  // Any export in progress -> disable every action button to avoid
+  // concurrent exports racing on the same DOM node.
+  const isBusy = exportingPng || exportingPdf;
 
   // Close dropdown menu when clicking outside
   useEffect(() => {
@@ -26,14 +35,26 @@ export default function ExportButtons({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Shared options for html-to-image with crisp rendering
-  const imgOptions = (element) => {
+  // Shared options for html-to-image with crisp rendering.
+  // pixelRatio is clamped so very wide/tall schedules don't silently
+  // exceed the browser's max canvas size and fail to export.
+  const getImgOptions = (element, desiredPixelRatio = 2.5) => {
     const minW = 1050;
     const currentW = element?.scrollWidth || element?.offsetWidth || minW;
     const targetW = Math.max(currentW, minW);
+    const currentH = element?.scrollHeight || element?.offsetHeight || 0;
+
+    const maxRatioByWidth = MAX_CANVAS_DIMENSION / targetW;
+    const maxRatioByHeight =
+      currentH > 0 ? MAX_CANVAS_DIMENSION / currentH : desiredPixelRatio;
+    const safePixelRatio = Math.max(
+      1,
+      Math.min(desiredPixelRatio, maxRatioByWidth, maxRatioByHeight),
+    );
+
     return {
       backgroundColor: "#ffffff",
-      pixelRatio: 2.5,
+      pixelRatio: safePixelRatio,
       style: {
         fontFamily: "inherit",
         minWidth: `${targetW}px`,
@@ -49,7 +70,12 @@ export default function ExportButtons({
     };
   };
 
-  // Helper to ensure desktop table container is active during snapshot
+  // Helper to ensure desktop table container is active during snapshot.
+  // Always restores the exact original inline style afterwards (falling
+  // back to removeProperty when there was no inline style to begin with),
+  // instead of only restoring when the original value happened to be
+  // non-empty. This prevents the responsive layout from getting stuck
+  // after an export.
   const prepareElementForSnapshot = (element) => {
     const desktopTable = element.querySelector(
       ".schedule-desktop-table-container",
@@ -57,35 +83,47 @@ export default function ExportButtons({
     const mobileCards = element.querySelector(
       ".schedule-mobile-cards-container",
     );
-    let prevDesktopDisplay = "";
-    let prevCardsDisplay = "";
+
+    const originalDesktopDisplay = desktopTable
+      ? desktopTable.style.display
+      : null;
+    const originalCardsDisplay = mobileCards
+      ? mobileCards.style.display
+      : null;
 
     if (
       desktopTable &&
       window.getComputedStyle(desktopTable).display === "none"
     ) {
-      prevDesktopDisplay = desktopTable.style.display;
       desktopTable.style.display = "block";
     }
     if (
       mobileCards &&
       window.getComputedStyle(mobileCards).display !== "none"
     ) {
-      prevCardsDisplay = mobileCards.style.display;
       mobileCards.style.display = "none";
     }
 
     return () => {
-      if (desktopTable && prevDesktopDisplay !== "") {
-        desktopTable.style.display = prevDesktopDisplay;
+      if (desktopTable) {
+        if (originalDesktopDisplay) {
+          desktopTable.style.display = originalDesktopDisplay;
+        } else {
+          desktopTable.style.removeProperty("display");
+        }
       }
-      if (mobileCards && prevCardsDisplay !== "") {
-        mobileCards.style.display = prevCardsDisplay;
+      if (mobileCards) {
+        if (originalCardsDisplay) {
+          mobileCards.style.display = originalCardsDisplay;
+        } else {
+          mobileCards.style.removeProperty("display");
+        }
       }
     };
   };
 
   const handleExportPNG = async () => {
+    setPdfMenuOpen(false);
     const element = document.getElementById(targetElementId);
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للتصدير");
@@ -95,7 +133,7 @@ export default function ExportButtons({
     const restoreDisplay = prepareElementForSnapshot(element);
     setExportingPng(true);
     try {
-      const dataUrl = await toPng(element, imgOptions(element));
+      const dataUrl = await toPng(element, getImgOptions(element, 2.5));
 
       const link = document.createElement("a");
       link.download = `جدول_${weekLabel.replace(/\s+/g, "_")}_${Date.now()}.png`;
@@ -125,8 +163,7 @@ export default function ExportButtons({
     try {
       // 1. Snapshot with high fidelity
       const imgData = await toJpeg(element, {
-        ...imgOptions(element),
-        pixelRatio: 2.2,
+        ...getImgOptions(element, 2.2),
         quality: 0.96,
       });
 
@@ -182,7 +219,10 @@ export default function ExportButtons({
         const printHeight = pdfHeight - margin * 2; // 198mm
 
         const pxPerMm = img.width / printWidth;
-        const pageSlicePxHeight = printHeight * pxPerMm;
+        // Floor to an integer so every slice (except possibly the last)
+        // has an exact pixel height -> no rounding gaps/overlaps between
+        // consecutive A4 pages.
+        const pageSlicePxHeight = Math.floor(printHeight * pxPerMm);
 
         const sliceCanvas = document.createElement("canvas");
         const sliceCtx = sliceCanvas.getContext("2d");
@@ -231,7 +271,7 @@ export default function ExportButtons({
             sliceMmHeight,
           );
 
-          currentYPx += pageSlicePxHeight;
+          currentYPx += currentSlicePxHeight;
           pageIndex++;
         }
 
@@ -250,6 +290,7 @@ export default function ExportButtons({
   };
 
   const handlePrint = () => {
+    setPdfMenuOpen(false);
     const element = document.getElementById(targetElementId);
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للطباعة");
@@ -269,6 +310,17 @@ export default function ExportButtons({
       .join("\n");
 
     const printWindow = window.open("", "_blank", "width=1200,height=800");
+
+    // window.open returns null (or a closed window) when the browser's
+    // popup blocker intervenes. Without this check the code below throws
+    // an uncaught error and the user gets no feedback at all.
+    if (!printWindow || printWindow.closed) {
+      toast.error(
+        "تم حظر النافذة المنبثقة بواسطة المتصفح، الرجاء السماح بالنوافذ المنبثقة لهذا الموقع ثم إعادة المحاولة",
+      );
+      return;
+    }
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html dir="rtl" lang="ar">
@@ -305,8 +357,8 @@ export default function ExportButtons({
       {/* Export PNG */}
       <button
         onClick={handleExportPNG}
-        disabled={exportingPng}
-        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-xs hover:shadow transition-all disabled:opacity-50 cursor-pointer"
+        disabled={isBusy}
+        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-xs hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         title="تصدير صورة PNG عالية الدقة"
       >
         <svg
@@ -329,8 +381,8 @@ export default function ExportButtons({
       <div className="relative inline-flex rounded-xl shadow-xs" ref={menuRef}>
         <button
           onClick={() => handleExportPDF("fit")}
-          disabled={exportingPdf}
-          className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-r-xl transition-all disabled:opacity-50 cursor-pointer"
+          disabled={isBusy}
+          className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-r-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           title="تصدير PDF بعرض كامل 100% يملأ الشاشة"
         >
           <svg
@@ -352,9 +404,11 @@ export default function ExportButtons({
         {/* Dropdown toggle arrow */}
         <button
           onClick={() => setPdfMenuOpen(!pdfMenuOpen)}
-          disabled={exportingPdf}
+          disabled={isBusy}
           aria-label="خيارات تصدير PDF"
-          className="bg-red-700 hover:bg-red-800 text-white px-2 py-2 sm:py-2.5 rounded-l-xl border-r border-red-500/50 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center"
+          aria-haspopup="true"
+          aria-expanded={pdfMenuOpen}
+          className="bg-red-700 hover:bg-red-800 text-white px-2 py-2 sm:py-2.5 rounded-l-xl border-r border-red-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center"
           title="خيارات PDF (ملء الشاشة أو مقسم A4)"
         >
           <svg
@@ -415,7 +469,8 @@ export default function ExportButtons({
       {/* Direct Browser Print */}
       <button
         onClick={handlePrint}
-        className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-xs hover:shadow transition-all no-print cursor-pointer"
+        disabled={isBusy}
+        className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-xs hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed no-print cursor-pointer"
         title="طباعة مباشرة"
       >
         <svg

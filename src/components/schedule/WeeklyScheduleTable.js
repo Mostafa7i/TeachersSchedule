@@ -468,7 +468,7 @@ export default function WeeklyScheduleTable({
               {settings?.schoolName || "مدرسة المستقبل النموذجية"}
             </h2>
             <div className="inline-flex flex-wrap items-center justify-center gap-2 bg-slate-900 text-white text-xs sm:text-sm font-bold px-4 py-1.5 rounded-full shadow-xs">
-              <span>الخطة والجدول الدراسي الأسبوعي</span>
+              <span>الخطة والجدول الدراسي الأسبوعي</span>ظ
               {selectedClass ? (
                 <>
                   <span className="text-blue-300">•</span>

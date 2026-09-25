@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Modal } from "@/components/ui";
 import { useToast } from "@/contexts/ToastContext";
 import { schedulesService } from "@/services/schedules.service";
@@ -37,6 +37,35 @@ export default function PdfTimetableImportModal({
 
   // Filter in review step
   const [filterAction, setFilterAction] = useState("all"); // "all" | "assign" | "vacant" | "skip"
+
+  // Whenever the modal opens (or `weeks` / `currentWeek` change while it's
+  // already open), make sure a valid week id is selected.
+  //
+  // The `useState` above only computes its initial value once, the very
+  // first time this component instance is created. If `currentWeek` or
+  // `weeks` weren't loaded yet at that exact moment (very common, since
+  // they're usually fetched asynchronously by the parent, and this modal
+  // is often already mounted — just hidden — before that data arrives),
+  // `selectedWeekId` gets stuck at `""` and the "target week" dropdown
+  // never reflects the real current week, even after the data shows up.
+  //
+  // This effect re-syncs it every time the modal is opened, and also
+  // falls back to a valid week if the previously selected one no longer
+  // exists in an updated `weeks` list.
+  useEffect(() => {
+   if (isOpen) {
+    console.log("weeks:", weeks);
+    console.log("currentWeek:", currentWeek);
+    console.log("selectedWeekId:", selectedWeekId);
+  }
+
+    const validIds = weeks.map((w) => w._id);
+    const fallbackId = currentWeek?._id || weeks[0]?._id || "";
+
+    setSelectedWeekId((prev) =>
+      prev && validIds.includes(prev) ? prev : fallbackId
+    );
+  }, [isOpen, currentWeek, weeks]);
 
   const handleReset = () => {
     setFile(null);
@@ -584,4 +613,3 @@ export default function PdfTimetableImportModal({
     </Modal>
   );
 }
-

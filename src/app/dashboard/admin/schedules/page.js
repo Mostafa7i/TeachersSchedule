@@ -450,7 +450,7 @@ export default function AdminSchedulesPage() {
       {/* Main Schedule Table / Export Artifact */}
       <section className="rounded-[1.75rem] border border-slate-200 bg-white shadow-sm overflow-hidden">
       {loading ? (
-        <div className="bg-white rounded-[1.5rem] p-5 sm:p-7 border border-slate-200 shadow-sm">
+        <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-sm">
           <TableSkeleton rows={8} cols={6} />
         </div>
       ) : (
@@ -516,15 +516,18 @@ export default function AdminSchedulesPage() {
         loading={copying}
       />
 
-      {/* PDF Timetable Import Modal */}
-      <PdfTimetableImportModal
-        isOpen={pdfModalOpen}
-        onClose={() => setPdfModalOpen(false)}
-        weekId={currentWeek?._id}
-        onSuccess={() => {
-          if (currentWeek) fetchSchedules(currentWeek._id);
-        }}
-      />
+{/* PDF Timetable Import Modal */}
+<PdfTimetableImportModal
+  isOpen={pdfModalOpen}
+  onClose={() => setPdfModalOpen(false)}
+  weeks={weeks}
+  currentWeek={currentWeek}
+  teachers={teachers}
+  subjects={subjects}
+  onImportSuccess={() => {
+    if (currentWeek) fetchSchedules(currentWeek._id);
+  }}
+/>
 
       {/* WhatsApp Share Card Modal */}
       <ClassScheduleShareModal
