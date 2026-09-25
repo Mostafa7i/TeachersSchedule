@@ -1,14 +1,10 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { toPng, toJpeg } from "html-to-image";
+import jsPDF from "jspdf";
 import { useToast } from "@/contexts/ToastContext";
 import { getLogoUrl } from "@/lib/utils";
-import {
-  exportElementToPNG,
-  exportElementToPDF,
-  copyElementAsImage,
-  printElementSafely,
-} from "@/lib/exportUtils";
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -426,10 +422,22 @@ export default function ClassScheduleShareModal({
 
     setExporting(true);
     try {
-      await exportElementToPNG(
-        element,
-        `جدول_فصل_${className}_${week?.label || "الأسبوع"}_${Date.now()}.png`,
-      );
+      const dataUrl = await toPng(element, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2.5,
+        style: {
+          fontFamily: "'Tajawal', 'Cairo', sans-serif",
+          minWidth: `${Math.max(element.scrollWidth, 600)}px`,
+          width: `${Math.max(element.scrollWidth, 600)}px`,
+        },
+        skipFonts: true,
+        fontEmbedCSS: "",
+      });
+
+      const link = document.createElement("a");
+      link.download = `جدول_فصل_${className?.replace(/\s+/g, "_")}_${week?.label || "الأسبوع"}_${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
       toast.success("تم تصدير بطاقة الجدول كصورة PNG عالية الدقة ✅");
     } catch (err) {
       console.error("PNG export error:", err);
@@ -448,16 +456,31 @@ export default function ClassScheduleShareModal({
 
     setExporting(true);
     try {
-      const result = await copyElementAsImage(
-        element,
-        `جدول_فصل_${className}.png`,
-      );
-      if (result?.copied) {
+      const dataUrl = await toPng(element, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2.5,
+        skipFonts: true,
+        fontEmbedCSS: "",
+      });
+
+      // Convert data URL to Blob
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ]);
         toast.success(
           "تم نسخ الصورة إلى الحافظة 📋 — يمكنك لصقها في واتساب مباشرة!",
         );
       } else {
-        toast.success("تم تحميل الصورة بنجاح ✅");
+        // Fallback: download
+        const link = document.createElement("a");
+        link.download = `جدول_فصل_${className?.replace(/\s+/g, "_")}.png`;
+        link.href = dataUrl;
+        link.click();
+        toast.success("تم تحميل الصورة — متصفحك لا يدعم النسخ المباشر");
       }
     } catch (err) {
       console.error("Copy image error:", err);
@@ -470,10 +493,46 @@ export default function ClassScheduleShareModal({
   const handlePrint = () => {
     const element = document.getElementById(cardId);
     if (!element) return;
-    printElementSafely(
-      element,
-      `جدول فصل ${className} — ${week?.label || ""}`,
-    );
+
+    const styleSheets = Array.from(document.styleSheets)
+      .map((sheet) => {
+        try {
+          return Array.from(sheet.cssRules)
+            .map((r) => r.cssText)
+            .join("\n");
+        } catch {
+          return sheet.href ? `@import url('${sheet.href}');` : "";
+        }
+      })
+      .join("\n");
+
+    const printWindow = window.open("", "_blank", "width=900,height=1200");
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8" />
+        <title>جدول فصل ${className} — ${week?.label || ""}</title>
+        <style>
+          ${styleSheets}
+          @page { size: A4 portrait; margin: 8mm; }
+          * { box-sizing: border-box; }
+          body { background: #fff; margin: 0; padding: 0; }
+          button, .no-print { display: none !important; }
+        </style>
+      </head>
+      <body>
+        ${element.outerHTML}
+        <script>
+          window.onload = function () {
+            window.print();
+            window.onafterprint = function () { window.close(); };
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handleExportPDF = async () => {
@@ -485,11 +544,52 @@ export default function ClassScheduleShareModal({
 
     setExporting(true);
     try {
-      await exportElementToPDF(
-        element,
-        `جدول_فصل_${className}_${week?.label || "الأسبوع"}_${Date.now()}.pdf`,
-        { mode: "fit", orientation: "portrait" },
+      // التقاط البطاقة بجودة عالية
+      const imgData = await toJpeg(element, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2.2,
+        quality: 0.96,
+        style: {
+          fontFamily: "'Tajawal', 'Cairo', sans-serif",
+          minWidth: `${Math.max(element.scrollWidth, 600)}px`,
+          width: `${Math.max(element.scrollWidth, 600)}px`,
+        },
+        skipFonts: true,
+        fontEmbedCSS: "",
+      });
+
+      // تحميل الصورة لقياس أبعادها
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+      });
+
+      // إنشاء PDF بأبعاد تتناسب مع البطاقة (عمودي A4)
+      const pdfWidthMm = 210; // عرض A4
+      const pdfHeightMm = (img.height / img.width) * pdfWidthMm;
+
+      const pdf = new jsPDF({
+        orientation: pdfHeightMm > pdfWidthMm ? "portrait" : "landscape",
+        unit: "mm",
+        format: [pdfWidthMm, pdfHeightMm],
+      });
+
+      pdf.addImage(
+        imgData,
+        "JPEG",
+        0,
+        0,
+        pdfWidthMm,
+        pdfHeightMm,
+        undefined,
+        "FAST",
       );
+      pdf.save(
+        `جدول_فصل_${className?.replace(/\s+/g, "_")}_${week?.label || "الأسبوع"}_${Date.now()}.pdf`,
+      );
+
       toast.success("تم تصدير بطاقة الجدول كملف PDF بنجاح 📄");
     } catch (err) {
       console.error("PDF export error:", err);

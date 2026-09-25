@@ -1,9 +1,6 @@
 import { toPng, toJpeg } from "html-to-image";
 import jsPDF from "jspdf";
 
-/**
- * Sanitizes filenames to be safe across all operating systems.
- */
 export function sanitizeFilename(name, fallback = "تصدير") {
   if (!name || typeof name !== "string") return fallback;
   return (
@@ -15,9 +12,6 @@ export function sanitizeFilename(name, fallback = "تصدير") {
   );
 }
 
-/**
- * Common safe image options to prevent SecurityError from cssRules and memory overflows.
- */
 export function getSafeImageOptions(element, { pixelRatio = 2.0, minWidth = 1000 } = {}) {
   const currentW = element?.scrollWidth || element?.offsetWidth || minWidth;
   const targetW = Math.max(currentW, minWidth);
@@ -43,9 +37,6 @@ export function getSafeImageOptions(element, { pixelRatio = 2.0, minWidth = 1000
   };
 }
 
-/**
- * Captures an HTML element as an image data URL with automatic fallback retry.
- */
 export async function captureElementSafely(element, format = "jpeg", options = {}) {
   if (!element) throw new Error("Element not found");
   const opts = getSafeImageOptions(element, options);
@@ -70,9 +61,6 @@ export async function captureElementSafely(element, format = "jpeg", options = {
   }
 }
 
-/**
- * Exports an HTML element directly to a PNG file.
- */
 export async function exportElementToPNG(element, filename = "جدول.png") {
   const dataUrl = await captureElementSafely(element, "png", { pixelRatio: 2.2 });
   const link = document.createElement("a");
@@ -83,12 +71,6 @@ export async function exportElementToPNG(element, filename = "جدول.png") {
   return true;
 }
 
-/**
- * Exports an HTML element to a PDF file.
- * @param {HTMLElement} element - Target DOM element
- * @param {string} filename - Output filename
- * @param {Object} opts - Options: { mode: 'fit' | 'a4', orientation: 'landscape' | 'portrait' }
- */
 export async function exportElementToPDF(element, filename = "جدول.pdf", { mode = "fit", orientation } = {}) {
   const imgData = await captureElementSafely(element, "jpeg", { pixelRatio: 2.0, quality: 0.95 });
 
@@ -103,8 +85,7 @@ export async function exportElementToPDF(element, filename = "جدول.pdf", { m
   if (!safeName.endsWith(".pdf")) safeName += ".pdf";
 
   if (mode === "fit") {
-    // Mode 1: Full-Width Continuous PDF (ملء الشاشة بدون فراغات)
-    const baseWidthMm = 297; // Landscape A4 width
+    const baseWidthMm = 297;
     const pdfHeightMm = (img.height / img.width) * baseWidthMm;
     const finalOrientation = orientation || (pdfHeightMm > baseWidthMm ? "portrait" : "landscape");
 
@@ -119,7 +100,6 @@ export async function exportElementToPDF(element, filename = "جدول.pdf", { m
     return true;
   }
 
-  // Mode 2: Multi-Page A4 (مقسم لصفحات A4 أفقية للطباعة الورقية)
   const isPortrait = orientation === "portrait";
   const pdf = new jsPDF({
     orientation: isPortrait ? "portrait" : "landscape",
@@ -165,7 +145,7 @@ export async function exportElementToPDF(element, filename = "جدول.pdf", { m
       0,
       0,
       img.width,
-      currentSlicePxHeight,
+      currentSlicePxHeight
     );
 
     const sliceDataUrl = sliceCanvas.toDataURL("image/jpeg", 0.95);
@@ -181,9 +161,6 @@ export async function exportElementToPDF(element, filename = "جدول.pdf", { m
   return true;
 }
 
-/**
- * Copies an HTML element to clipboard as an image with fallback to download.
- */
 export async function copyElementAsImage(element, fallbackFilename = "صورة.png") {
   const dataUrl = await captureElementSafely(element, "png", { pixelRatio: 2.2 });
 
@@ -198,7 +175,6 @@ export async function copyElementAsImage(element, fallbackFilename = "صورة.p
     }
   }
 
-  // Fallback: download
   const link = document.createElement("a");
   link.download = sanitizeFilename(fallbackFilename, "صورة.png");
   if (!link.download.endsWith(".png")) link.download += ".png";
@@ -207,9 +183,6 @@ export async function copyElementAsImage(element, fallbackFilename = "صورة.p
   return { copied: false, downloaded: true };
 }
 
-/**
- * Opens a print dialog for a specific element with safe stylesheet loading.
- */
 export function printElementSafely(element, title = "طباعة") {
   if (!element) return false;
 

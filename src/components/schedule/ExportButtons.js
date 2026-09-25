@@ -29,8 +29,38 @@ export default function ExportButtons({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Safe element resolver with automatic fallback search
+  const resolveTargetElement = () => {
+    if (targetElementId) {
+      const el = document.getElementById(targetElementId);
+      if (el) return el;
+    }
+
+    const fallbackIds = [
+      "weekly-schedule-print-container",
+      "teacher-official-timetable-container",
+      "master-timetable-print-container",
+      "lesson-preparation-print-workspace",
+      "single-lesson-plan-print-sheet",
+    ];
+    for (const id of fallbackIds) {
+      const el = document.getElementById(id);
+      if (el) return el;
+    }
+
+    const tableContainer =
+      document.querySelector(".schedule-desktop-table-container") ||
+      document.querySelector("table");
+    if (tableContainer) {
+      return tableContainer.closest("[id]") || tableContainer.parentElement;
+    }
+
+    return null;
+  };
+
   // Helper to ensure desktop table container is active during snapshot
   const prepareElementForSnapshot = (element) => {
+    if (!element) return () => {};
     const desktopTable = element.querySelector(
       ".schedule-desktop-table-container",
     );
@@ -66,7 +96,7 @@ export default function ExportButtons({
   };
 
   const handleExportPNG = async () => {
-    const element = document.getElementById(targetElementId);
+    const element = resolveTargetElement();
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للتصدير");
       return;
@@ -88,7 +118,7 @@ export default function ExportButtons({
 
   const handleExportPDF = async (mode = "fit") => {
     setPdfMenuOpen(false);
-    const element = document.getElementById(targetElementId);
+    const element = resolveTargetElement();
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للتصدير");
       return;
@@ -122,7 +152,7 @@ export default function ExportButtons({
   };
 
   const handlePrint = () => {
-    const element = document.getElementById(targetElementId);
+    const element = resolveTargetElement();
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للطباعة");
       return;
@@ -258,7 +288,7 @@ export default function ExportButtons({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z"
           />
         </svg>
         <span className="hidden sm:inline">طباعة</span>
