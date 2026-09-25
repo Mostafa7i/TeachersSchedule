@@ -9,6 +9,7 @@ import { settingsService } from "@/services/settings.service";
 import WeekNavigator from "@/components/schedule/WeekNavigator";
 import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
 import WeeklyScheduleTable from "@/components/schedule/WeeklyScheduleTable";
+import LessonPreparationWorkspace from "@/components/schedule/LessonPreparationWorkspace";
 import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
 import AvailableTimetablesModal from "@/components/schedule/AvailableTimetablesModal";
@@ -347,41 +348,53 @@ export default function TeacherDashboardPage() {
 
       {/* View Switcher Tabs */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-gray-200 pb-2">
-        <div className="flex items-center gap-2 bg-gray-200/70 p-1 rounded-2xl max-w-2xl">
+        <div className="flex items-center gap-1.5 bg-gray-200/70 p-1 rounded-2xl max-w-3xl overflow-x-auto">
           <button
             onClick={() => setActiveTab("plan")}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "plan"
                 ? "bg-white text-blue-900 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
             <span>📝</span>
-            <span>الخطة الأسبوعية والدروس</span>
+            <span>الخطة السريعة</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("preparation")}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === "preparation"
+                ? "bg-white text-blue-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <span>📚</span>
+            <span>دفتر تحضير الدروس</span>
           </button>
 
           <button
             onClick={() => setActiveTab("timetable")}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "timetable"
                 ? "bg-white text-blue-900 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
             <span>🗓️</span>
-            <span>جدول الحصص المدرسي</span>
+            <span>جدول الحصص</span>
           </button>
 
           <button
             onClick={() => setActiveTab("settings")}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap ${
               activeTab === "settings"
                 ? "bg-white text-blue-900 shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
             <span>⚙️</span>
-            <span>إعدادات الحساب</span>
+            <span>الإعدادات</span>
           </button>
         </div>
 
@@ -480,9 +493,24 @@ export default function TeacherDashboardPage() {
               </div>
             </form>
           </div>
+        ) : activeTab === "preparation" ? (
+          /* ========================================================================= */
+          /* TAB 1: Lesson Preparation Workspace (دفتر تحضير الدروس والخطط)            */
+          /* ========================================================================= */
+          <div className="space-y-4">
+            <LessonPreparationWorkspace
+              week={currentWeek}
+              weeks={weeks}
+              onSelectWeek={handleSelectWeek}
+              schedules={schedules}
+              settings={settings}
+              subjects={subjects}
+              onRefresh={() => handleSelectWeek(currentWeek)}
+            />
+          </div>
         ) : activeTab === "timetable" ? (
           /* ========================================================================= */
-          /* TAB 1: Official Timetable View (Matching aSc Timetables user reference)   */
+          /* TAB 2: Official Timetable View (Matching aSc Timetables user reference)   */
           /* ========================================================================= */
           <div className="space-y-4">
             <TeacherTimetableGrid
@@ -496,7 +524,7 @@ export default function TeacherDashboardPage() {
           </div>
         ) : (
           /* ========================================================================= */
-          /* TAB 2: Weekly Plan (Inline Direct Editable)                               */
+          /* TAB 3: Weekly Plan (Inline Direct Editable)                               */
           /* ========================================================================= */
           <div className="space-y-4">
             <WeeklyScheduleTable
