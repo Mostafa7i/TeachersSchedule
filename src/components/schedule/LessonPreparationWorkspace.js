@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { toPng, toJpeg } from "html-to-image";
-import jsPDF from "jspdf";
+import {
+  exportElementToPNG,
+  exportElementToPDF,
+  printElementSafely,
+} from "@/lib/exportUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { schedulesService } from "@/services/schedules.service";
@@ -290,128 +293,32 @@ export default function LessonPreparationWorkspace({
   const handlePrint = () => {
     const element = document.getElementById(printContainerId);
     if (!element) return;
-
-    const styleSheets = Array.from(document.styleSheets)
-      .map((sheet) => {
-        try {
-          return Array.from(sheet.cssRules)
-            .map((r) => r.cssText)
-            .join("\n");
-        } catch {
-          return sheet.href ? `@import url('${sheet.href}');` : "";
-        }
-      })
-      .join("\n");
-
-    const printWindow = window.open("", "_blank", "width=1200,height=900");
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="UTF-8" />
-        <title>دفتر تحضير الدروس — ${week?.label || "الأسبوع الدراسي"}</title>
-        <style>
-          ${styleSheets}
-          @page { size: A4 landscape; margin: 8mm; }
-          * { box-sizing: border-box; }
-          body { background: #fff; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
-          button, .no-print, .no-export { display: none !important; }
-        </style>
-      </head>
-      <body>
-        <div id="print-root">${element.outerHTML}</div>
-        <script>
-          window.onload = function () {
-            window.print();
-            window.onafterprint = function () { window.close(); };
-          };
-        <\/script>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
+    printElementSafely(
+      element,
+      `دفتر تحضير الدروس — ${week?.label || "الأسبوع الدراسي"}`,
+    );
   };
 
-  // Export full PDF (Continuous full-width)
+  // Export full PDF (Continuous full-width or A4 Multi-page)
   const handleExportPDF = async (mode = "fit") => {
     const element = document.getElementById(printContainerId);
     if (!element) return;
 
     setExporting(true);
     try {
-      const imgData = await toJpeg(element, {
-        backgroundColor: "#ffffff",
-        pixelRatio: 2.2,
-        quality: 0.96,
-        style: {
-          fontFamily: "'Tajawal', 'Cairo', sans-serif",
-          minWidth: "1100px",
-          width: "1100px",
-        },
-        filter: (node) => !node.classList?.contains("no-export") && !node.classList?.contains("no-print"),
-      });
+      const filename =
+        mode === "fit"
+          ? `دفتر_تحضير_${week?.label || "الأسبوع"}_${Date.now()}.pdf`
+          : `دفتر_تحضير_مقسم_A4_${week?.label || "الأسبوع"}_${Date.now()}.pdf`;
 
-      const img = new Image();
-      img.src = imgData;
-      await new Promise((res, rej) => {
-        img.onload = res;
-        img.onerror = rej;
+      await exportElementToPDF(element, filename, {
+        mode,
+        orientation: "landscape",
       });
 
       if (mode === "fit") {
-        const pdfWidthMm = 297; // Landscape A4 width
-        const pdfHeightMm = (img.height / img.width) * pdfWidthMm;
-
-        const pdf = new jsPDF({
-          orientation: pdfHeightMm > pdfWidthMm ? "portrait" : "landscape",
-          unit: "mm",
-          format: [pdfWidthMm, pdfHeightMm],
-        });
-
-        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidthMm, pdfHeightMm, undefined, "FAST");
-        pdf.save(`دفتر_تحضير_${week?.label || "الأسبوع"}_${Date.now()}.pdf`);
         toast.success("تم تصدير دفتر التحضير كملف PDF عالي الدقة بنجاح 📄✨");
       } else {
-        const pdf = new jsPDF({
-          orientation: "landscape",
-          unit: "mm",
-          format: "a4",
-        });
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const margin = 6;
-        const printWidth = pdfWidth - margin * 2;
-        const printHeight = pdfHeight - margin * 2;
-        const pxPerMm = img.width / printWidth;
-        const pageSlicePxHeight = printHeight * pxPerMm;
-
-        const sliceCanvas = document.createElement("canvas");
-        const sliceCtx = sliceCanvas.getContext("2d");
-
-        let currentYPx = 0;
-        let pageIndex = 0;
-
-        while (currentYPx < img.height) {
-          if (pageIndex > 0) pdf.addPage("a4", "landscape");
-          const remainingPxHeight = img.height - currentYPx;
-          const currentSlicePxHeight = Math.min(pageSlicePxHeight, remainingPxHeight);
-
-          sliceCanvas.width = img.width;
-          sliceCanvas.height = currentSlicePxHeight;
-          sliceCtx.fillStyle = "#ffffff";
-          sliceCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-          sliceCtx.drawImage(img, 0, currentYPx, img.width, currentSlicePxHeight, 0, 0, img.width, currentSlicePxHeight);
-
-          const sliceDataUrl = sliceCanvas.toDataURL("image/jpeg", 0.95);
-          const sliceMmHeight = currentSlicePxHeight / pxPerMm;
-          pdf.addImage(sliceDataUrl, "JPEG", margin, margin, printWidth, sliceMmHeight);
-
-          currentYPx += pageSlicePxHeight;
-          pageIndex++;
-        }
-
-        pdf.save(`دفتر_تحضير_مقسم_A4_${week?.label || "الأسبوع"}_${Date.now()}.pdf`);
         toast.success("تم تصدير دفتر التحضير كملف PDF مقسم لصفحات A4 بنجاح 📑");
       }
     } catch (err) {
@@ -429,21 +336,10 @@ export default function LessonPreparationWorkspace({
 
     setExporting(true);
     try {
-      const dataUrl = await toPng(element, {
-        backgroundColor: "#ffffff",
-        pixelRatio: 2.5,
-        style: {
-          fontFamily: "'Tajawal', 'Cairo', sans-serif",
-          minWidth: "1100px",
-          width: "1100px",
-        },
-        filter: (node) => !node.classList?.contains("no-export") && !node.classList?.contains("no-print"),
-      });
-
-      const link = document.createElement("a");
-      link.download = `دفتر_تحضير_${week?.label || "الأسبوع"}_${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
+      await exportElementToPNG(
+        element,
+        `دفتر_تحضير_${week?.label || "الأسبوع"}_${Date.now()}.png`,
+      );
       toast.success("تم تصدير دفتر التحضير كصورة PNG عالية الدقة بنجاح 🖼️");
     } catch (err) {
       console.error("PNG export error:", err);

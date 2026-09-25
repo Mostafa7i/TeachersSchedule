@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { toPng, toJpeg } from "html-to-image";
-import jsPDF from "jspdf";
 import { useToast } from "@/contexts/ToastContext";
 import { getLogoUrl, getClassBadgeStyle } from "@/lib/utils";
+import {
+  exportElementToPNG,
+  exportElementToPDF,
+  printElementSafely,
+} from "@/lib/exportUtils";
 
 export default function SingleLessonPlanModal({
   isOpen,
@@ -27,18 +30,10 @@ export default function SingleLessonPlanModal({
 
     setExporting(true);
     try {
-      const dataUrl = await toPng(element, {
-        backgroundColor: "#ffffff",
-        pixelRatio: 2.5,
-        style: {
-          fontFamily: "'Tajawal', 'Cairo', sans-serif",
-        },
-      });
-
-      const link = document.createElement("a");
-      link.download = `تحضير_${schedule.subject?.name || "مادة"}_${schedule.className || "فصل"}_${schedule.day}_${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
+      await exportElementToPNG(
+        element,
+        `تحضير_${schedule.subject?.name || "مادة"}_${schedule.className || "فصل"}_${schedule.day}_${Date.now()}.png`,
+      );
       toast.success("تم تصدير بطاقة التحضير كصورة PNG بنجاح 🖼️");
     } catch (err) {
       console.error("PNG export error:", err);
@@ -54,36 +49,11 @@ export default function SingleLessonPlanModal({
 
     setExporting(true);
     try {
-      const imgData = await toJpeg(element, {
-        backgroundColor: "#ffffff",
-        pixelRatio: 2.2,
-        quality: 0.96,
-        style: {
-          fontFamily: "'Tajawal', 'Cairo', sans-serif",
-        },
-      });
-
-      const img = new Image();
-      img.src = imgData;
-      await new Promise((res, rej) => {
-        img.onload = res;
-        img.onerror = rej;
-      });
-
-      const pdfWidthMm = 210; // A4 Portrait
-      const pdfHeightMm = (img.height / img.width) * pdfWidthMm;
-
-      const pdf = new jsPDF({
-        orientation: pdfHeightMm > pdfWidthMm ? "portrait" : "landscape",
-        unit: "mm",
-        format: [pdfWidthMm, pdfHeightMm],
-      });
-
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidthMm, pdfHeightMm, undefined, "FAST");
-      pdf.save(
-        `تحضير_${schedule.subject?.name || "مادة"}_${schedule.className || "فصل"}_${schedule.day}_${Date.now()}.pdf`
+      await exportElementToPDF(
+        element,
+        `تحضير_${schedule.subject?.name || "مادة"}_${schedule.className || "فصل"}_${schedule.day}_${Date.now()}.pdf`,
+        { mode: "fit", orientation: "portrait" },
       );
-
       toast.success("تم تصدير بطاقة التحضير كملف PDF بنجاح 📄");
     } catch (err) {
       console.error("PDF export error:", err);
@@ -96,46 +66,10 @@ export default function SingleLessonPlanModal({
   const handlePrint = () => {
     const element = document.getElementById(printContainerId);
     if (!element) return;
-
-    const styleSheets = Array.from(document.styleSheets)
-      .map((sheet) => {
-        try {
-          return Array.from(sheet.cssRules)
-            .map((r) => r.cssText)
-            .join("\n");
-        } catch {
-          return sheet.href ? `@import url('${sheet.href}');` : "";
-        }
-      })
-      .join("\n");
-
-    const printWindow = window.open("", "_blank", "width=900,height=1200");
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="UTF-8" />
-        <title>خطة وتحضير درس — ${schedule.lessonTitle || "بدون عنوان"}</title>
-        <style>
-          ${styleSheets}
-          @page { size: A4 portrait; margin: 8mm; }
-          * { box-sizing: border-box; }
-          body { background: #fff; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
-          button, .no-print { display: none !important; }
-        </style>
-      </head>
-      <body>
-        <div id="print-root">${element.outerHTML}</div>
-        <script>
-          window.onload = function () {
-            window.print();
-            window.onafterprint = function () { window.close(); };
-          };
-        <\/script>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
+    printElementSafely(
+      element,
+      `خطة وتحضير درس — ${schedule.lessonTitle || "بدون عنوان"}`,
+    );
   };
 
   const handleCopyText = () => {
