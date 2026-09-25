@@ -443,32 +443,26 @@ export default function WeeklyScheduleTable({
   return (
     <div
       id="weekly-schedule-print-container"
-      className="relative bg-white rounded-[2rem] shadow-[0_20px_60px_-35px_rgba(15,23,42,0.45)] border border-slate-200 overflow-hidden p-3 sm:p-5 lg:p-7 space-y-5 sm:space-y-6 w-full max-w-full"
+      className="relative bg-white rounded-4xl shadow-[0_20px_60px_-35px_rgba(15,23,42,0.45)] border border-slate-200 overflow-hidden p-3 sm:p-5 lg:p-7 space-y-5 sm:space-y-6 w-full max-w-full"
     >
       {/* 1) School Header & Visual Branding */}
       <div className="relative border-b-2 border-slate-900 pb-5">
-        <div className="absolute right-0 top-0 h-1 w-28 rounded-full bg-blue-600" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center text-center md:text-right">
           {/* Ministry / Department info */}
           <div className="text-xs text-slate-600 space-y-1 font-medium leading-relaxed">
-            <p className="font-bold text-slate-800 text-sm">
+            <p className="font-bold text-sm text-green-700">
               المملكة العربية السعودية
             </p>
-            <p>وزارة التعليم</p>
-            <p>{settings?.ministryHeader || "الإدارة العامة للتعليم"}</p>
-            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-black text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> نسخة
-              رسمية
-            </span>
+            <p>{settings?.ministryHeader || "الإدارة العامة للتعليم"}</p>  
           </div>
 
           {/* School Name & Title */}
           <div className="text-center space-y-1.5">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              {settings?.schoolName || "مدرسة المستقبل النموذجية"}
+            <h2 className="sm:text-2xl font-black text-slate-900 tracking-tight">
+              {settings?.schoolName || "مدرسة الشروق التربية"}
             </h2>
-            <div className="inline-flex flex-wrap items-center justify-center gap-2 bg-slate-900 text-white text-xs sm:text-sm font-bold px-4 py-1.5 rounded-full shadow-xs">
-              <span>الخطة والجدول الدراسي الأسبوعي</span>ظ
+            <div className="inline-flex flex-wrap items-center justify-center gap-2 bg-slate-900 text-white text-xs sm:text-sm font-bold px-2 py-1.5 rounded-full shadow-xs">
+              <span>الخطة والجدول الدراسي الأسبوعي</span>
               {selectedClass ? (
                 <>
                   <span className="text-blue-300">•</span>
@@ -546,8 +540,7 @@ export default function WeeklyScheduleTable({
             <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <span>📊</span>
               <span>
-                فصول المدرسة المسجلة لهذا الأسبوع (انقر على الفصل لعرض خطته
-                المستقلة):
+                فصول المدرسة المسجلة لهذا الأسبوع:
               </span>
             </h3>
             <span className="text-[11px] text-slate-500 font-semibold">
@@ -555,7 +548,7 @@ export default function WeeklyScheduleTable({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5">
             {classesSummary.map((cls) => {
               const style = getClassBadgeStyle(cls.name);
               return (
@@ -563,19 +556,19 @@ export default function WeeklyScheduleTable({
                   key={cls.name}
                   type="button"
                   onClick={() => onSelectClass && onSelectClass(cls.name)}
-                  className={`p-3 rounded-2xl border text-right transition-all group cursor-pointer hover:shadow-md ${style.bg} ${style.border}`}
+                  className={`p-2 rounded-2xl border text-right transition-all group cursor-pointer hover:shadow-md ${style.bg} ${style.border}`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className={`font-black text-sm ${style.text}`}>
+                    <span className={`font-black text-[11px] ${style.text}`}>
                       {cls.name}
                     </span>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${style.badge}`}
+                      className={`text-[8px] font-bold p-1 rounded-full ${style.badge}`}
                     >
                       {cls.count} حصة
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-600 font-medium">
+                  <div className="text-[9px] text-slate-600 font-medium">
                     الخطة:{" "}
                     <strong className="text-emerald-700 font-black">
                       {cls.withLesson}
@@ -631,7 +624,7 @@ export default function WeeklyScheduleTable({
                 key={day}
                 type="button"
                 onClick={() => setSelectedMobileDay(day)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`shrink-0 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                   isSel
                     ? "bg-blue-600 text-white shadow-xs"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -813,7 +806,7 @@ export default function WeeklyScheduleTable({
                             )
                           }
                           placeholder="اكتب عنوان وموضوع الدرس هنا..."
-                          className="w-full min-h-[52px] px-3 py-3 text-xs font-semibold text-slate-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
+                          className="w-full min-h-13 px-3 py-3 text-xs font-semibold text-slate-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
                         />
                       ) : (
                         <p className="text-xs font-bold text-slate-900 p-2 bg-slate-200/80 border border-slate-300 rounded-xl">
@@ -928,31 +921,31 @@ export default function WeeklyScheduleTable({
           <table className="w-full text-right border-separate border-spacing-0 min-w-[980px]">
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-950 text-white text-xs sm:text-sm">
-                <th className="border border-slate-700 px-3 py-3 w-32 text-center font-bold">
+                <th className="border border-slate-700 p-2 w-32 text-center font-bold">
                   اليوم والتاريخ
                 </th>
                 <th className="border border-slate-700 px-2 py-3 w-14 text-center font-bold">
                   الحصة
                 </th>
                 {!selectedClass && (
-                  <th className="border border-slate-700 px-3 py-3 w-28 font-bold text-center">
+                  <th className="border border-slate-700 p-2 w-28 font-bold text-center">
                     الفصل
                   </th>
                 )}
-                <th className="border border-slate-700 px-3 py-3 w-40 font-bold">
+                <th className="border border-slate-700 p-2 w-40 font-bold">
                   المادة والمعلم
                 </th>
-                <th className="border border-slate-700 px-3 py-3 font-bold min-w-[260px]">
+                <th className="border border-slate-700 p-2 font-bold min-w-[260px]">
                   عنوان الدرس والموضوع
                 </th>
-                <th className="border border-slate-700 px-3 py-3 font-bold min-w-[220px]">
+                <th className="border border-slate-700 p-2 font-bold min-w-[220px]">
                   الواجبات والأنشطة
                 </th>
-                <th className="border border-slate-700 px-3 py-3 w-36 font-bold">
+                <th className="border border-slate-700 p-2 w-36 font-bold">
                   الملاحظات
                 </th>
-                <th className="border border-slate-700 px-3 py-3 w-28 text-center font-bold no-export no-print">
-                  الحالة / الإدارة
+                <th className="border border-slate-700 p-2 w-28 text-center font-bold no-export no-print">
+               الحالة
                 </th>
               </tr>
             </thead>

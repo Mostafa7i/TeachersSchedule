@@ -25,6 +25,8 @@ const TYPE_CONFIG = {
   SCHEDULE_ISSUE: { label: "مشكلة جدول", icon: CalendarX2, color: "text-blue-500", bg: "bg-blue-50" },
   FACILITY: { label: "مرفق / بنية تحتية", icon: Building2, color: "text-purple-500", bg: "bg-purple-50" },
   OTHER: { label: "أخرى", icon: HelpCircle, color: "text-gray-500", bg: "bg-gray-50" },
+  GENERAL: { label: "عامة", icon: MessageSquarePlus, color: "text-gray-500", bg: "bg-gray-50" },
+  BUG: { label: "خلل تقني", icon: AlertTriangle, color: "text-red-500", bg: "bg-red-50" },
 };
 
 const STATUS_CONFIG = {
@@ -32,6 +34,8 @@ const STATUS_CONFIG = {
   IN_REVIEW: { label: "جارٍ المراجعة", icon: Loader2, color: "text-blue-500", bg: "bg-blue-50" },
   RESOLVED: { label: "تم الحل", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-50" },
   REJECTED: { label: "مرفوض", icon: XCircle, color: "text-red-500", bg: "bg-red-50" },
+  REPLIED: { label: "تم الرد", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-50" },
+  CLOSED: { label: "مغلقة", icon: XCircle, color: "text-gray-500", bg: "bg-gray-50" },
 };
 
 const INITIAL_FORM = {
@@ -41,6 +45,19 @@ const INITIAL_FORM = {
   priority: "MEDIUM",
   isAnonymous: false,
 };
+
+const normalizeFeedbackItem = (item = {}) => ({
+  ...item,
+  // توافق مع بيانات الواجهة القديمة وبيانات الـ API الجديدة
+  type: item.type || item.category || "OTHER",
+  title: item.title || item.subject || "بدون عنوان",
+  description: item.description || item.message || item.content || "لا يوجد محتوى",
+  adminReply: item.adminReply || item.reply || "",
+  // يظهر الاسم في شاشة الأدمن عندما يرجعه populate("user")
+  senderName: item.user?.name || item.teacher?.name || item.createdBy?.name || "",
+  senderEmail: item.user?.email || item.teacher?.email || item.createdBy?.email || "",
+  status: item.status || "PENDING",
+});
 
 export default function TeacherFeedbackPage() {
   const [view, setView] = useState("list"); // list | new
@@ -56,7 +73,8 @@ export default function TeacherFeedbackPage() {
     setLoading(true);
     try {
       const res = await feedbackService.getMyFeedback();
-      setItems(res.data || res || []);
+      const rows = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setItems(rows.map(normalizeFeedbackItem));
     } catch {
       setError("تعذّر تحميل الشكاوى والاقتراحات");
     } finally {
@@ -77,7 +95,17 @@ export default function TeacherFeedbackPage() {
     setSubmitting(true);
     setError("");
     try {
-      await feedbackService.create(form);
+      await feedbackService.create({
+        subject: form.title.trim(),
+        message: form.description.trim(),
+        category: form.type,
+        // نرسل الحقول القديمة أيضًا للتوافق مع أي Backend قديم
+        title: form.title.trim(),
+        description: form.description.trim(),
+        type: form.type,
+        priority: form.priority,
+        isAnonymous: form.isAnonymous,
+      });
       setSuccessMsg("تم إرسال الشكوى/الاقتراح بنجاح ✅");
       setForm(INITIAL_FORM);
       setView("list");
@@ -101,7 +129,9 @@ export default function TeacherFeedbackPage() {
   };
 
   const pendingCount = items.filter((i) => i.status === "PENDING").length;
-  const resolvedCount = items.filter((i) => i.status === "RESOLVED").length;
+  const resolvedCount = items.filter((i) =>
+    ["RESOLVED", "REPLIED", "CLOSED"].includes(i.status),
+  ).length;
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto" dir="rtl">
@@ -304,6 +334,15 @@ export default function TeacherFeedbackPage() {
 
                   {isOpen && (
                     <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
+                      {item.senderName && (
+                        <div className="flex items-center gap-2 pt-3 text-xs text-gray-500">
+                          <span className="font-semibold text-gray-700">المرسل:</span>
+                          <span>{item.senderName}</span>
+                          {item.senderEmail && (
+                            <span dir="ltr" className="text-gray-400">({item.senderEmail})</span>
+                          )}
+                        </div>
+                      )}
                       <p className="text-sm text-gray-600 pt-3 leading-relaxed whitespace-pre-wrap">
                         {item.description}
                       </p>
@@ -317,9 +356,11 @@ export default function TeacherFeedbackPage() {
 
                       <div className="flex items-center justify-between pt-1">
                         <p className="text-xs text-gray-400">
-                          {new Date(item.createdAt).toLocaleDateString("ar-EG", {
-                            year: "numeric", month: "short", day: "numeric",
-                          })}
+                          {item.createdAt
+                            ? new Date(item.createdAt).toLocaleDateString("ar-EG", {
+                                year: "numeric", month: "short", day: "numeric",
+                              })
+                            : "تاريخ غير متاح"}
                         </p>
                         {item.status === "PENDING" && (
                           <button

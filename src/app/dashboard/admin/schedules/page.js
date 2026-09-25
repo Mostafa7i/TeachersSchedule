@@ -220,7 +220,7 @@ export default function AdminSchedulesPage() {
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white text-lg shadow-sm">▦</span>
               <span className="inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-black text-blue-700">إدارة الجداول</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">الخطة والجدول الأسبوعي</h1>
+            <h1 className="sm:text-2xl font-black text-slate-900 tracking-tight">الخطة والجدول الأسبوعي</h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">تنظيم الحصص، متابعة الخطة، وتجهيز نسخة واضحة للطباعة والمشاركة.</p>
           </div>
 
@@ -230,7 +230,7 @@ export default function AdminSchedulesPage() {
             type="button"
             onClick={() => handleOpenShare(selectedClass)}
             aria-label="مشاركة الخطة الأسبوعية عبر واتساب"
-            className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white text-xs sm:text-sm font-extrabold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-500"
+            className="flex items-center gap-2 bg-linear-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white text-xs sm:text-sm font-extrabold px-2 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-emerald-500"
             title="إنشاء بطاقة مصممة للفصل ومشاركتها عبر واتساب"
           >
             <span className="text-base">📲</span>
@@ -246,7 +246,7 @@ export default function AdminSchedulesPage() {
       </header>
 
       {/* Week Navigator Bar */}
-      <section className="rounded-[1.5rem] border border-slate-200 bg-white shadow-sm overflow-hidden no-print">
+      <section className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden no-print">
       <WeekNavigator
         weeks={weeks}
         currentWeek={currentWeek}
@@ -450,7 +450,7 @@ export default function AdminSchedulesPage() {
       {/* Main Schedule Table / Export Artifact */}
       <section className="rounded-[1.75rem] border border-slate-200 bg-white shadow-sm overflow-hidden">
       {loading ? (
-        <div className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200 shadow-sm">
+        <div className="bg-white rounded-3xl p-2 sm:p-7 border border-slate-200 shadow-sm">
           <TableSkeleton rows={8} cols={6} />
         </div>
       ) : (

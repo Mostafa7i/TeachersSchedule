@@ -26,6 +26,8 @@ const TYPE_CONFIG = {
   SCHEDULE_ISSUE: { label: "مشكلة جدول", icon: CalendarX2, color: "text-blue-500", bg: "bg-blue-50" },
   FACILITY: { label: "مرفق", icon: Building2, color: "text-purple-500", bg: "bg-purple-50" },
   OTHER: { label: "أخرى", icon: HelpCircle, color: "text-gray-500", bg: "bg-gray-50" },
+  GENERAL: { label: "عامة", icon: HelpCircle, color: "text-gray-500", bg: "bg-gray-50" },
+  BUG: { label: "خلل تقني", icon: AlertTriangle, color: "text-red-500", bg: "bg-red-50" },
 };
 
 const STATUS_CONFIG = {
@@ -33,9 +35,25 @@ const STATUS_CONFIG = {
   IN_REVIEW: { label: "جارٍ المراجعة", icon: Loader2, color: "text-blue-500", bg: "bg-blue-50" },
   RESOLVED: { label: "تم الحل", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-50" },
   REJECTED: { label: "مرفوض", icon: XCircle, color: "text-red-500", bg: "bg-red-50" },
+  REPLIED: { label: "تم الرد", icon: CheckCircle2, color: "text-green-500", bg: "bg-green-50" },
+  CLOSED: { label: "مغلقة", icon: XCircle, color: "text-gray-500", bg: "bg-gray-50" },
 };
 
 const PRIORITY_LABELS = { LOW: "منخفضة", MEDIUM: "متوسطة", HIGH: "عالية", URGENT: "عاجلة" };
+
+const normalizeAdminFeedback = (item = {}) => ({
+  ...item,
+  type: item.type || item.category || "OTHER",
+  title: item.title || item.subject || "بدون عنوان",
+  description: item.description || item.message || item.content || "لا يوجد محتوى",
+  adminReply: item.adminReply || item.reply || "",
+  teacherName: item.isAnonymous
+    ? "مجهول"
+    : item.teacher?.name || item.user?.name || item.createdBy?.name || "معلم غير معروف",
+  teacherEmail: item.teacher?.email || item.user?.email || item.createdBy?.email || "",
+  priority: item.priority || "MEDIUM",
+  status: item.status || "PENDING",
+});
 
 export default function AdminFeedbackPage() {
   const [items, setItems] = useState([]);
@@ -52,9 +70,10 @@ export default function AdminFeedbackPage() {
     try {
       const params = {};
       if (filters.status) params.status = filters.status;
-      if (filters.type) params.type = filters.type;
+      if (filters.type) params.category = filters.type;
       const res = await feedbackService.getAll(params);
-      setItems(res.data || res || []);
+      const rows = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setItems(rows.map(normalizeAdminFeedback));
     } catch {
       setError("تعذّر تحميل الشكاوى");
     } finally {
@@ -69,7 +88,7 @@ export default function AdminFeedbackPage() {
     if (!text) return;
     setSubmittingReply(id);
     try {
-      await feedbackService.reply(id, { adminReply: text, status: "RESOLVED" });
+      await feedbackService.reply(id, { reply: text });
       setReplyText((prev) => ({ ...prev, [id]: "" }));
       load();
     } catch {
@@ -101,7 +120,9 @@ export default function AdminFeedbackPage() {
   const stats = {
     total: items.length,
     pending: items.filter((i) => i.status === "PENDING").length,
-    resolved: items.filter((i) => i.status === "RESOLVED").length,
+    resolved: items.filter((i) =>
+      ["RESOLVED", "REPLIED", "CLOSED"].includes(i.status),
+    ).length,
     urgent: items.filter((i) => i.priority === "URGENT").length,
   };
 
@@ -205,8 +226,8 @@ export default function AdminFeedbackPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-800 text-sm truncate">{item.title}</p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {item.isAnonymous ? "مجهول" : item.teacher?.name || "معلم"} · {tCfg.label} ·{" "}
-                      {PRIORITY_LABELS[item.priority]}
+                      {item.teacherName} · {tCfg.label} ·{" "}
+                      {PRIORITY_LABELS[item.priority] || item.priority}
                     </p>
                   </div>
                   <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${sCfg.bg} ${sCfg.color}`}>
@@ -221,10 +242,19 @@ export default function AdminFeedbackPage() {
 
                 {isOpen && (
                   <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
-                    <p className="text-sm text-gray-600 pt-3 leading-relaxed whitespace-pre-wrap">
-                      {item.description}
-                    </p>
-
+                    <div className="flex flex-wrap items-center gap-2 pt-3 text-xs text-gray-500">
+                      <span className="font-semibold text-gray-700">المعلم:</span>
+                      <span>{item.teacherName}</span>
+                      {item.teacherEmail && (
+                        <span dir="ltr" className="text-gray-400">({item.teacherEmail})</span>
+                      )}
+                    </div>
+                    <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                      <p className="text-xs font-semibold text-gray-500 mb-1">محتوى الشكوى:</p>
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        {item.description}
+                      </p>
+                    </div>
                     {item.adminReply && (
                       <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
                         <p className="text-xs font-semibold text-blue-700 mb-1">ردك السابق:</p>
@@ -276,9 +306,11 @@ export default function AdminFeedbackPage() {
 
                     <div className="flex items-center justify-between pt-1">
                       <p className="text-xs text-gray-400">
-                        {new Date(item.createdAt).toLocaleDateString("ar-EG", {
-                          year: "numeric", month: "short", day: "numeric",
-                        })}
+                        {item.createdAt
+                          ? new Date(item.createdAt).toLocaleDateString("ar-EG", {
+                              year: "numeric", month: "short", day: "numeric",
+                            })
+                          : "تاريخ غير متاح"}
                       </p>
                       <button
                         onClick={() => handleDelete(item._id)}

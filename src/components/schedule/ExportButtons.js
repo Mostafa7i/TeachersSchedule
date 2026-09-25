@@ -1,13 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { toPng, toJpeg } from "html-to-image";
+import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { useToast } from "@/contexts/ToastContext";
 
-// Safe ceiling for exported canvas dimensions (px). Many browsers start
-// failing/producing blank canvases well before their theoretical limits,
-// so we clamp pixelRatio dynamically to stay comfortably under this.
 const MAX_CANVAS_DIMENSION = 8000;
 
 export default function ExportButtons({
@@ -17,14 +14,24 @@ export default function ExportButtons({
   const [exportingPng, setExportingPng] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [pdfMenuOpen, setPdfMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuRef = useRef(null);
   const toast = useToast();
 
-  // Any export in progress -> disable every action button to avoid
-  // concurrent exports racing on the same DOM node.
   const isBusy = exportingPng || exportingPdf;
 
-  // Close dropdown menu when clicking outside
+  // ── Helpers ──────────────────────────────────────────────
+
+  const isMobileDevice = () =>
+    typeof window !== "undefined" &&
+    (window.innerWidth < 768 ||
+      /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+
+  const yieldToUI = () =>
+    new Promise((resolve) => {
+      requestAnimationFrame(() => setTimeout(resolve, 60));
+    });
+
   useEffect(() => {
     function handleClickOutside(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -32,154 +39,363 @@ export default function ExportButtons({
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
-  // Shared options for html-to-image with crisp rendering.
-  // pixelRatio is clamped so very wide/tall schedules don't silently
-  // exceed the browser's max canvas size and fail to export.
-  const getImgOptions = (element, desiredPixelRatio = 2.5) => {
-    const minW = 1050;
-    const currentW = element?.scrollWidth || element?.offsetWidth || minW;
-    const targetW = Math.max(currentW, minW);
-    const currentH = element?.scrollHeight || element?.offsetHeight || 0;
+  useEffect(() => {
+    if (!pdfMenuOpen || !menuRef.current) return;
 
-    const maxRatioByWidth = MAX_CANVAS_DIMENSION / targetW;
-    const maxRatioByHeight =
-      currentH > 0 ? MAX_CANVAS_DIMENSION / currentH : desiredPixelRatio;
-    const safePixelRatio = Math.max(
-      1,
-      Math.min(desiredPixelRatio, maxRatioByWidth, maxRatioByHeight),
-    );
+    const rect = menuRef.current.getBoundingClientRect();
+    const menuWidth = Math.min(256, window.innerWidth - 16);
+    const menuHeight = 160;
 
-    return {
-      backgroundColor: "#ffffff",
-      pixelRatio: safePixelRatio,
-      style: {
-        fontFamily: "inherit",
-        minWidth: `${targetW}px`,
-        width: `${targetW}px`,
-      },
-      skipFonts: true,
-      fontEmbedCSS: "",
-      filter: (node) => {
-        if (node.classList?.contains("no-export")) return false;
-        if (node.classList?.contains("no-print")) return false;
-        return true;
-      },
-    };
-  };
+    let left = rect.right - menuWidth;
+    left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
 
-  // Helper to ensure desktop table container is active during snapshot.
-  // Always restores the exact original inline style afterwards (falling
-  // back to removeProperty when there was no inline style to begin with),
-  // instead of only restoring when the original value happened to be
-  // non-empty. This prevents the responsive layout from getting stuck
-  // after an export.
-  const prepareElementForSnapshot = (element) => {
-    const desktopTable = element.querySelector(
+    let top = rect.bottom + 6;
+    if (top + menuHeight > window.innerHeight - 8) {
+      top = Math.max(8, rect.top - menuHeight - 6);
+    }
+
+    setMenuPosition({ top, left });
+  }, [pdfMenuOpen]);
+
+  // ── Blank check ──────────────────────────────────────────
+
+  const checkIfImageIsBlank = (dataUrl) =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const size = 32;
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, size, size);
+          const pixels = ctx.getImageData(0, 0, size, size).data;
+
+          let nonWhite = 0;
+          for (let i = 0; i < pixels.length; i += 4) {
+            if (pixels[i] < 250 || pixels[i + 1] < 250 || pixels[i + 2] < 250) {
+              nonWhite++;
+            }
+          }
+          resolve(nonWhite < size * size * 0.02);
+        } catch {
+          resolve(false);
+        }
+      };
+      img.onerror = () => resolve(true);
+      img.src = dataUrl;
+    });
+
+  /**
+   * يفك القص بدون ما يكسّر الشارات أو الكلمات العربية
+   */
+  const unclipCloneContent = (root) => {
+    // 1) جدول الديسكتوب ظاهر + كروت الموبايل مخفية
+    const desktopTable = root.querySelector(
       ".schedule-desktop-table-container",
     );
-    const mobileCards = element.querySelector(
+    const mobileCards = root.querySelector(
       ".schedule-mobile-cards-container",
     );
 
-    const originalDesktopDisplay = desktopTable
-      ? desktopTable.style.display
-      : null;
-    const originalCardsDisplay = mobileCards
-      ? mobileCards.style.display
-      : null;
-
-    if (
-      desktopTable &&
-      window.getComputedStyle(desktopTable).display === "none"
-    ) {
-      desktopTable.style.display = "block";
+    if (desktopTable) {
+      desktopTable.style.cssText = `
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        height: auto !important;
+        overflow: visible !important;
+        width: 100% !important;
+        max-width: none !important;
+      `;
     }
-    if (
-      mobileCards &&
-      window.getComputedStyle(mobileCards).display !== "none"
-    ) {
-      mobileCards.style.display = "none";
+    if (mobileCards) {
+      mobileCards.style.cssText = "display: none !important;";
     }
 
-    return () => {
-      if (desktopTable) {
-        if (originalDesktopDisplay) {
-          desktopTable.style.display = originalDesktopDisplay;
-        } else {
-          desktopTable.style.removeProperty("display");
-        }
-      }
-      if (mobileCards) {
-        if (originalCardsDisplay) {
-          mobileCards.style.display = originalCardsDisplay;
-        } else {
-          mobileCards.style.removeProperty("display");
-        }
-      }
-    };
+    // 2) شيل عناصر التصدير/الطباعة
+    root
+      .querySelectorAll(".no-export, .no-print, button")
+      .forEach((el) => el.remove());
+
+    // 3) وسّع الجدول
+    root.querySelectorAll("table").forEach((table) => {
+      table.style.setProperty("width", "100%", "important");
+      table.style.setProperty("min-width", "1400px", "important");
+      table.style.setProperty("table-layout", "auto", "important");
+      table.style.setProperty("border-collapse", "collapse", "important");
+    });
+
+    // 4) فك القص عن الخلايا والنصوص — بدون كسر العربية أو الـ flex
+    root.querySelectorAll("td, th, p, span, div, a, label").forEach((el) => {
+      // فك ellipsis / truncate / line-clamp
+      el.style.setProperty("overflow", "visible", "important");
+      el.style.setProperty("text-overflow", "unset", "important");
+      el.style.setProperty("max-width", "none", "important");
+      el.style.setProperty("max-height", "none", "important");
+      el.style.setProperty("-webkit-line-clamp", "unset", "important");
+      el.style.setProperty("-webkit-box-orient", "unset", "important");
+
+      // عربي: white-space normal بدون word-break عنيف
+      el.style.setProperty("white-space", "normal", "important");
+      el.style.setProperty("word-break", "normal", "important");
+      el.style.setProperty("overflow-wrap", "break-word", "important");
+      el.style.setProperty("hyphens", "none", "important");
+    });
+
+    // 5) خلايا الجدول تحديدًا — padding مريح + محاذاة
+    root.querySelectorAll("td, th").forEach((cell) => {
+      cell.style.setProperty("padding", "8px 10px", "important");
+      cell.style.setProperty("vertical-align", "middle", "important");
+      cell.style.setProperty("text-align", "center", "important");
+      cell.style.setProperty("height", "auto", "important");
+      cell.style.setProperty("min-height", "48px", "important");
+    });
+
+    // 6) الحاويات اللي بتعمل scroll/clip
+    root
+      .querySelectorAll(
+        "[class*='overflow'], [class*='scroll'], [class*='truncate'], [class*='line-clamp']",
+      )
+      .forEach((el) => {
+        el.style.setProperty("overflow", "visible", "important");
+        el.style.setProperty("max-height", "none", "important");
+        el.style.setProperty("height", "auto", "important");
+        el.style.setProperty("text-overflow", "unset", "important");
+        el.style.setProperty("-webkit-line-clamp", "unset", "important");
+      });
+
+    // 7) الشارات (badges/chips) — نخليها inline-flex عشان متتكسرش
+    root
+      .querySelectorAll(
+        "[class*='rounded-full'], [class*='rounded-lg'], [class*='rounded-md'], [class*='badge'], [class*='chip'], [class*='tag']",
+      )
+      .forEach((el) => {
+        el.style.setProperty("display", "inline-flex", "important");
+        el.style.setProperty("white-space", "nowrap", "important");
+        el.style.setProperty("flex-shrink", "0", "important");
+        el.style.setProperty("overflow", "visible", "important");
+        el.style.setProperty("max-width", "none", "important");
+      });
   };
+
+  /**
+   * التقاط آمن بعرض واسع + فك القص
+   */
+  const captureElementMobileSafe = async (
+    element,
+    format = "jpeg",
+    options = {},
+  ) => {
+    if (!element) throw new Error("Element not found");
+
+    // عرض واسع ثابت عشان الأعمدة متتقصّش (موبايل وديسكتوب)
+    const targetWidth = 1450;
+
+    // انتظر تحميل الخطوط قبل نسخ العنصر؛ وإلا قد تختفي العربية في الصورة/PDF
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+
+    const clone = element.cloneNode(true);
+
+    const container = document.createElement("div");
+    container.setAttribute("aria-hidden", "true");
+    container.style.cssText = `
+      position: fixed !important;
+      left: -99999px !important;
+      top: 0 !important;
+      width: ${targetWidth}px !important;
+      min-width: ${targetWidth}px !important;
+      background: #ffffff !important;
+      z-index: -9999 !important;
+      pointer-events: none !important;
+      overflow: visible !important;
+      opacity: 1 !important;
+      transform: none !important;
+      direction: rtl !important;
+    `;
+
+    clone.style.cssText = `
+      width: ${targetWidth}px !important;
+      min-width: ${targetWidth}px !important;
+      max-width: none !important;
+      background: #ffffff !important;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      position: relative !important;
+      transform: none !important;
+      overflow: visible !important;
+      direction: rtl !important;
+    `;
+
+    container.appendChild(clone);
+    document.body.appendChild(container);
+
+    try {
+      unclipCloneContent(clone);
+
+      await yieldToUI();
+      await new Promise((r) => setTimeout(r, isMobileDevice() ? 280 : 140));
+
+      // لا نقرأ cssRules من الخطوط/الـ stylesheets الخارجية؛ المتصفح يمنع ذلك
+      // (SecurityError / Cannot access rules). يكفي انتظار تحميل الخطوط المعلنة في الصفحة.
+
+      const w = Math.max(
+        clone.scrollWidth || 0,
+        clone.offsetWidth || 0,
+        targetWidth,
+      );
+      const h = Math.max(clone.scrollHeight || 0, clone.offsetHeight || 0);
+
+      if (w < 80 || h < 80) {
+        throw new Error(
+          `أبعاد الـ clone غير كافية للتصدير (w=${w}, h=${h})`,
+        );
+      }
+
+      const desiredRatio = isMobileDevice()
+        ? Math.min(options.pixelRatio || 1.4, 1.5)
+        : options.pixelRatio || 2.0;
+
+      const maxRatioByW = MAX_CANVAS_DIMENSION / w;
+      const maxRatioByH = MAX_CANVAS_DIMENSION / h;
+      const safePixelRatio = Math.max(
+        1,
+        Math.min(desiredRatio, maxRatioByW, maxRatioByH),
+      );
+
+      const captureOpts = {
+        backgroundColor: "#ffffff",
+        pixelRatio: safePixelRatio,
+        cacheBust: true,
+        // تجنب قراءة cssRules من stylesheets خارجية؛ الخطوط المحملة تعمل عبر canvas مباشرة
+        skipFonts: true,
+        width: w,
+        height: h,
+        style: {
+          fontFamily: "Tajawal, Cairo, Arial, sans-serif",
+          width: `${w}px`,
+          minWidth: `${w}px`,
+          transform: "none",
+          direction: "rtl",
+        },
+        filter: (node) => {
+          if (node.classList?.contains("no-export")) return false;
+          if (node.classList?.contains("no-print")) return false;
+          return true;
+        },
+      };
+
+      // احفظ حدود الصفوف لاستخدامها عند تقسيم PDF؛ حتى لا ينقطع النص في منتصف الصف
+      const cloneRect = clone.getBoundingClientRect();
+      const slicePoints = Array.from(clone.querySelectorAll("tr"))
+        .map((row) => Math.round(row.getBoundingClientRect().bottom - cloneRect.top))
+        .filter((point) => point > 0 && point < h);
+
+      // PNG أوضح بكثير من JPEG للنصوص والخطوط الرفيعة
+      const dataUrl = await toPng(clone, captureOpts);
+
+      if (!dataUrl || dataUrl.length < 1500) {
+        throw new Error("الصورة الناتجة فارغة أو صغيرة جدًا");
+      }
+
+      const isReallyBlank = await checkIfImageIsBlank(dataUrl);
+      if (isReallyBlank) {
+        throw new Error("الصورة الناتجة بيضاء بالكامل");
+      }
+
+      return { dataUrl, width: w, height: h, slicePoints };
+    } finally {
+      if (container.parentNode) {
+        container.parentNode.removeChild(container);
+      }
+    }
+  };
+
+  // ── Export PNG ───────────────────────────────────────────
 
   const handleExportPNG = async () => {
     setPdfMenuOpen(false);
+
     const element = document.getElementById(targetElementId);
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للتصدير");
       return;
     }
 
-    const restoreDisplay = prepareElementForSnapshot(element);
     setExportingPng(true);
+    await yieldToUI();
+
     try {
-      const dataUrl = await toPng(element, getImgOptions(element, 2.5));
+      const { dataUrl } = await captureElementMobileSafe(element, "png", {
+        pixelRatio: isMobileDevice() ? 1.4 : 2.0,
+      });
 
       const link = document.createElement("a");
       link.download = `جدول_${weekLabel.replace(/\s+/g, "_")}_${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
 
-      toast.success("تم تصدير الجدول كصورة PNG عالية الدقة بنجاح 🖼️");
+      toast.success("تم تصدير الجدول كصورة PNG بنجاح 🖼️");
     } catch (err) {
       console.error("PNG export error:", err);
-      toast.error("حدث خطأ أثناء تصدير الصورة");
+      toast.error(
+        err?.message?.includes("فارغة") ||
+          err?.message?.includes("بيضاء") ||
+          err?.message?.includes("أبعاد")
+          ? "فشل التصدير على الموبايل. جرّب مرة أخرى أو استخدم الكمبيوتر"
+          : "حدث خطأ أثناء تصدير الصورة",
+      );
     } finally {
-      restoreDisplay();
       setExportingPng(false);
     }
   };
 
+  // ── Export PDF ───────────────────────────────────────────
+
   const handleExportPDF = async (mode = "fit") => {
     setPdfMenuOpen(false);
+
     const element = document.getElementById(targetElementId);
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للتصدير");
       return;
     }
 
-    const restoreDisplay = prepareElementForSnapshot(element);
     setExportingPdf(true);
-    try {
-      // 1. Snapshot with high fidelity
-      const imgData = await toJpeg(element, {
-        ...getImgOptions(element, 2.2),
-        quality: 0.96,
-      });
+    await yieldToUI();
 
-      // 2. Load image to get precise pixel dimensions
+    try {
+      const { dataUrl: imgData, width: captureWidth, slicePoints } =
+        await captureElementMobileSafe(element, "png",
+        {
+          pixelRatio: isMobileDevice() ? 1.4 : 2.0,
+        },
+      );
+
       const img = new Image();
       img.src = imgData;
       await new Promise((res, rej) => {
         img.onload = res;
-        img.onerror = rej;
+        img.onerror = () => rej(new Error("فشل تحميل الصورة المُلتقطة"));
       });
 
+      if (img.naturalWidth < 50 || img.naturalHeight < 50) {
+        throw new Error("أبعاد الصورة المُلتقطة غير صالحة");
+      }
+
       if (mode === "fit") {
-        // =========================================================================
-        // MODE 1: Full-Width Continuous PDF (ملء الشاشة 100% بدون أي فراغ جانبي)
-        // =========================================================================
-        const pdfWidthMm = 297; // Landscape standard width
+        const pdfWidthMm = 320; // أوسع شوية عشان التفاصيل
         const pdfHeightMm = (img.height / img.width) * pdfWidthMm;
 
         const pdf = new jsPDF({
@@ -190,39 +406,44 @@ export default function ExportButtons({
 
         pdf.addImage(
           imgData,
-          "JPEG",
+          "PNG",
           0,
           0,
           pdfWidthMm,
           pdfHeightMm,
           undefined,
-          "FAST",
+          "NONE",
         );
         pdf.save(
           `جدول_${weekLabel.replace(/\s+/g, "_")}_ملء_الشاشة_${Date.now()}.pdf`,
         );
         toast.success("تم تصدير الجدول كملف PDF عريض ملء الشاشة بنجاح 📄✨");
       } else {
-        // =========================================================================
-        // MODE 2: Multi-Page A4 Landscape (مقسم لصفحات A4 للطباعة الورقية)
-        // =========================================================================
         const pdf = new jsPDF({
           orientation: "landscape",
           unit: "mm",
           format: "a4",
         });
 
-        const pdfWidth = pdf.internal.pageSize.getWidth(); // 297mm
-        const pdfHeight = pdf.internal.pageSize.getHeight(); // 210mm
-        const margin = 6; // هوامش 6 مم فقط
-        const printWidth = pdfWidth - margin * 2; // 285mm - يملأ عرض صفحة A4 بالكامل
-        const printHeight = pdfHeight - margin * 2; // 198mm
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const margin = 5;
+        const printWidth = pdfWidth - margin * 2;
+        const printHeight = pdfHeight - margin * 2;
 
-        const pxPerMm = img.width / printWidth;
-        // Floor to an integer so every slice (except possibly the last)
-        // has an exact pixel height -> no rounding gaps/overlaps between
-        // consecutive A4 pages.
+        const sourceWidth = img.naturalWidth || img.width;
+        const sourceHeight = img.naturalHeight || img.height;
+        const pxPerMm = sourceWidth / printWidth;
         const pageSlicePxHeight = Math.floor(printHeight * pxPerMm);
+
+        // حوّل حدود الصفوف من CSS pixels إلى pixels الصورة
+        const imageScale = sourceWidth / captureWidth;
+        const safeCutPoints = [
+          ...slicePoints.map((point) => Math.round(point * imageScale)),
+          sourceHeight,
+        ]
+          .filter((point) => point > 0 && point <= sourceHeight)
+          .sort((a, b) => a - b);
 
         const sliceCanvas = document.createElement("canvas");
         const sliceCtx = sliceCanvas.getContext("2d");
@@ -230,18 +451,27 @@ export default function ExportButtons({
         let currentYPx = 0;
         let pageIndex = 0;
 
-        while (currentYPx < img.height) {
+        while (currentYPx < sourceHeight) {
           if (pageIndex > 0) {
             pdf.addPage("a4", "landscape");
           }
 
-          const remainingPxHeight = img.height - currentYPx;
+          const remainingPxHeight = sourceHeight - currentYPx;
+          const desiredEnd = Math.min(
+            currentYPx + pageSlicePxHeight,
+            sourceHeight,
+          );
+          // اختر آخر حد صف قبل نهاية الصفحة، بدلاً من قطع صف/كلمة في المنتصف
+          const rowSafeEnd = safeCutPoints
+            .filter((point) => point > currentYPx + 8 && point <= desiredEnd)
+            .pop();
+          const sliceEnd = rowSafeEnd || desiredEnd;
           const currentSlicePxHeight = Math.min(
-            pageSlicePxHeight,
+            sliceEnd - currentYPx,
             remainingPxHeight,
           );
 
-          sliceCanvas.width = img.width;
+          sliceCanvas.width = sourceWidth;
           sliceCanvas.height = currentSlicePxHeight;
 
           sliceCtx.fillStyle = "#ffffff";
@@ -251,27 +481,27 @@ export default function ExportButtons({
             img,
             0,
             currentYPx,
-            img.width,
+            sourceWidth,
             currentSlicePxHeight,
             0,
             0,
-            img.width,
+            sourceWidth,
             currentSlicePxHeight,
           );
 
-          const sliceDataUrl = sliceCanvas.toDataURL("image/jpeg", 0.95);
+          const sliceDataUrl = sliceCanvas.toDataURL("image/png");
           const sliceMmHeight = currentSlicePxHeight / pxPerMm;
 
           pdf.addImage(
             sliceDataUrl,
-            "JPEG",
+            "PNG",
             margin,
             margin,
             printWidth,
             sliceMmHeight,
           );
 
-          currentYPx += currentSlicePxHeight;
+          currentYPx = sliceEnd;
           pageIndex++;
         }
 
@@ -282,15 +512,24 @@ export default function ExportButtons({
       }
     } catch (err) {
       console.error("PDF export error:", err);
-      toast.error("حدث خطأ أثناء تصدير ملف PDF");
+      toast.error(
+        err?.message?.includes("فارغة") ||
+          err?.message?.includes("بيضاء") ||
+          err?.message?.includes("أبعاد") ||
+          err?.message?.includes("تحميل")
+          ? "فشل التصدير على الموبايل. جرّب مرة أخرى أو استخدم جهاز كمبيوتر"
+          : "حدث خطأ أثناء تصدير ملف PDF",
+      );
     } finally {
-      restoreDisplay();
       setExportingPdf(false);
     }
   };
 
+  // ── Print ────────────────────────────────────────────────
+
   const handlePrint = () => {
     setPdfMenuOpen(false);
+
     const element = document.getElementById(targetElementId);
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للطباعة");
@@ -309,11 +548,8 @@ export default function ExportButtons({
       })
       .join("\n");
 
-    const printWindow = window.open("", "_blank", "width=1200,height=800");
+    const printWindow = window.open("", "_blank", "width=1500,height=900");
 
-    // window.open returns null (or a closed window) when the browser's
-    // popup blocker intervenes. Without this check the code below throws
-    // an uncaught error and the user gets no feedback at all.
     if (!printWindow || printWindow.closed) {
       toast.error(
         "تم حظر النافذة المنبثقة بواسطة المتصفح، الرجاء السماح بالنوافذ المنبثقة لهذا الموقع ثم إعادة المحاولة",
@@ -329,13 +565,52 @@ export default function ExportButtons({
         <title>طباعة الجدول — ${weekLabel}</title>
         <style>
           ${styleSheets}
-          @page { size: A4 landscape; margin: 8mm; }
+          @page { size: A4 landscape; margin: 5mm; }
           * { box-sizing: border-box; }
-          body { background: #fff; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
-          #print-root { width: 100%; }
-          .schedule-desktop-table-container { display: block !important; }
+          body {
+            background: #fff;
+            margin: 0;
+            padding: 0;
+            font-family: 'Tajawal', 'Cairo', sans-serif;
+          }
+          #print-root {
+            width: 100%;
+            overflow: visible !important;
+          }
+          .schedule-desktop-table-container {
+            display: block !important;
+            overflow: visible !important;
+            width: 100% !important;
+          }
           .schedule-mobile-cards-container { display: none !important; }
           button, .no-print, .no-export { display: none !important; }
+
+          table {
+            width: 100% !important;
+            min-width: 1400px !important;
+            table-layout: auto !important;
+          }
+          td, th {
+            overflow: visible !important;
+            text-overflow: unset !important;
+            white-space: normal !important;
+            word-break: normal !important;
+            overflow-wrap: break-word !important;
+            max-width: none !important;
+            max-height: none !important;
+            height: auto !important;
+            padding: 8px 10px !important;
+            vertical-align: middle !important;
+            text-align: center !important;
+          }
+          .truncate, .line-clamp-1, .line-clamp-2, .overflow-hidden,
+          [class*="line-clamp"], [class*="truncate"] {
+            overflow: visible !important;
+            text-overflow: unset !important;
+            white-space: normal !important;
+            -webkit-line-clamp: unset !important;
+            max-height: none !important;
+          }
         </style>
       </head>
       <body>
@@ -352,9 +627,10 @@ export default function ExportButtons({
     printWindow.document.close();
   };
 
+  // ── Render ───────────────────────────────────────────────
+
   return (
     <div className="flex items-center gap-2 relative">
-      {/* Export PNG */}
       <button
         onClick={handleExportPNG}
         disabled={isBusy}
@@ -362,7 +638,7 @@ export default function ExportButtons({
         title="تصدير صورة PNG عالية الدقة"
       >
         <svg
-          className="w-4 h-4"
+          className="w-4 h-4 shrink-0"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -377,7 +653,6 @@ export default function ExportButtons({
         <span>{exportingPng ? "جاري التصدير..." : "تصدير PNG"}</span>
       </button>
 
-      {/* Export PDF Split Button / Dropdown */}
       <div className="relative inline-flex rounded-xl shadow-xs" ref={menuRef}>
         <button
           onClick={() => handleExportPDF("fit")}
@@ -386,7 +661,7 @@ export default function ExportButtons({
           title="تصدير PDF بعرض كامل 100% يملأ الشاشة"
         >
           <svg
-            className="w-4 h-4"
+            className="w-4 h-4 shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -401,9 +676,8 @@ export default function ExportButtons({
           <span>{exportingPdf ? "جاري التصدير..." : "تصدير PDF"}</span>
         </button>
 
-        {/* Dropdown toggle arrow */}
         <button
-          onClick={() => setPdfMenuOpen(!pdfMenuOpen)}
+          onClick={() => setPdfMenuOpen((prev) => !prev)}
           disabled={isBusy}
           aria-label="خيارات تصدير PDF"
           aria-haspopup="true"
@@ -426,21 +700,26 @@ export default function ExportButtons({
           </svg>
         </button>
 
-        {/* PDF Dropdown Menu */}
         {pdfMenuOpen && (
-          <div className="absolute left-0 top-full mt-1.5 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div
+            className="fixed z-[9999] w-[min(16rem,calc(100vw-1.5rem))] bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5"
+            style={{
+              top: menuPosition.top,
+              left: menuPosition.left,
+            }}
+          >
             <button
               type="button"
               onClick={() => handleExportPDF("fit")}
-              className="w-full text-right px-4 py-2.5 text-xs text-slate-800 hover:bg-slate-50 flex items-start gap-2.5 transition-colors cursor-pointer"
+              className="w-full text-right px-4 py-2.5 text-xs text-slate-800 hover:bg-slate-50 active:bg-slate-100 flex items-start gap-2.5 transition-colors cursor-pointer"
             >
-              <span className="text-base leading-none">📱</span>
+              <span className="text-base leading-none mt-0.5">📱</span>
               <div>
                 <div className="font-bold text-slate-900">
                   ملء الشاشة (100% عرض كامل)
                 </div>
-                <div className="text-[10px] text-slate-500 mt-0.5">
-                  عرض عريض متصل بدون فراغات جانبية (ممتاز للموبايل والكمبيوتر)
+                <div className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                  عرض عريض متصل بدون فراغات — مناسب للموبايل والكمبيوتر
                 </div>
               </div>
             </button>
@@ -450,15 +729,15 @@ export default function ExportButtons({
             <button
               type="button"
               onClick={() => handleExportPDF("a4")}
-              className="w-full text-right px-4 py-2.5 text-xs text-slate-800 hover:bg-slate-50 flex items-start gap-2.5 transition-colors cursor-pointer"
+              className="w-full text-right px-4 py-2.5 text-xs text-slate-800 hover:bg-slate-50 active:bg-slate-100 flex items-start gap-2.5 transition-colors cursor-pointer"
             >
-              <span className="text-base leading-none">🖨️</span>
+              <span className="text-base leading-none mt-0.5">🖨️</span>
               <div>
                 <div className="font-bold text-slate-900">
                   مقسم لصفحات A4 (جاهز للطباعة)
                 </div>
-                <div className="text-[10px] text-slate-500 mt-0.5">
-                  مقسم تلقائيًا لصفحات A4 أفقية بعرض كامل مناسب للطباعة الورقية
+                <div className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                  مقسم تلقائيًا لصفحات A4 أفقية مناسب للطباعة الورقية
                 </div>
               </div>
             </button>
@@ -466,7 +745,6 @@ export default function ExportButtons({
         )}
       </div>
 
-      {/* Direct Browser Print */}
       <button
         onClick={handlePrint}
         disabled={isBusy}
@@ -474,7 +752,7 @@ export default function ExportButtons({
         title="طباعة مباشرة"
       >
         <svg
-          className="w-4 h-4"
+          className="w-4 h-4 shrink-0"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

@@ -7,7 +7,6 @@ import { subjectsService } from "@/services/subjects.service";
 import { settingsService } from "@/services/settings.service";
 import { notificationsService } from "@/services/notifications.service";
 import Modal from "@/components/ui/Modal";
-import { Skeleton } from "@/components/ui";
 import TeacherWeeklyPlanModal from "@/components/schedule/TeacherWeeklyPlanModal";
 
 export default function AdminPlanCompletionPage() {
@@ -104,7 +103,7 @@ export default function AdminPlanCompletionPage() {
     setReminderMessage(
       "الأستاذ الفاضل / " +
         teacherItem.teacher?.name +
-        "، نود تذكيرك بضرورة استكمال تعبئة خانات عنوان وموضوع الدرس والواجبات المنزلية للحصص المسندة إليك (" +
+        "، نود تذكيرك بضرورة استكمال بيانات الدروس المطلوبة للحصص المسندة إليك (" +
         teacherItem.missingSlotsCount +
         " حصة بحاجة لإكمال) في خطة " +
         weekLabel +
@@ -145,7 +144,7 @@ export default function AdminPlanCompletionPage() {
       "تنبيه عاجل: إكمال الخطة الأسبوعية للدروس (" + weekLabel + ")",
     );
     setBulkMessage(
-      "السادة المعلمين الأفاضل، يُرجى سرعة استكمال تعبئة موضوعات الدروس والواجبات المنزلية للحصص المتبقية في خطة " +
+      "السادة المعلمين الأفاضل، يُرجى سرعة استكمال بيانات الدروس المطلوبة للحصص المتبقية في خطة " +
         weekLabel +
         " قبل نهاية دوام اليوم ليتسنى اعتمادها.",
     );
@@ -176,7 +175,145 @@ export default function AdminPlanCompletionPage() {
     }
   };
 
-  const allTeachers = completionData?.teachers || [];
+  // ── تطبيع إحصائيات الإنجاز ────────────────────────────────
+  // بعض المواد، مثل التربية البدنية، لا تتطلب واجبًا منزليًا.
+  // الأفضل أن يرسل الـ API requiresHomework صراحة، وهذه القواعد تعمل كـ fallback.
+  const normalizeText = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[أإآ]/g, "ا")
+      .replace(/ة/g, "ه");
+
+  const NO_HOMEWORK_SUBJECTS = [
+    "تربيه بدنيه",
+    "التربيه البدنيه",
+    "تربية بدنية",
+    "التربية البدنية",
+    "بدنية",
+    "رياضة",
+    "مهارات حياتية",
+    "مهارات حياتيه",
+  ].map(normalizeText);
+
+  const hasExplicitFalse = (value) =>
+    value === false || value === 0 || value === "false";
+
+  const subjectRequiresHomework = (subject) => {
+    if (!subject) return true;
+    if (
+      hasExplicitFalse(subject.requiresHomework) ||
+      hasExplicitFalse(subject.homeworkRequired) ||
+      hasExplicitFalse(subject.hasHomework)
+    ) {
+      return false;
+    }
+    const name = normalizeText(subject.name || subject.title || subject.subjectName);
+    return !NO_HOMEWORK_SUBJECTS.some((excluded) => name.includes(excluded));
+  };
+
+  const teacherRequiresHomework = (item) => {
+    if (
+      hasExplicitFalse(item.requiresHomework) ||
+      hasExplicitFalse(item.homeworkRequired) ||
+      hasExplicitFalse(item.teacher?.requiresHomework) ||
+      hasExplicitFalse(item.teacher?.homeworkRequired)
+    ) {
+      return false;
+    }
+
+    const subjectsForTeacher = item.subjects || item.teacher?.subjects || [];
+    if (subjectsForTeacher.length > 0) {
+      // إذا كانت كل المواد المسندة لا تتطلب واجبًا، لا نحاسب المعلم على الواجب.
+      return subjectsForTeacher.some(subjectRequiresHomework);
+    }
+
+    const subjectName = item.subject?.name || item.subjectName;
+    return subjectName ? subjectRequiresHomework({ name: subjectName }) : true;
+  };
+
+  const toCount = (value) => {
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? number : 0;
+  };
+
+  const normalizeTeacherItem = (item) => {
+    const totalAssigned = toCount(item.totalAssigned ?? item.assignedSlotsCount);
+    const hasClasses = totalAssigned > 0;
+    const homeworkRequired = teacherRequiresHomework(item);
+    const missingLessonCount = Math.min(
+      toCount(item.missingLessonCount ?? item.missingLessons),
+      totalAssigned,
+    );
+    const rawMissingHomeworkCount = toCount(
+      item.missingHomeworkCount ?? item.missingHomework,
+    );
+    const missingHomeworkCount = homeworkRequired
+      ? Math.min(rawMissingHomeworkCount, Math.max(totalAssigned - missingLessonCount, 0))
+      : 0;
+    const effectiveMissingCount = missingLessonCount + missingHomeworkCount;
+    const completedCount = hasClasses
+      ? Math.max(totalAssigned - effectiveMissingCount, 0)
+      : 0;
+    const completionRate = hasClasses
+      ? Math.round((completedCount / totalAssigned) * 100)
+      : null;
+
+    let status = "NO_CLASSES";
+    if (hasClasses) {
+      status = effectiveMissingCount === 0
+        ? "COMPLETED"
+        : completedCount === 0
+          ? "NOT_STARTED"
+          : "PARTIAL";
+    }
+
+    return {
+      ...item,
+      totalAssigned,
+      hasClasses,
+      homeworkRequired,
+      missingLessonCount,
+      missingHomeworkCount,
+      effectiveMissingCount,
+      completedCount,
+      completionRate,
+      status,
+    };
+  };
+
+  const allTeachers = (completionData?.teachers || []).map(normalizeTeacherItem);
+  const recalculatedSummary = allTeachers.reduce(
+    (acc, item) => {
+      if (!item.hasClasses) return acc;
+      acc.totalTeachersWithClasses += 1;
+      acc.totalMissingLessons += item.missingLessonCount;
+      acc.totalMissingHomework += item.missingHomeworkCount;
+      if (item.status === "COMPLETED") acc.fullyCompletedTeachers += 1;
+      else acc.incompleteTeachers += 1;
+      acc.totalAssigned += item.totalAssigned;
+      acc.completedCount += item.completedCount;
+      return acc;
+    },
+    {
+      totalTeachersWithClasses: 0,
+      fullyCompletedTeachers: 0,
+      incompleteTeachers: 0,
+      totalMissingLessons: 0,
+      totalMissingHomework: 0,
+      totalAssigned: 0,
+      completedCount: 0,
+    },
+  );
+  const summary = {
+    ...recalculatedSummary,
+    overallCompletionPercentage: recalculatedSummary.totalAssigned
+      ? Math.round(
+          (recalculatedSummary.completedCount / recalculatedSummary.totalAssigned) * 100,
+        )
+      : 0,
+  };
+
   const filteredTeachers = allTeachers.filter((item) => {
     if (statusFilter === "incomplete") {
       if (item.status !== "PARTIAL" && item.status !== "NOT_STARTED")
@@ -200,15 +337,6 @@ export default function AdminPlanCompletionPage() {
     return true;
   });
 
-  const summary = completionData?.summary || {
-    totalTeachersWithClasses: 0,
-    fullyCompletedTeachers: 0,
-    incompleteTeachers: 0,
-    totalMissingLessons: 0,
-    totalMissingHomework: 0,
-    overallCompletionPercentage: 0,
-  };
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Page Header */}
@@ -221,7 +349,7 @@ export default function AdminPlanCompletionPage() {
             متابعة إنجاز الخطط الأسبوعية والتنبيهات
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
-            رصد الحصص غير المكتملة (نقص موضوع الدرس أو الواجب) وإرسال تنبيهات
+            رصد الحصص غير المكتملة، مع تجاهل الواجب في المواد التي لا تتطلب واجبات، وإرسال تنبيهات
             فورية ومباشرة لحسابات المعلمين.
           </p>
         </div>
@@ -358,7 +486,7 @@ export default function AdminPlanCompletionPage() {
               📋
             </span>
           </div>
-          <div className="flex items-center gap-3 mt-2">
+          <div className="flex justify-center items-center gap-3 mt-2">
             <div>
               <span className="text-xl font-black text-red-600">
                 {summary.totalMissingLessons}
@@ -366,16 +494,7 @@ export default function AdminPlanCompletionPage() {
               <span className="text-[10px] text-gray-500 block font-semibold">
                 درس فارغ
               </span>
-            </div>
-            <div className="w-px h-6 bg-gray-200" />
-            <div>
-              <span className="text-xl font-black text-purple-600">
-                {summary.totalMissingHomework}
-              </span>
-              <span className="text-[10px] text-gray-500 block font-semibold">
-                واجب فارغ
-              </span>
-            </div>
+            </div>         
           </div>
         </div>
       </div>
@@ -475,7 +594,8 @@ export default function AdminPlanCompletionPage() {
               <tbody className="divide-y divide-gray-100 text-slate-800">
                 {filteredTeachers.map((item) => {
                   const isIncomplete =
-                    item.status === "PARTIAL" || item.status === "NOT_STARTED";
+                    item.hasClasses &&
+                    (item.status === "PARTIAL" || item.status === "NOT_STARTED");
                   return (
                     <tr
                       key={item.teacher._id}
@@ -531,37 +651,46 @@ export default function AdminPlanCompletionPage() {
                           <div className="flex items-center justify-between text-[11px] font-bold">
                             <span
                               className={
-                                item.completionRate === 100
-                                  ? "text-emerald-700"
+                                !item.hasClasses
+                                  ? "text-slate-400"
+                                  : item.completionRate === 100
+                                    ? "text-emerald-700"
                                   : item.completionRate > 50
                                     ? "text-amber-700"
                                     : "text-red-700"
                               }
                             >
-                              {item.completionRate}%
+                              {item.hasClasses ? `${item.completionRate}%` : "—"}
                             </span>
                             <span className="text-gray-400 text-[10px]">
-                              {item.completedCount} من {item.totalAssigned}
+                              {item.hasClasses ? `${item.completedCount} من ${item.totalAssigned}` : "لا توجد حصص"}
                             </span>
                           </div>
                           <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                             <div
                               className={
                                 "h-full rounded-full transition-all duration-500 " +
-                                (item.completionRate === 100
-                                  ? "bg-emerald-500"
+                                (!item.hasClasses
+                                  ? "bg-slate-300"
+                                  : item.completionRate === 100
+                                    ? "bg-emerald-500"
                                   : item.completionRate > 50
                                     ? "bg-amber-500"
                                     : "bg-red-500")
                               }
-                              style={{ width: item.completionRate + "%" }}
+                              style={{ width: `${item.completionRate || 0}%` }}
                             />
                           </div>
                         </div>
                       </td>
 
                       <td className="px-3 py-3.5 text-center align-middle">
-                        {item.status === "COMPLETED" ? (
+                        {item.status === "NO_CLASSES" ? (
+                          <span className="inline-flex items-center gap-1 bg-slate-50 text-slate-500 border border-slate-200 px-2.5 py-1 rounded-full text-xs font-bold">
+                            <span>—</span>
+                            <span>بدون حصص</span>
+                          </span>
+                        ) : item.status === "COMPLETED" ? (
                           <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-bold">
                             <span>✅</span>
                             <span>مكتمل</span>
@@ -584,7 +713,11 @@ export default function AdminPlanCompletionPage() {
                       </td>
 
                       <td className="px-3 py-3.5 align-middle">
-                        {isIncomplete ? (
+                        {!item.hasClasses ? (
+                          <span className="text-slate-400 text-xs font-semibold">
+                            لا توجد حصص فعلية
+                          </span>
+                        ) : isIncomplete ? (
                           <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-1 text-[11px]">
                               {item.missingLessonCount > 0 && (
@@ -595,6 +728,11 @@ export default function AdminPlanCompletionPage() {
                               {item.missingHomeworkCount > 0 && (
                                 <span className="bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-bold">
                                   {item.missingHomeworkCount} واجب فارغ
+                                </span>
+                              )}
+                              {!item.homeworkRequired && item.missingLessonCount > 0 && (
+                                <span className="text-[10px] text-slate-500 font-semibold">
+                                  الواجب غير مطلوب لهذه المادة
                                 </span>
                               )}
                             </div>

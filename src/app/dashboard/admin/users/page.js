@@ -46,10 +46,44 @@ export default function AdminUsersPage() {
     isActive: true,
   });
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchUsers = async () => {
+  // بعض نسخ الـ API تستخدم اسمًا مختلفًا للحقل؛ نوحّدها في الواجهة.
+  const getLastLoginValue = (user) =>
+    user?.lastLogin ??
+    user?.lastLoginAt ??
+    user?.last_login ??
+    user?.lastSeenAt ??
+    user?.lastSeen ??
+    null;
+
+  const formatLastLogin = (user) => {
+    const value = getLastLoginValue(user);
+    if (!value) {
+      return { label: "لم يسجل دخول بعد", detail: "—", known: false };
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return { label: "بيانات دخول غير صالحة", detail: "—", known: false };
+    }
+    return {
+      label: date.toLocaleDateString("ar-EG", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }),
+      detail: date.toLocaleTimeString("ar-EG", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      known: true,
+    };
+  };
+
+  const fetchUsers = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
       const params = {};
       if (search) params.search = search;
       if (roleFilter) params.role = roleFilter;
@@ -61,6 +95,7 @@ export default function AdminUsersPage() {
       toast.error("فشل جلب قائمة المستخدمين");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -78,7 +113,12 @@ export default function AdminUsersPage() {
       }
     };
     init();
-    fetchUsers();
+  }, []);
+
+  // لا نعيد تحميل الأدوار والمواد مع كل حرف في البحث، ونؤخر البحث قليلًا.
+  useEffect(() => {
+    const timer = window.setTimeout(() => fetchUsers(), search ? 350 : 0);
+    return () => window.clearTimeout(timer);
   }, [search, roleFilter, statusFilter]);
 
   const handleOpenAdd = () => {
@@ -109,6 +149,14 @@ export default function AdminUsersPage() {
 
   const handleSaveUser = async (e) => {
     e.preventDefault();
+    if (!editingUser && formData.password.length < 6) {
+      toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+      return;
+    }
+    if (!formData.role) {
+      toast.error("يرجى اختيار الدور الوظيفي للمستخدم");
+      return;
+    }
     setSaving(true);
     try {
       if (editingUser) {
@@ -181,6 +229,12 @@ export default function AdminUsersPage() {
     }
   };
 
+  const clearFilters = () => {
+    setSearch("");
+    setRoleFilter("");
+    setStatusFilter("");
+  };
+
   const handleSubjectToggle = (subjId) => {
     setFormData((prev) => {
       const exists = prev.subjects.includes(subjId);
@@ -209,9 +263,19 @@ export default function AdminUsersPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-sm hover:shadow transition-all text-sm"
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => fetchUsers(true)}
+            disabled={loading || refreshing}
+            className="inline-flex items-center justify-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-bold px-3.5 py-2.5 rounded-xl shadow-sm transition-all text-sm disabled:opacity-50"
+            title="تحديث قائمة المستخدمين"
+          >
+            <span className={refreshing ? "animate-spin" : ""}>↻</span>
+            <span className="hidden sm:inline">تحديث</span>
+          </button>
+          <button
+            onClick={handleOpenAdd}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-sm hover:shadow transition-all text-sm"
         >
           <svg
             className="w-5 h-5"
@@ -226,8 +290,9 @@ export default function AdminUsersPage() {
               d="M12 4v16m8-8H4"
             />
           </svg>
-          <span>إضافة مستخدم جديد</span>
-        </button>
+            <span>إضافة مستخدم جديد</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -271,6 +336,15 @@ export default function AdminUsersPage() {
             <option value="true">نشط</option>
             <option value="false">معطل</option>
           </select>
+          {(search || roleFilter || statusFilter) && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-xs font-bold text-blue-700 hover:text-blue-900 underline underline-offset-2"
+            >
+              مسح الفلاتر
+            </button>
+          )}
         </div>
 
         <div className="text-xs text-gray-500 font-bold">
@@ -320,7 +394,7 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center text-sm flex-shrink-0">
-                          {u.name.charAt(0)}
+                          {u.name?.trim()?.charAt(0) || "م"}
                         </div>
                         <div>
                           <p className="font-bold text-gray-900">{u.name}</p>
@@ -374,13 +448,20 @@ export default function AdminUsersPage() {
                       </button>
                     </td>
 
-                    <td className="px-6 py-4 text-center text-xs text-gray-400 font-mono">
-                      {u.lastLogin
-                        ? new Date(u.lastLogin).toLocaleDateString("ar-SA", {
-                            month: "numeric",
-                            day: "numeric",
-                          })
-                        : "لم يسجل دخول"}
+                    <td className="px-6 py-4 text-center">
+                      {(() => {
+                        const login = formatLastLogin(u);
+                        return login.known ? (
+                          <div className="inline-flex flex-col items-center rounded-lg bg-emerald-50 px-2.5 py-1 border border-emerald-100">
+                            <span className="text-xs font-bold text-emerald-700">{login.label}</span>
+                            <span className="text-[10px] text-emerald-600 font-mono">{login.detail}</span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-gray-50 px-2.5 py-1 text-[11px] font-semibold text-gray-400 border border-gray-100">
+                            <span>○</span> {login.label}
+                          </span>
+                        );
+                      })()}
                     </td>
 
                     <td className="px-6 py-4 text-center">
@@ -483,6 +564,7 @@ export default function AdminUsersPage() {
               placeholder="teacher@school.com"
               className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
               dir="ltr"
+              autoComplete={editingUser ? "username" : "email"}
             />
           </div>
 
@@ -511,6 +593,7 @@ export default function AdminUsersPage() {
                   placeholder="6 أحرف على الأقل"
                   className="w-full px-3.5 py-2.5 pr-10 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   dir="ltr"
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"

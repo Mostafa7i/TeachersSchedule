@@ -12,6 +12,8 @@ export default function AdminWeeksPage() {
 
   const [weeks, setWeeks] = useState([]);
   const [loading, setLoading] = useState(true);
+  // إعادة الرسم تلقائيًا حتى تتغير الحالة بعد انتهاء تاريخ الأسبوع بدون Refresh
+  const [now, setNow] = useState(() => new Date());
 
   // Modals
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,7 +54,74 @@ export default function AdminWeeksPage() {
 
   useEffect(() => {
     fetchWeeks();
+
+    const timer = window.setInterval(() => setNow(new Date()), 60 * 1000);
+    return () => window.clearInterval(timer);
   }, []);
+
+  // نقرأ YYYY-MM-DD كتاريخ محلي، وليس UTC، حتى لا ينتهي الأسبوع قبل موعده
+  // عند المستخدمين في المناطق الزمنية العربية.
+  const toLocalDate = (value, endOfDay = false) => {
+    if (!value) return null;
+    const text = String(value);
+    const dateOnly = text.slice(0, 10);
+    const parts = dateOnly.split("-").map(Number);
+    if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    const [year, month, day] = parts;
+    return new Date(
+      year,
+      month - 1,
+      day,
+      endOfDay ? 23 : 0,
+      endOfDay ? 59 : 0,
+      endOfDay ? 59 : 0,
+      endOfDay ? 999 : 0,
+    );
+  };
+
+  const getWeekStatus = (week) => {
+    if (week?.isActive === false) {
+      return {
+        key: "INACTIVE",
+        label: "غير نشط يدويًا",
+        className: "bg-gray-100 text-gray-600",
+      };
+    }
+
+    const start = toLocalDate(week?.startDate);
+    const end = toLocalDate(week?.endDate, true);
+
+    if (end && now.getTime() > end.getTime()) {
+      return {
+        key: "EXPIRED",
+        label: "منتهي",
+        className: "bg-red-100 text-red-700",
+      };
+    }
+    if (start && now.getTime() < start.getTime()) {
+      return {
+        key: "UPCOMING",
+        label: "قادم",
+        className: "bg-blue-100 text-blue-700",
+      };
+    }
+    if (start && end) {
+      return {
+        key: "ACTIVE",
+        label: "نشط حاليًا",
+        className: "bg-green-100 text-green-700",
+      };
+    }
+
+    return {
+      key: "UNKNOWN",
+      label: "بيانات التاريخ ناقصة",
+      className: "bg-amber-100 text-amber-700",
+    };
+  };
 
   const handleOpenAdd = () => {
     setEditingWeek(null);
@@ -92,8 +161,10 @@ export default function AdminWeeksPage() {
 
   const handleSaveWeek = async (e) => {
     e.preventDefault();
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-      toast.error("تاريخ بداية الأسبوع يجب أن يكون قبل تاريخ نهايته");
+    const startDate = toLocalDate(formData.startDate);
+    const endDate = toLocalDate(formData.endDate, true);
+    if (!startDate || !endDate || startDate.getTime() > endDate.getTime()) {
+      toast.error("يرجى إدخال تاريخي بداية ونهاية صحيحين، على أن تكون البداية قبل النهاية");
       return;
     }
     setSaving(true);
@@ -167,8 +238,9 @@ export default function AdminWeeksPage() {
   };
 
   const formatDate = (d) => {
-    if (!d) return "";
-    return new Date(d).toLocaleDateString("ar-SA", {
+    const date = toLocalDate(d);
+    if (!date) return "—";
+    return date.toLocaleDateString("ar-SA", {
       weekday: "short",
       year: "numeric",
       month: "short",
@@ -186,7 +258,7 @@ export default function AdminWeeksPage() {
           </h1>
           <p className="text-gray-500 text-sm mt-0.5">
             تحديد الفترات الزمنية للأسابيع الدراسية وربط الجداول بالتقويم
-            الأكاديمي.
+            الأكاديمي. تتغير الحالة تلقائيًا حسب تاريخ اليوم.
           </p>
         </div>
 
@@ -278,15 +350,22 @@ export default function AdminWeeksPage() {
                     </td>
 
                     <td className="px-6 py-4 text-center">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                          week.isActive
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {week.isActive ? "● نشط" : "○ غير نشط"}
-                      </span>
+                      {(() => {
+                        const status = getWeekStatus(week);
+                        return (
+                          <span
+                            title={
+                              status.key === "EXPIRED"
+                                ? "انتهى الأسبوع تلقائيًا بعد تاريخ النهاية"
+                                : undefined
+                            }
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${status.className}`}
+                          >
+                            <span>{status.key === "ACTIVE" ? "●" : "○"}</span>
+                            <span>{status.label}</span>
+                          </span>
+                        );
+                      })()}
                     </td>
 
                     <td className="px-6 py-4 text-center">
@@ -405,7 +484,7 @@ export default function AdminWeeksPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">
-                تاريخ البداية (الأحد) <span className="text-red-500">*</span>
+                تاريخ البداية <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -420,7 +499,7 @@ export default function AdminWeeksPage() {
 
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">
-                تاريخ النهاية (الخميس) <span className="text-red-500">*</span>
+                تاريخ النهاية <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
