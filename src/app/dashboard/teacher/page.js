@@ -399,11 +399,11 @@ export default function TeacherDashboardPage() {
         </div>
 
         {/* Export Buttons */}
-        {activeTab !== "settings" && activeTab !== "preparation" && (
+        {activeTab !== "settings" && (
           <ExportButtons
             targetElementId={
               activeTab === "plan"
-                ? "weekly-schedule-print-container"
+                ? "teacher-weekly-plan-container"
                 : "teacher-official-timetable-container"
             }
             weekLabel={

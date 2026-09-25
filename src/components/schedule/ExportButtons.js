@@ -1,12 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { toPng, toJpeg } from "html-to-image";
+import jsPDF from "jspdf";
 import { useToast } from "@/contexts/ToastContext";
-import {
-  exportElementToPNG,
-  exportElementToPDF,
-  printElementSafely,
-} from "@/lib/exportUtils";
 
 export default function ExportButtons({
   targetElementId = "weekly-schedule-print-container",
@@ -29,38 +26,31 @@ export default function ExportButtons({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Safe element resolver with automatic fallback search
-  const resolveTargetElement = () => {
-    if (targetElementId) {
-      const el = document.getElementById(targetElementId);
-      if (el) return el;
-    }
-
-    const fallbackIds = [
-      "weekly-schedule-print-container",
-      "teacher-official-timetable-container",
-      "master-timetable-print-container",
-      "lesson-preparation-print-workspace",
-      "single-lesson-plan-print-sheet",
-    ];
-    for (const id of fallbackIds) {
-      const el = document.getElementById(id);
-      if (el) return el;
-    }
-
-    const tableContainer =
-      document.querySelector(".schedule-desktop-table-container") ||
-      document.querySelector("table");
-    if (tableContainer) {
-      return tableContainer.closest("[id]") || tableContainer.parentElement;
-    }
-
-    return null;
+  // Shared options for html-to-image with crisp rendering
+  const imgOptions = (element) => {
+    const minW = 1050;
+    const currentW = element?.scrollWidth || element?.offsetWidth || minW;
+    const targetW = Math.max(currentW, minW);
+    return {
+      backgroundColor: "#ffffff",
+      pixelRatio: 2.5,
+      style: {
+        fontFamily: "inherit",
+        minWidth: `${targetW}px`,
+        width: `${targetW}px`,
+      },
+      skipFonts: true,
+      fontEmbedCSS: "",
+      filter: (node) => {
+        if (node.classList?.contains("no-export")) return false;
+        if (node.classList?.contains("no-print")) return false;
+        return true;
+      },
+    };
   };
 
   // Helper to ensure desktop table container is active during snapshot
   const prepareElementForSnapshot = (element) => {
-    if (!element) return () => {};
     const desktopTable = element.querySelector(
       ".schedule-desktop-table-container",
     );
@@ -96,7 +86,7 @@ export default function ExportButtons({
   };
 
   const handleExportPNG = async () => {
-    const element = resolveTargetElement();
+    const element = document.getElementById(targetElementId);
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للتصدير");
       return;
@@ -105,7 +95,13 @@ export default function ExportButtons({
     const restoreDisplay = prepareElementForSnapshot(element);
     setExportingPng(true);
     try {
-      await exportElementToPNG(element, `جدول_${weekLabel}_${Date.now()}.png`);
+      const dataUrl = await toPng(element, imgOptions(element));
+
+      const link = document.createElement("a");
+      link.download = `جدول_${weekLabel.replace(/\s+/g, "_")}_${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+
       toast.success("تم تصدير الجدول كصورة PNG عالية الدقة بنجاح 🖼️");
     } catch (err) {
       console.error("PNG export error:", err);
@@ -118,7 +114,7 @@ export default function ExportButtons({
 
   const handleExportPDF = async (mode = "fit") => {
     setPdfMenuOpen(false);
-    const element = resolveTargetElement();
+    const element = document.getElementById(targetElementId);
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للتصدير");
       return;
@@ -127,19 +123,121 @@ export default function ExportButtons({
     const restoreDisplay = prepareElementForSnapshot(element);
     setExportingPdf(true);
     try {
-      const filename =
-        mode === "fit"
-          ? `جدول_${weekLabel}_ملء_الشاشة_${Date.now()}.pdf`
-          : `جدول_${weekLabel}_صفحات_A4_${Date.now()}.pdf`;
+      // 1. Snapshot with high fidelity
+      const imgData = await toJpeg(element, {
+        ...imgOptions(element),
+        pixelRatio: 2.2,
+        quality: 0.96,
+      });
 
-      await exportElementToPDF(element, filename, {
-        mode,
-        orientation: "landscape",
+      // 2. Load image to get precise pixel dimensions
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
       });
 
       if (mode === "fit") {
+        // =========================================================================
+        // MODE 1: Full-Width Continuous PDF (ملء الشاشة 100% بدون أي فراغ جانبي)
+        // =========================================================================
+        const pdfWidthMm = 297; // Landscape standard width
+        const pdfHeightMm = (img.height / img.width) * pdfWidthMm;
+
+        const pdf = new jsPDF({
+          orientation: pdfHeightMm > pdfWidthMm ? "portrait" : "landscape",
+          unit: "mm",
+          format: [pdfWidthMm, pdfHeightMm],
+        });
+
+        pdf.addImage(
+          imgData,
+          "JPEG",
+          0,
+          0,
+          pdfWidthMm,
+          pdfHeightMm,
+          undefined,
+          "FAST",
+        );
+        pdf.save(
+          `جدول_${weekLabel.replace(/\s+/g, "_")}_ملء_الشاشة_${Date.now()}.pdf`,
+        );
         toast.success("تم تصدير الجدول كملف PDF عريض ملء الشاشة بنجاح 📄✨");
       } else {
+        // =========================================================================
+        // MODE 2: Multi-Page A4 Landscape (مقسم لصفحات A4 للطباعة الورقية)
+        // =========================================================================
+        const pdf = new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: "a4",
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth(); // 297mm
+        const pdfHeight = pdf.internal.pageSize.getHeight(); // 210mm
+        const margin = 6; // هوامش 6 مم فقط
+        const printWidth = pdfWidth - margin * 2; // 285mm - يملأ عرض صفحة A4 بالكامل
+        const printHeight = pdfHeight - margin * 2; // 198mm
+
+        const pxPerMm = img.width / printWidth;
+        const pageSlicePxHeight = printHeight * pxPerMm;
+
+        const sliceCanvas = document.createElement("canvas");
+        const sliceCtx = sliceCanvas.getContext("2d");
+
+        let currentYPx = 0;
+        let pageIndex = 0;
+
+        while (currentYPx < img.height) {
+          if (pageIndex > 0) {
+            pdf.addPage("a4", "landscape");
+          }
+
+          const remainingPxHeight = img.height - currentYPx;
+          const currentSlicePxHeight = Math.min(
+            pageSlicePxHeight,
+            remainingPxHeight,
+          );
+
+          sliceCanvas.width = img.width;
+          sliceCanvas.height = currentSlicePxHeight;
+
+          sliceCtx.fillStyle = "#ffffff";
+          sliceCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+
+          sliceCtx.drawImage(
+            img,
+            0,
+            currentYPx,
+            img.width,
+            currentSlicePxHeight,
+            0,
+            0,
+            img.width,
+            currentSlicePxHeight,
+          );
+
+          const sliceDataUrl = sliceCanvas.toDataURL("image/jpeg", 0.95);
+          const sliceMmHeight = currentSlicePxHeight / pxPerMm;
+
+          pdf.addImage(
+            sliceDataUrl,
+            "JPEG",
+            margin,
+            margin,
+            printWidth,
+            sliceMmHeight,
+          );
+
+          currentYPx += pageSlicePxHeight;
+          pageIndex++;
+        }
+
+        pdf.save(
+          `جدول_${weekLabel.replace(/\s+/g, "_")}_صفحات_A4_${Date.now()}.pdf`,
+        );
         toast.success("تم تصدير الجدول كملف PDF مقسم لصفحات A4 بنجاح 📑");
       }
     } catch (err) {
@@ -152,12 +250,54 @@ export default function ExportButtons({
   };
 
   const handlePrint = () => {
-    const element = resolveTargetElement();
+    const element = document.getElementById(targetElementId);
     if (!element) {
       toast.error("لم يتم العثور على عنصر الجدول للطباعة");
       return;
     }
-    printElementSafely(element, `طباعة الجدول — ${weekLabel}`);
+
+    const styleSheets = Array.from(document.styleSheets)
+      .map((sheet) => {
+        try {
+          return Array.from(sheet.cssRules)
+            .map((rule) => rule.cssText)
+            .join("\n");
+        } catch {
+          return sheet.href ? `@import url('${sheet.href}');` : "";
+        }
+      })
+      .join("\n");
+
+    const printWindow = window.open("", "_blank", "width=1200,height=800");
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8" />
+        <title>طباعة الجدول — ${weekLabel}</title>
+        <style>
+          ${styleSheets}
+          @page { size: A4 landscape; margin: 8mm; }
+          * { box-sizing: border-box; }
+          body { background: #fff; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
+          #print-root { width: 100%; }
+          .schedule-desktop-table-container { display: block !important; }
+          .schedule-mobile-cards-container { display: none !important; }
+          button, .no-print, .no-export { display: none !important; }
+        </style>
+      </head>
+      <body>
+        <div id="print-root">${element.outerHTML}</div>
+        <script>
+          window.onload = function () {
+            window.print();
+            window.onafterprint = function () { window.close(); };
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   return (
@@ -288,7 +428,7 @@ export default function ExportButtons({
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2z"
+            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
           />
         </svg>
         <span className="hidden sm:inline">طباعة</span>
