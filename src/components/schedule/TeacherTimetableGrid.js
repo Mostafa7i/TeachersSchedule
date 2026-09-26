@@ -19,6 +19,7 @@ export default function TeacherTimetableGrid({
   schedules = [],
   settings,
   onCellClick,
+  onCopyClassData,
   editable = false,
   containerId = "teacher-paper-timetable-container",
 }) {
@@ -71,6 +72,58 @@ export default function TeacherTimetableGrid({
       matrix[s.day][s.period] = s;
     }
   });
+
+  const isBlank = (value) => !value || value.trim() === "";
+
+  const renderPlanStatus = (cell) => {
+    if (!cell) return null;
+
+    return (
+      <div className="mt-2 grid w-full gap-1.5 text-right text-[10px]">
+        <span
+          className={`rounded-md border px-2 py-1 font-bold ${
+            isBlank(cell.lessonTitle)
+              ? "border-red-300 bg-red-50 text-red-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {isBlank(cell.lessonTitle)
+            ? "⚠ العنوان فارغ"
+            : `العنوان: ${cell.lessonTitle}`}
+        </span>
+        <span
+          className={`rounded-md border px-2 py-1 font-bold ${
+            isBlank(cell.homework)
+              ? "border-red-300 bg-red-50 text-red-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {isBlank(cell.homework)
+            ? "⚠ الواجب فارغ"
+            : `الواجب: ${cell.homework}`}
+        </span>
+      </div>
+    );
+  };
+
+  const renderCopyButton = (cell, day, period) => {
+    if (!cell || !onCopyClassData) return null;
+
+    return (
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onCopyClassData(cell, day, period);
+        }}
+        className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-[10px] font-black text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        title="نسخ جميع بيانات هذا الفصل إلى الفصول من نفس الفئة"
+      >
+        <span aria-hidden="true">⧉</span>
+        <span>نسخ بيانات الفصل للفصول من نفس الفئة</span>
+      </button>
+    );
+  };
 
   const teacherSubjectName =
     teacher?.subjects && teacher?.subjects.length > 0
@@ -312,6 +365,8 @@ export default function TeacherTimetableGrid({
                           ✏️ تعديل
                         </span>
                       )}
+                      {renderPlanStatus(cell)}
+                      {renderCopyButton(cell, selectedMobileDay, p)}
                     </div>
                   ) : (
                     <div className="flex items-center justify-between text-xs text-gray-400 py-1">
@@ -431,6 +486,8 @@ export default function TeacherTimetableGrid({
                                 ({cell.room})
                               </span>
                             )}
+                            {renderPlanStatus(cell)}
+                            {renderCopyButton(cell, day, period)}
                           </div>
                         ) : (
                           <span className="text-gray-300 text-xs select-none">
@@ -480,6 +537,8 @@ export default function TeacherTimetableGrid({
                                 ({cell.room})
                               </span>
                             )}
+                            {renderPlanStatus(cell)}
+                            {renderCopyButton(cell, day, period)}
                           </div>
                         ) : (
                           <span className="text-gray-300 text-xs select-none">

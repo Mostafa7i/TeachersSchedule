@@ -8,6 +8,14 @@ import { getLogoUrl, getClassBadgeStyle } from "@/lib/utils";
 import { schedulesService } from "@/services/schedules.service";
 import { Lock } from "lucide-react";
 
+const isBlank = (value) => !value || String(value).trim() === "";
+const getClassCategory = (className) =>
+  String(className || "")
+    .trim()
+    .split(/\s+/)[0]
+    .replace(/[ًٌٍَُِّْـ]/g, "")
+    .replace(/^ال/, "");
+
 export default function WeeklyScheduleTable({
   week,
   schedules = [],
@@ -34,7 +42,6 @@ export default function WeeklyScheduleTable({
   const [savingRowId, setSavingRowId] = useState(null);
   const [savedRowSuccess, setSavedRowSuccess] = useState({});
   const [bulkSaving, setBulkSaving] = useState(false);
-  const [copiedKey, setCopiedKey] = useState(null);
   const autoSaveTimers = useRef({});
 
   const isSuperAdmin = isAdmin();
@@ -258,58 +265,66 @@ export default function WeeklyScheduleTable({
     [],
   );
 
-  // Copy text to clipboard with tooltip indicator
-  const handleCopyText = async (text, key) => {
-    if (!text) {
-      toast.info("الحقل فارغ لا يوجد نص لنسخه");
+  // Copy the complete weekly plan to every class in the same category.
+  const handleCopyClassData = async (sourceCell) => {
+    if (!sourceCell?._id || !sourceCell.className) return;
+    const category = getClassCategory(sourceCell.className);
+    const sortRows = (rows) =>
+      [...rows].sort((a, b) => {
+        const dayDifference = daysList.indexOf(a.day) - daysList.indexOf(b.day);
+        return dayDifference || Number(a.period || 0) - Number(b.period || 0);
+      });
+    const sourceRows = sortRows(
+      schedules.filter(
+        (item) => (item.className || "").trim() === sourceCell.className.trim(),
+      ),
+    );
+    const peerClassNames = [
+      ...new Set(
+        schedules
+          .filter(
+            (item) =>
+              item._id !== sourceCell._id &&
+              getClassCategory(item.className) === category,
+          )
+          .map((item) => (item.className || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+    if (sourceRows.length === 0 || peerClassNames.length === 0) {
+      toast.info("لا توجد فصول أخرى من نفس الفئة لنسخ الخطة إليها");
       return;
     }
-    try {
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
-      setCopiedKey(key);
-      toast.success("تم نسخ النص بنجاح 📋");
-      setTimeout(() => setCopiedKey(null), 2000);
-    } catch (err) {
-      toast.error("فشل النسخ إلى الحافظة");
-    }
-  };
 
-  // Duplicate lesson/homework to all other periods for the same class this week
-  const handleDuplicateToClass = (sourceCell, field) => {
-    const value = getCellValue(sourceCell, field);
-    if (!value || !sourceCell.className) return;
-
-    const targetClass = sourceCell.className.trim();
-    const updatedEdits = { ...localEdits };
-    let count = 0;
-
-    schedules.forEach((s) => {
-      if (
-        (s.className || "").trim() === targetClass &&
-        s._id !== sourceCell._id &&
-        checkCanEditCell(s)
-      ) {
-        updatedEdits[s._id] = {
-          ...(updatedEdits[s._id] || {}),
-          [field]: value,
+    const updates = peerClassNames.flatMap((className) => {
+      const targetRows = sortRows(
+        schedules.filter((item) => (item.className || "").trim() === className),
+      );
+      return targetRows.slice(0, sourceRows.length).map((target, index) => {
+        const source = sourceRows[index];
+        return {
+          id: target._id,
+          lessonTitle: getCellValue(source, "lessonTitle"),
+          homework: getCellValue(source, "homework"),
+          activities: getCellValue(source, "activities"),
+          notes: getCellValue(source, "notes"),
         };
-        count++;
-      }
+      });
     });
 
-    setLocalEdits(updatedEdits);
-    toast.success(
-      `تم تطبيق ${field === "lessonTitle" ? "عنوان الدرس" : "الواجب"} على (${count}) حصص أخرى لفصل ${targetClass} ⚡ وسيتم حفظها تلقائيًا بعد لحظات.`,
-    );
+    try {
+      setBulkSaving(true);
+      if (onBulkSave) await onBulkSave(updates);
+      else await schedulesService.bulkUpdateLessons(updates);
+      toast.success(
+        `تم نسخ خطة ${sourceCell.className} إلى ${peerClassNames.length} فصول من فئة ${category} ✅`,
+      );
+    } catch (error) {
+      console.error("Error copying class data:", error);
+      toast.error("فشل نسخ بيانات الفصل للفصول من نفس الفئة");
+    } finally {
+      setBulkSaving(false);
+    }
   };
 
   // Save a single row inline
@@ -453,7 +468,7 @@ export default function WeeklyScheduleTable({
             <p className="font-bold text-sm text-green-700">
               المملكة العربية السعودية
             </p>
-            <p>{settings?.ministryHeader || "الإدارة العامة للتعليم"}</p>  
+            <p>{settings?.ministryHeader || "الإدارة العامة للتعليم"}</p>
           </div>
 
           {/* School Name & Title */}
@@ -539,9 +554,7 @@ export default function WeeklyScheduleTable({
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <span>📊</span>
-              <span>
-                فصول المدرسة المسجلة لهذا الأسبوع:
-              </span>
+              <span>فصول المدرسة المسجلة لهذا الأسبوع:</span>
             </h3>
             <span className="text-[11px] text-slate-500 font-semibold">
               إجمالي الفصول: {classesSummary.length}
@@ -753,6 +766,23 @@ export default function WeeklyScheduleTable({
                     </div>
                   </div>
 
+                  {cell.className && canEdit && (
+                    <button
+                      type="button"
+                      disabled={bulkSaving}
+                      onClick={() =>
+                        handleCopyClassData(cell, currentDay, period)
+                      }
+                      className="no-print inline-flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-black text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
+                      title="نسخ كل بيانات الفصل للفصول من نفس الفئة"
+                    >
+                      <span aria-hidden="true">⧉</span>
+                      {bulkSaving
+                        ? "جارٍ النسخ..."
+                        : "نسخ كل بيانات الفصل للفئة"}
+                    </button>
+                  )}
+
                   {/* Inline Form Fields */}
                   <div className="space-y-2.5">
                     {/* Lesson Title */}
@@ -762,37 +792,6 @@ export default function WeeklyScheduleTable({
                           <span>📖</span>
                           <span>عنوان وموضوع الدرس:</span>
                         </label>
-                        {getCellValue(cell, "lessonTitle") && (
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleCopyText(
-                                  getCellValue(cell, "lessonTitle"),
-                                  `m-lt-${cell._id}`,
-                                )
-                              }
-                              className="text-[10px] text-blue-700 hover:text-blue-900 bg-blue-50 px-2 py-0.5 rounded cursor-pointer font-bold"
-                              title="نسخ عنوان الدرس"
-                            >
-                              {copiedKey === `m-lt-${cell._id}`
-                                ? "تم النسخ ✓"
-                                : "📋 نسخ"}
-                            </button>
-                            {cell.className && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDuplicateToClass(cell, "lessonTitle")
-                                }
-                                className="text-[10px] text-indigo-700 hover:text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded cursor-pointer font-bold"
-                                title="نسخ لباقي حصص هذا الفصل"
-                              >
-                                ⚡ لباقي الحصص
-                              </button>
-                            )}
-                          </div>
-                        )}
                       </div>
                       {canEdit ? (
                         <input
@@ -806,14 +805,22 @@ export default function WeeklyScheduleTable({
                             )
                           }
                           placeholder="اكتب عنوان وموضوع الدرس هنا..."
-                          className="w-full min-h-13 px-3 py-3 text-xs font-semibold text-slate-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
+                          className={`w-full min-h-13 px-3 py-3 text-xs font-semibold text-slate-900 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all ${isBlank(getCellValue(cell, "lessonTitle")) ? "bg-red-50 border-red-300 placeholder:text-red-400" : "bg-white border-gray-200"}`}
                         />
                       ) : (
-                        <p className="text-xs font-bold text-slate-900 p-2 bg-slate-200/80 border border-slate-300 rounded-xl">
-                          {cell.lessonTitle || (
-                            <span className="text-slate-400 italic">
-                              لم يُسجل الدرس بعد
+                        <p
+                          className={`text-xs font-bold p-2 border rounded-xl ${
+                            isBlank(cell.lessonTitle)
+                              ? "bg-red-50 border-red-300 text-red-700"
+                              : "bg-slate-200/80 border-slate-300 text-slate-900"
+                          }`}
+                        >
+                          {isBlank(cell.lessonTitle) ? (
+                            <span className="text-red-600 italic font-bold">
+                              ⚠ لم يُسجل عنوان الدرس
                             </span>
+                          ) : (
+                            cell.lessonTitle
                           )}
                         </p>
                       )}
@@ -826,23 +833,6 @@ export default function WeeklyScheduleTable({
                           <span>📝</span>
                           <span>الواجبات والأنشطة:</span>
                         </label>
-                        {getCellValue(cell, "homework") && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleCopyText(
-                                getCellValue(cell, "homework"),
-                                `m-hw-${cell._id}`,
-                              )
-                            }
-                            className="text-[10px] text-blue-700 hover:text-blue-900 bg-blue-50 px-2 py-0.5 rounded cursor-pointer font-bold"
-                            title="نسخ الواجب"
-                          >
-                            {copiedKey === `m-hw-${cell._id}`
-                              ? "تم النسخ ✓"
-                              : "📋 نسخ"}
-                          </button>
-                        )}
                       </div>
                       {canEdit ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -857,7 +847,7 @@ export default function WeeklyScheduleTable({
                               )
                             }
                             placeholder="الواجب المنزلي (مثال: صـ 25 تمرين 3)"
-                            className="w-full min-h-[52px] px-3 py-3 text-xs text-slate-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
+                            className={`w-full min-h-[52px] px-3 py-3 text-xs text-slate-900 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all ${isBlank(getCellValue(cell, "homework")) ? "bg-red-50 border-red-300 placeholder:text-red-400" : "bg-white border-gray-200"}`}
                           />
                           <input
                             type="text"
@@ -874,8 +864,20 @@ export default function WeeklyScheduleTable({
                           />
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-800 p-2 bg-slate-200/80 border border-slate-300 rounded-xl">
-                          {cell.homework ? `واجب: ${cell.homework}` : "لا يوجد"}
+                        <p
+                          className={`text-xs p-2 border rounded-xl ${
+                            isBlank(cell.homework)
+                              ? "bg-red-50 border-red-300 text-red-700 font-bold"
+                              : "bg-slate-200/80 border-slate-300 text-slate-800"
+                          }`}
+                        >
+                          {isBlank(cell.homework) ? (
+                            <span className="text-red-700 font-bold">
+                              ⚠ الواجب غير مسجل
+                            </span>
+                          ) : (
+                            `واجب: ${cell.homework}`
+                          )}
                           {cell.activities ? ` | نشاط: ${cell.activities}` : ""}
                         </p>
                       )}
@@ -945,7 +947,7 @@ export default function WeeklyScheduleTable({
                   الملاحظات
                 </th>
                 <th className="border border-slate-700 p-2 w-28 text-center font-bold no-export no-print">
-               الحالة
+                  الحالة
                 </th>
               </tr>
             </thead>
@@ -1096,7 +1098,7 @@ export default function WeeklyScheduleTable({
 
                       {/* Lesson Title — Direct Inline Input */}
                       <td
-                        className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${daySeparation}`}
+                        className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${cell && isBlank(getCellValue(cell, "lessonTitle")) ? "bg-red-50/70" : ""} ${daySeparation}`}
                       >
                         {cell ? (
                           canEdit && enableInlineEdit ? (
@@ -1112,42 +1114,8 @@ export default function WeeklyScheduleTable({
                                   )
                                 }
                                 placeholder="اكتب عنوان الدرس والموضوع..."
-                                className="w-full h-full min-h-[92px] px-3 py-3 text-xs font-semibold text-slate-900 bg-white border-0 rounded-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-blue-50/20 transition-all"
+                                className={`w-full h-full min-h-[92px] px-3 py-3 text-xs font-semibold text-slate-900 border-0 rounded-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-blue-50/20 transition-all ${isBlank(getCellValue(cell, "lessonTitle")) ? "bg-red-50 placeholder:text-red-400" : "bg-white"}`}
                               />
-                              {getCellValue(cell, "lessonTitle") && (
-                                <div className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleCopyText(
-                                        getCellValue(cell, "lessonTitle"),
-                                        `lt-${cell._id}`,
-                                      )
-                                    }
-                                    className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold"
-                                    title="نسخ عنوان الدرس"
-                                  >
-                                    {copiedKey === `lt-${cell._id}`
-                                      ? "✓"
-                                      : "📋"}
-                                  </button>
-                                  {cell.className && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleDuplicateToClass(
-                                          cell,
-                                          "lessonTitle",
-                                        )
-                                      }
-                                      className="p-1 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold"
-                                      title="نسخ لباقي حصص هذا الفصل"
-                                    >
-                                      ⚡
-                                    </button>
-                                  )}
-                                </div>
-                              )}
                             </div>
                           ) : (
                             <p className="text-slate-900 font-bold leading-relaxed px-1">
@@ -1167,14 +1135,22 @@ export default function WeeklyScheduleTable({
 
                       {/* Homework & Activities — Direct Inline Input */}
                       <td
-                        className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${daySeparation}`}
+                        className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${cell && isBlank(getCellValue(cell, "homework")) ? "bg-red-50/70" : ""} ${daySeparation}`}
                       >
                         {cell ? (
                           canEdit && enableInlineEdit ? (
                             <div className="space-y-1 relative group h-full min-h-[92px] p-1.5">
                               <div className="flex items-center">
-                                <span className=" text-xs text-blue-500 font-bold bg-sky-300/20 p-1 rounded">
-                                  الواجب:
+                                <span
+                                  className={`text-xs font-bold p-1 rounded ${
+                                    isBlank(getCellValue(cell, "homework"))
+                                      ? "bg-red-100 text-red-700"
+                                      : "bg-sky-300/20 text-blue-500"
+                                  }`}
+                                >
+                                  {isBlank(getCellValue(cell, "homework"))
+                                    ? "⚠ الواجب فارغ:"
+                                    : "الواجب:"}
                                 </span>
                                 <input
                                   type="text"
@@ -1187,7 +1163,7 @@ export default function WeeklyScheduleTable({
                                     )
                                   }
                                   placeholder="الواجب المنزلي..."
-                                  className="w-full min-h-10.5 px-3 py-2.5 text-xs text-slate-900   rounded-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-blue-50/20 transition-all"
+                                  className={`w-full min-h-10.5 px-3 py-2.5 text-xs text-slate-900 rounded-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-blue-50/20 transition-all ${isBlank(getCellValue(cell, "homework")) ? "!bg-red-50 !border !border-red-400 placeholder:text-red-500" : "bg-white"}`}
                                 />
                               </div>
                               <div className="flex items-center">
@@ -1212,25 +1188,14 @@ export default function WeeklyScheduleTable({
                                   className="w-full min-h-[42px] px-3 py-2.5 text-[11px] text-slate-700 bg-white border-0 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:bg-emerald-50/20 transition-all"
                                 />
                               </div>
-                              {getCellValue(cell, "homework") && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleCopyText(
-                                      getCellValue(cell, "homework"),
-                                      `hw-${cell._id}`,
-                                    )
-                                  }
-                                  className="absolute left-2 top-2 p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity no-print"
-                                  title="نسخ الواجب"
-                                >
-                                  {copiedKey === `hw-${cell._id}` ? "✓" : "📋"}
-                                </button>
-                              )}
                             </div>
                           ) : (
                             <div className="space-y-1">
-                              {cell.homework && (
+                              {isBlank(cell.homework) ? (
+                                <div className="text-xs font-bold text-red-700 bg-red-50 border border-red-300 px-2 py-1.5 rounded-lg">
+                                  ⚠ الواجب غير مسجل
+                                </div>
+                              ) : (
                                 <div className="text-xs text-slate-800">
                                   <span className="font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded text-[11px] ml-1">
                                     واجب:
@@ -1246,9 +1211,9 @@ export default function WeeklyScheduleTable({
                                   <span>{cell.activities}</span>
                                 </div>
                               )}
-                              {!cell.homework && !cell.activities && (
+                              {cell.homework && !cell.activities && (
                                 <span className="text-slate-300 text-xs italic">
-                                  لا يوجد
+                                  لا يوجد نشاط
                                 </span>
                               )}
                             </div>
@@ -1321,6 +1286,22 @@ export default function WeeklyScheduleTable({
                                 <span className="text-slate-400">محفوظ</span>
                               )}
                             </span>
+                            {cell.className && canEdit && (
+                              <button
+                                type="button"
+                                disabled={bulkSaving}
+                                onClick={() =>
+                                  handleCopyClassData(cell, day, period)
+                                }
+                                className="no-print inline-flex items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-black text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
+                                title="نسخ كل بيانات الفصل للفصول من نفس الفئة"
+                              >
+                                <span aria-hidden="true">⧉</span>
+                                <span>
+                                  {bulkSaving ? "جارٍ النسخ" : "نسخ للفئة"}
+                                </span>
+                              </button>
+                            )}
                             {isSuperAdmin && onEditCell && (
                               <button
                                 type="button"
