@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Modal } from "@/components/ui";
 import { useToast } from "@/contexts/ToastContext";
-import { schedulesService } from "@/services/schedules.service";
+import { schedulesService, weeksService } from "@/services/schedules.service";
+import { usersService } from "@/services/users.service";
 
 const DAYS_ORDER = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"];
 
@@ -23,13 +24,21 @@ export default function PdfTimetableImportModal({
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [selectedWeekId, setSelectedWeekId] = useState(
-    currentWeek?._id || weeks[0]?._id || ""
-  );
+  const [fetchedWeeks, setFetchedWeeks] = useState([]);
+  const [selectedWeekId, setSelectedWeekId] = useState("");
+
+  const availableWeeks =
+    Array.isArray(weeks) && weeks.length > 0 ? weeks : fetchedWeeks;
+
+  // Derived effective week ID ensures a valid week is always chosen without cascading setState
+  const effectiveWeekId =
+    selectedWeekId && availableWeeks.some((w) => (w._id || w.id) === selectedWeekId)
+      ? selectedWeekId
+      : currentWeek?._id || availableWeeks[0]?._id || availableWeeks[0]?.id || "";
 
   // Parsed results
   const [parsedTimetables, setParsedTimetables] = useState([]);
-  const [availableTeachers, setAvailableTeachers] = useState([]);
+  const [availableTeachers, setAvailableTeachers] = useState(teachers || []);
   const [step, setStep] = useState("upload"); // "upload" | "review"
 
   // Previewing a single timetable's grid
@@ -38,34 +47,35 @@ export default function PdfTimetableImportModal({
   // Filter in review step
   const [filterAction, setFilterAction] = useState("all"); // "all" | "assign" | "vacant" | "skip"
 
-  // Whenever the modal opens (or `weeks` / `currentWeek` change while it's
-  // already open), make sure a valid week id is selected.
-  //
-  // The `useState` above only computes its initial value once, the very
-  // first time this component instance is created. If `currentWeek` or
-  // `weeks` weren't loaded yet at that exact moment (very common, since
-  // they're usually fetched asynchronously by the parent, and this modal
-  // is often already mounted — just hidden — before that data arrives),
-  // `selectedWeekId` gets stuck at `""` and the "target week" dropdown
-  // never reflects the real current week, even after the data shows up.
-  //
-  // This effect re-syncs it every time the modal is opened, and also
-  // falls back to a valid week if the previously selected one no longer
-  // exists in an updated `weeks` list.
+  // Fetch weeks and teachers asynchronously when modal opens if not already provided
   useEffect(() => {
-   if (isOpen) {
-    console.log("weeks:", weeks);
-    console.log("currentWeek:", currentWeek);
-    console.log("selectedWeekId:", selectedWeekId);
-  }
+    if (!isOpen) return;
 
-    const validIds = weeks.map((w) => w._id);
-    const fallbackId = currentWeek?._id || weeks[0]?._id || "";
+    let isMounted = true;
+    if (!Array.isArray(weeks) || weeks.length === 0) {
+      weeksService
+        .getAll()
+        .then((res) => {
+          if (isMounted) setFetchedWeeks(res.data || []);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch weeks in PdfTimetableImportModal:", err);
+        });
+    }
 
-    setSelectedWeekId((prev) =>
-      prev && validIds.includes(prev) ? prev : fallbackId
-    );
-  }, [isOpen, currentWeek, weeks]);
+    if ((!teachers || teachers.length === 0) && availableTeachers.length === 0) {
+      usersService
+        .getTeachers()
+        .then((res) => {
+          if (isMounted) setAvailableTeachers(res.data || []);
+        })
+        .catch((err) => console.error("Failed to fetch teachers:", err));
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, weeks, teachers, availableTeachers.length]);
 
   const handleReset = () => {
     setFile(null);
@@ -140,9 +150,9 @@ export default function PdfTimetableImportModal({
 
   // Confirm import
   const handleConfirmImport = async () => {
-    const activeWeekId = selectedWeekId || currentWeek?._id || weeks[0]?._id;
+    const activeWeekId = effectiveWeekId;
     if (!activeWeekId) {
-      toast.error("يرجى تحديد الأسبوع المستهدف لتطبيق الجداول");
+      toast.error("يرجى تحديد الأسبوع المستهدف لتطبيق الجداول (لا توجد أسابيع مسجلة في النظام)");
       return;
     }
 
@@ -331,16 +341,26 @@ export default function PdfTimetableImportModal({
                 📅 الأسبوع المستهدف لتطبيق الجداول:
               </span>
               <select
-                value={selectedWeekId}
+                value={effectiveWeekId}
                 onChange={(e) => setSelectedWeekId(e.target.value)}
-                className="px-3 py-1.5 text-xs font-black bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                disabled={availableWeeks.length === 0}
+                className="px-3 py-1.5 text-xs font-black bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer disabled:bg-gray-100"
               >
-                {weeks.map((w) => (
-                  <option key={w._id} value={w._id}>
-                    {w.label}
-                  </option>
-                ))}
+                {availableWeeks.length === 0 ? (
+                  <option value="">لا توجد أسابيع مسجلة في النظام</option>
+                ) : (
+                  availableWeeks.map((w) => (
+                    <option key={w._id || w.id} value={w._id || w.id}>
+                      {w.label || `الأسبوع ${w.weekNumber}`}
+                    </option>
+                  ))
+                )}
               </select>
+              {availableWeeks.length === 0 && (
+                <span className="text-[11px] text-amber-700 font-bold bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                  ⚠️ لم يتم العثور على أسابيع، يُرجى إضافة أسابيع من صفحة إدارة الأسابيع
+                </span>
+              )}
             </div>
 
             {/* Quick Bulk Actions */}

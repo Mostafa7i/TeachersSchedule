@@ -13,6 +13,7 @@ import LessonPreparationWorkspace from "@/components/schedule/LessonPreparationW
 import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
 import AvailableTimetablesModal from "@/components/schedule/AvailableTimetablesModal";
+import TeacherSettingsView from "@/components/teacher/TeacherSettingsView";
 import { TableSkeleton, ErrorBoundary } from "@/components/ui";
 
 export default function TeacherDashboardPage() {
@@ -50,9 +51,6 @@ export default function TeacherDashboardPage() {
   const periodsCount = settings?.periodsCount || 6;
   const periodsList = Array.from({ length: periodsCount }, (_, i) => i + 1);
 
-  useEffect(() => {
-    setProfileName(user?.name || "");
-  }, [user?.name]);
   // Group teacher's schedules into day-period matrix
   const teacherMatrix = {};
   daysList.forEach((day) => {
@@ -185,34 +183,6 @@ export default function TeacherDashboardPage() {
     toast.success(`تم الملئ التلقائي لجميع فصول نفس الصف ✅`);
   };
 
-  // Calculate day date formatted
-  const getDayDateFormatted = (dayName) => {
-    if (!currentWeek?.startDate) return "";
-    const dayNames = [
-      "الأحد",
-      "الإثنين",
-      "الثلاثاء",
-      "الأربعاء",
-      "الخميس",
-      "الجمعة",
-      "السبت",
-    ];
-    const start = new Date(currentWeek.startDate);
-    const startIdx = start.getDay();
-    const targetIdx = dayNames.indexOf(dayName);
-    if (targetIdx === -1) return "";
-
-    let diff = targetIdx - startIdx;
-    if (diff < 0) diff += 7;
-
-    const targetDate = new Date(start);
-    targetDate.setDate(start.getDate() + diff);
-
-    return targetDate.toLocaleDateString("ar-SA", {
-      month: "numeric",
-      day: "numeric",
-    });
-  };
 
   // Stats
   const totalAssignedClasses = schedules.length;
@@ -234,8 +204,8 @@ export default function TeacherDashboardPage() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Empty State Banner if no classes assigned */}
       {totalAssignedClasses === 0 && !loading && (
-        <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 border-2 border-blue-200 rounded-3xl p-6 sm:p-8 text-center space-y-4 shadow-sm animate-fade-in">
-          <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-lg shadow-blue-500/25">
+        <div className="bg-linear-to-r from-blue-50 via-indigo-50 to-emerald-50 border-2 border-blue-200 rounded-3xl p-6 sm:p-8 text-center space-y-4 shadow-sm animate-fade-in">
+          <div className="w-16 h-16 bg-linear-to-tr from-blue-600 to-indigo-600 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-lg shadow-blue-500/25">
             📋
           </div>
           <div className="space-y-1.5 max-w-xl mx-auto">
@@ -251,7 +221,7 @@ export default function TeacherDashboardPage() {
             <button
               type="button"
               onClick={() => setAvailableModalOpen(true)}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-black rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
+              className="px-6 py-3 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-black rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
             >
               <span>📋</span>
               <span>استعراض واختيار جدولي من الجداول المتاحة بالمدرسة 🚀</span>
@@ -261,7 +231,7 @@ export default function TeacherDashboardPage() {
       )}
 
       {/* Teacher Profile Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-linear-to-r from-slate-900 via-blue-900 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2 max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-blue-500/20 text-blue-300 border border-blue-400/30 px-3 py-1 rounded-full text-xs font-semibold">
             <span>👨‍🏫 بوابة المعلم الرسمية</span>
@@ -321,7 +291,7 @@ export default function TeacherDashboardPage() {
       {incompleteSlotsCount > 0 && (
         <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-start sm:items-center gap-3">
-            <span className="text-3xl flex-shrink-0">⚠️</span>
+            <span className="text-3xl shrink-0">⚠️</span>
             <div>
               <h3 className="text-sm font-black text-amber-950">
                 تنبيه من النظام: الخطة الأسبوعية غير مكتملة لهذا الأسبوع!
@@ -432,67 +402,7 @@ export default function TeacherDashboardPage() {
             <TableSkeleton rows={8} cols={6} />
           </div>
         ) : activeTab === "settings" ? (
-          <div className="max-w-2xl mx-auto bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="p-6 sm:p-8 bg-gradient-to-l from-slate-900 via-blue-900 to-indigo-950 text-white">
-              <div className="flex items-center gap-3">
-                <span className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center text-2xl">
-                  ⚙️
-                </span>
-                <div>
-                  <h2 className="text-xl font-black">إعدادات الحساب</h2>
-                  <p className="text-sm text-blue-100 mt-1">
-                    حدّث الاسم الظاهر في لوحة المعلم والجداول.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <form
-              onSubmit={handleProfileNameSave}
-              className="p-6 sm:p-8 space-y-6"
-            >
-              <div>
-                <label
-                  htmlFor="teacher-profile-name"
-                  className="block text-sm font-black text-gray-800 mb-2"
-                >
-                  الاسم الكامل
-                </label>
-                <input
-                  id="teacher-profile-name"
-                  type="text"
-                  value={profileName}
-                  onChange={(event) => setProfileName(event.target.value)}
-                  maxLength={100}
-                  required
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 text-gray-900 font-medium outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="اكتب اسمك الكامل"
-                />
-                <p className="mt-2 text-xs text-gray-500">
-                  سيظهر الاسم الجديد فورًا في حسابك والقائمة الجانبية.
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-black text-gray-800 mb-2">
-                  البريد الإلكتروني
-                </label>
-                <div
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 text-gray-600 text-sm"
-                  dir="ltr"
-                >
-                  {user?.email}
-                </div>
-              </div>
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={savingProfile || profileName.trim().length < 2}
-                  className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-black shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {savingProfile ? "جاري الحفظ..." : "حفظ الاسم"}
-                </button>
-              </div>
-            </form>
-          </div>
+          <TeacherSettingsView />
         ) : activeTab === "preparation" ? (
           /* ========================================================================= */
           /* TAB 1: Lesson Preparation Workspace (دفتر تحضير الدروس والخطط)            */
