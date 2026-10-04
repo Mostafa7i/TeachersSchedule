@@ -13,6 +13,7 @@
 
 const { execSync } = require("child_process");
 const path = require("path");
+const fs = require("fs");
 
 const rootDir = path.resolve(__dirname, "..");
 const backendDir = path.join(rootDir, "backend");
@@ -32,6 +33,29 @@ for (const arg of args) {
 
 const defaultMessage = `Auto update: ${new Date().toLocaleString("ar-EG", { timeZone: "Africa/Cairo" })}`;
 const commitMsg = customMessage || defaultMessage;
+
+// ── تحديث رقم الإصدار في ملف API ──────────────────────────────────────────
+const versionFilePath = path.join(
+  rootDir,
+  "src",
+  "app",
+  "api",
+  "version",
+  "route.js",
+);
+const newVersion = Date.now().toString(); // timestamp فريد في كل push
+
+if (fs.existsSync(versionFilePath)) {
+  let versionContent = fs.readFileSync(versionFilePath, "utf-8");
+  // استبدل القيمة الحالية للإصدار بـ timestamp الجديد
+  versionContent = versionContent.replace(
+    /export const APP_VERSION = "[^"]*";/,
+    `export const APP_VERSION = "${newVersion}";`,
+  );
+  fs.writeFileSync(versionFilePath, versionContent, "utf-8");
+  console.log(`🔢 تم تحديث رقم الإصدار إلى: ${newVersion}`);
+}
+// ──────────────────────────────────────────────────────────────────────────
 
 function run(command, cwd) {
   try {
