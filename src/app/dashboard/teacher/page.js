@@ -96,15 +96,9 @@ export default function TeacherDashboardPage() {
   const handleBulkSave = async (updates) => {
     if (!currentWeek?._id) return;
 
-    // إذا كان الـ updates قادماً من نتيجة bulkFillGrade (بعد الحفظ الفعلي)
-    // نحدّث الـ state محلياً مباشرة بدون طلب إضافي
-    setSchedules((prev) => {
-      const map = {};
-      updates.forEach((u) => { map[u.id] = u; });
-      return prev.map((item) =>
-        map[item._id] ? { ...item, ...map[item._id] } : item,
-      );
-    });
+    await schedulesService.bulkUpdateLessons(updates);
+    const response = await schedulesService.getForTeacher(currentWeek._id);
+    setSchedules(response.data?.schedules || []);
   };
 
   const totalAssignedClasses = schedules.length;

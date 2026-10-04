@@ -107,11 +107,6 @@ export const schedulesService = {
     return data;
   },
 
-  async bulkFillGrade(payload) {
-    const { data } = await api.post("/schedules/bulk-fill-grade", payload);
-    return data;
-  },
-
   async copyWeek(sourceWeekId, targetWeekId, overwrite = false) {
     const { data } = await api.post("/schedules/copy-week", {
       sourceWeekId,

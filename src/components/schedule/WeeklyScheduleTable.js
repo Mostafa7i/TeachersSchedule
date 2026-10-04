@@ -10,12 +10,6 @@ import { Lock } from "lucide-react";
 import AILessonSuggest from "@/components/schedule/AILessonSuggest";
 
 const isBlank = (value) => !value || String(value).trim() === "";
-const getClassCategory = (className) =>
-  String(className || "")
-    .trim()
-    .split(/\s+/)[0]
-    .replace(/[ًٌٍَُِّْـ]/g, "")
-    .replace(/^ال/, "");
 
 export default function WeeklyScheduleTable({
   week,
@@ -266,78 +260,6 @@ const [isInputFocused, setIsInputFocused] = useState(false);
     [],
   );
 
-  // نسخ بيانات الدرس لجميع فصول نفس الصف (الفئة) — يعتمد على الخادم بالكامل
-  // لأن بيانات المعلم المحلية لا تحتوي إلا على فصوله المسندة إليه،
-  // بينما الخادم يجلب جميع فصول الصف (ثالث ثاني / ثالث ثالث...) بغض النظر عن المعلم.
-  const handleCopyClassData = async (sourceCell) => {
-    if (!sourceCell?._id) return;
-
-    // اجمع بيانات الخلية الحالية (شامل أي تعديلات غير محفوظة)
-    const lessonTitle = getCellValue(sourceCell, "lessonTitle")?.trim() || "";
-    const homework   = getCellValue(sourceCell, "homework")?.trim()   || "";
-    const activities = getCellValue(sourceCell, "activities")?.trim() || "";
-    const notes      = getCellValue(sourceCell, "notes")?.trim()      || "";
-
-    if (!lessonTitle && !homework && !activities && !notes) {
-      toast.warning("يرجى كتابة عنوان الدرس أو الواجب أولاً قبل النسخ");
-      return;
-    }
-
-    try {
-      setBulkSaving(true);
-
-      // نستخدم endpoint الخادم مباشرةً — يجلب كل فصول نفس الصف والمادة ويعبّيها
-      const res = await schedulesService.bulkFillGrade({
-        sourceScheduleId: sourceCell._id,
-        lessonTitle,
-        homework,
-        activities,
-        notes,
-        scope: "week",
-      });
-
-      const updatedCount = res.data?.updatedCount ?? res.data?.schedules?.length ?? 0;
-
-      // حدّث localEdits فوراً بالبيانات الجديدة لكي تظهر على الشاشة مباشرة
-      if (res.data?.schedules?.length) {
-        setLocalEdits((prev) => {
-          const next = { ...prev };
-          res.data.schedules.forEach((s) => {
-            // امسح الـ dirty state لأن الخادم حفظ القيم الجديدة
-            delete next[s._id];
-          });
-          return next;
-        });
-        // تحديث savedRowSuccess للتأكيد البصري
-        setSavedRowSuccess((prev) => {
-          const next = { ...prev };
-          res.data.schedules.forEach((s) => { next[s._id] = true; });
-          return next;
-        });
-      }
-
-      // أبلغ الصفحة الأب بالتحديث إن كان onBulkSave متاحاً
-      if (onBulkSave && res.data?.schedules?.length) {
-        const patchList = res.data.schedules.map((s) => ({
-          id: s._id,
-          lessonTitle: s.lessonTitle || "",
-          homework:    s.homework    || "",
-          activities:  s.activities  || "",
-          notes:       s.notes       || "",
-        }));
-        await onBulkSave(patchList);
-      }
-
-      toast.success(
-        `✅ تم نسخ بيانات الدرس لجميع فصول الصف (${updatedCount} حصة)`,
-      );
-    } catch (err) {
-      console.error("Error copying class data:", err);
-      toast.error(err.response?.data?.message || "فشل نسخ بيانات الفصل للفئة");
-    } finally {
-      setBulkSaving(false);
-    }
-  };
 
   // Save a single row inline
   const handleSaveRow = async (cell) => {
@@ -777,23 +699,6 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                       )}
                     </div>
                   </div>
-
-                  {cell.className && canEdit && (
-                    <button
-                      type="button"
-                      disabled={bulkSaving}
-                      onClick={() =>
-                        handleCopyClassData(cell, currentDay, period)
-                      }
-                      className="no-print inline-flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-black text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
-                      title="نسخ كل بيانات الفصل للفصول من نفس الفئة"
-                    >
-                      <span aria-hidden="true">⧉</span>
-                      {bulkSaving
-                        ? "جارٍ النسخ..."
-                        : "نسخ كل بيانات الفصل للفئة"}
-                    </button>
-                  )}
 
                   {/* Inline Form Fields */}
                   <div className="space-y-2.5">
@@ -1329,22 +1234,6 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                                 <span className="text-slate-400">محفوظ</span>
                               )}
                             </span>
-                            {cell.className && canEdit && (
-                              <button
-                                type="button"
-                                disabled={bulkSaving}
-                                onClick={() =>
-                                  handleCopyClassData(cell, day, period)
-                                }
-                                className="no-print inline-flex items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-black text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
-                                title="نسخ كل بيانات الفصل للفصول من نفس الفئة"
-                              >
-                                <span aria-hidden="true">⧉</span>
-                                <span>
-                                  {bulkSaving ? "جارٍ النسخ" : "نسخ للفئة"}
-                                </span>
-                              </button>
-                            )}
                             {isSuperAdmin && onEditCell && (
                               <button
                                 type="button"
