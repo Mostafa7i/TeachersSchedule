@@ -1,7 +1,7 @@
+// Update root layout to include providers
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/contexts/ToastContext';
-import VersionWatcher from '@/components/common/VersionWatcher';
 
 export const metadata = {
   title: 'نظام إدارة الجداول المدرسية',
@@ -22,7 +22,6 @@ export default function RootLayout({ children }) {
       <body className="bg-gray-50 text-gray-900 antialiased">
         <AuthProvider>
           <ToastProvider>
-            <VersionWatcher />
             {children}
           </ToastProvider>
         </AuthProvider>
