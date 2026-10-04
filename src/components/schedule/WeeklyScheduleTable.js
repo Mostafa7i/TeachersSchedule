@@ -4,17 +4,18 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { PERMISSIONS } from "@/constants";
-import {
-  getLogoUrl,
-  getClassBadgeStyle,
-  getGradeCategory,
-  getGradeDisplayName,
-} from "@/lib/utils";
+import { getLogoUrl, getClassBadgeStyle } from "@/lib/utils";
 import { schedulesService } from "@/services/schedules.service";
 import { Lock } from "lucide-react";
 import AILessonSuggest from "@/components/schedule/AILessonSuggest";
 
 const isBlank = (value) => !value || String(value).trim() === "";
+const getClassCategory = (className) =>
+  String(className || "")
+    .trim()
+    .split(/\s+/)[0]
+    .replace(/[ًٌٍَُِّْـ]/g, "")
+    .replace(/^ال/, "");
 
 export default function WeeklyScheduleTable({
   week,
@@ -265,233 +266,74 @@ const [isInputFocused, setIsInputFocused] = useState(false);
     [],
   );
 
-  // Copy plan data to all classes and days of the same grade/category
+  // نسخ بيانات الدرس لجميع فصول نفس الصف (الفئة) — يعتمد على الخادم بالكامل
+  // لأن بيانات المعلم المحلية لا تحتوي إلا على فصوله المسندة إليه،
+  // بينما الخادم يجلب جميع فصول الصف (ثالث ثاني / ثالث ثالث...) بغض النظر عن المعلم.
   const handleCopyClassData = async (sourceCell) => {
     if (!sourceCell?._id) return;
-    const sourceClass = (sourceCell.className || selectedClass || "").trim();
-    if (!sourceClass) {
-      toast.warning("يرجى تحديد الفصل أولاً");
-      return;
-    }
 
-    const category = getGradeCategory(sourceClass);
-    if (!category) {
-      toast.warning("تعذر تحديد صف هذا الفصل");
-      return;
-    }
-    const gradeDisplayName = getGradeDisplayName(category);
+    // اجمع بيانات الخلية الحالية (شامل أي تعديلات غير محفوظة)
+    const lessonTitle = getCellValue(sourceCell, "lessonTitle")?.trim() || "";
+    const homework   = getCellValue(sourceCell, "homework")?.trim()   || "";
+    const activities = getCellValue(sourceCell, "activities")?.trim() || "";
+    const notes      = getCellValue(sourceCell, "notes")?.trim()      || "";
 
-    const sortRows = (rows) =>
-      [...rows].sort((a, b) => {
-        const dayDifference = daysList.indexOf(a.day) - daysList.indexOf(b.day);
-        return dayDifference !== 0
-          ? dayDifference
-          : Number(a.period || 0) - Number(b.period || 0);
-      });
-
-    // Current cell data
-    const currentLesson = {
-      lessonTitle: getCellValue(sourceCell, "lessonTitle")?.trim() || "",
-      homework: getCellValue(sourceCell, "homework")?.trim() || "",
-      activities: getCellValue(sourceCell, "activities")?.trim() || "",
-      notes: getCellValue(sourceCell, "notes")?.trim() || "",
-    };
-
-    // Find all schedules of the source class
-    const sourceClassRows = sortRows(
-      schedules.filter(
-        (item) => (item.className || "").trim() === sourceClass,
-      ),
-    );
-
-    // Rows in source class that have at least one field with non-empty content
-    const sourceRowsWithData = sourceClassRows.filter((r) => {
-      const t = getCellValue(r, "lessonTitle")?.trim();
-      const h = getCellValue(r, "homework")?.trim();
-      const a = getCellValue(r, "activities")?.trim();
-      const n = getCellValue(r, "notes")?.trim();
-      return Boolean(t || h || a || n);
-    });
-
-    const hasCurrentData = Boolean(
-      currentLesson.lessonTitle ||
-      currentLesson.homework ||
-      currentLesson.activities ||
-      currentLesson.notes
-    );
-
-    if (!hasCurrentData && sourceRowsWithData.length === 0) {
+    if (!lessonTitle && !homework && !activities && !notes) {
       toast.warning("يرجى كتابة عنوان الدرس أو الواجب أولاً قبل النسخ");
       return;
     }
 
-    // Primary lesson fallback to apply
-    const fallbackLesson = hasCurrentData
-      ? currentLesson
-      : {
-          lessonTitle: getCellValue(sourceRowsWithData[0], "lessonTitle") || "",
-          homework: getCellValue(sourceRowsWithData[0], "homework") || "",
-          activities: getCellValue(sourceRowsWithData[0], "activities") || "",
-          notes: getCellValue(sourceRowsWithData[0], "notes") || "",
-        };
-
-    // Find all schedules in the entire grade category
-    let gradeSchedules = schedules.filter(
-      (item) => getGradeCategory(item.className) === category,
-    );
-
-    // If sourceCell has a specific subject, match the subject when available
-    const sourceSubId = sourceCell.subject?._id
-      ? sourceCell.subject._id.toString()
-      : sourceCell.subject
-        ? sourceCell.subject.toString()
-        : null;
-
-    if (sourceSubId) {
-      const sameSubGradeSchedules = gradeSchedules.filter((item) => {
-        const itemSubId = item.subject?._id
-          ? item.subject._id.toString()
-          : item.subject
-            ? item.subject.toString()
-            : null;
-        return !itemSubId || itemSubId === sourceSubId;
-      });
-      if (sameSubGradeSchedules.length > 0) {
-        gradeSchedules = sameSubGradeSchedules;
-      }
-    }
-
-    // Distinct class names belonging to this grade
-    const distinctClassNames = [
-      ...new Set(
-        gradeSchedules
-          .map((item) => (item.className || "").trim())
-          .filter(Boolean),
-      ),
-    ];
-
-    const isSingleLesson = sourceRowsWithData.length <= 1;
-    const updates = [];
-
-    if (isSingleLesson) {
-      // Single lesson entered: copy to ALL schedules in the grade (all days and all classes)
-      // Including other days of the source class!
-      gradeSchedules.forEach((target) => {
-        updates.push({
-          id: target._id,
-          lessonTitle: fallbackLesson.lessonTitle,
-          homework: fallbackLesson.homework,
-          activities: fallbackLesson.activities,
-          notes: fallbackLesson.notes,
-        });
-      });
-    } else {
-      // Multiple lessons entered across different days in source class:
-      // 1. In the source class itself: preserve each filled day; fill any empty day with fallbackLesson
-      sourceClassRows.forEach((sr) => {
-        const t = getCellValue(sr, "lessonTitle")?.trim();
-        const h = getCellValue(sr, "homework")?.trim();
-        const a = getCellValue(sr, "activities")?.trim();
-        const n = getCellValue(sr, "notes")?.trim();
-        const hasData = Boolean(t || h || a || n);
-
-        updates.push({
-          id: sr._id,
-          lessonTitle: hasData ? getCellValue(sr, "lessonTitle") : fallbackLesson.lessonTitle,
-          homework: hasData ? getCellValue(sr, "homework") : fallbackLesson.homework,
-          activities: hasData ? getCellValue(sr, "activities") : fallbackLesson.activities,
-          notes: hasData ? getCellValue(sr, "notes") : fallbackLesson.notes,
-        });
-      });
-
-      // 2. For each peer class in the same grade (e.g. "أول ثاني", "أول ثالث"):
-      distinctClassNames
-        .filter((cName) => cName !== sourceClass)
-        .forEach((cName) => {
-          const targetRows = sortRows(
-            gradeSchedules.filter((item) => (item.className || "").trim() === cName),
-          );
-
-          targetRows.forEach((target, index) => {
-            const matchingSource =
-              sourceClassRows.find(
-                (sr) => sr.day === target.day && sr.period === target.period,
-              ) ||
-              sourceClassRows.find((sr) => sr.day === target.day) ||
-              sourceClassRows[index] ||
-              sourceRowsWithData[index % sourceRowsWithData.length] ||
-              fallbackLesson;
-
-            const lessonTitle = getCellValue(matchingSource, "lessonTitle") || fallbackLesson.lessonTitle;
-            const homework = getCellValue(matchingSource, "homework") || fallbackLesson.homework;
-            const activities = getCellValue(matchingSource, "activities") || fallbackLesson.activities;
-            const notes = getCellValue(matchingSource, "notes") || fallbackLesson.notes;
-
-            updates.push({
-              id: target._id,
-              lessonTitle,
-              homework,
-              activities,
-              notes,
-            });
-          });
-        });
-    }
-
-    if (updates.length === 0) {
-      toast.info("لا توجد فصول أو حصص مطابقة لنسخ البيانات إليها");
-      return;
-    }
-
-    // 1. Immediately update localEdits in React state so all inputs on screen update instantly!
-    setLocalEdits((prev) => {
-      const next = { ...prev };
-      updates.forEach((u) => {
-        next[u.id] = {
-          ...(next[u.id] || {}),
-          lessonTitle: u.lessonTitle,
-          homework: u.homework,
-          activities: u.activities,
-          notes: u.notes,
-        };
-      });
-      return next;
-    });
-
-    // 2. Update visual saved status
-    setSavedRowSuccess((prev) => {
-      const next = { ...prev };
-      updates.forEach((u) => {
-        next[u.id] = true;
-      });
-      return next;
-    });
-
-    // 3. Clear any pending debounced auto-saves for these rows to prevent them overwriting
-    updates.forEach((u) => {
-      if (autoSaveTimers.current[u.id]) {
-        clearTimeout(autoSaveTimers.current[u.id]);
-        delete autoSaveTimers.current[u.id];
-      }
-    });
-
-    // 4. Persist to server
     try {
       setBulkSaving(true);
-      if (onBulkSave) {
-        await onBulkSave(updates);
-      } else {
-        await schedulesService.bulkUpdateLessons(updates);
+
+      // نستخدم endpoint الخادم مباشرةً — يجلب كل فصول نفس الصف والمادة ويعبّيها
+      const res = await schedulesService.bulkFillGrade({
+        sourceScheduleId: sourceCell._id,
+        lessonTitle,
+        homework,
+        activities,
+        notes,
+        scope: "week",
+      });
+
+      const updatedCount = res.data?.updatedCount ?? res.data?.schedules?.length ?? 0;
+
+      // حدّث localEdits فوراً بالبيانات الجديدة لكي تظهر على الشاشة مباشرة
+      if (res.data?.schedules?.length) {
+        setLocalEdits((prev) => {
+          const next = { ...prev };
+          res.data.schedules.forEach((s) => {
+            // امسح الـ dirty state لأن الخادم حفظ القيم الجديدة
+            delete next[s._id];
+          });
+          return next;
+        });
+        // تحديث savedRowSuccess للتأكيد البصري
+        setSavedRowSuccess((prev) => {
+          const next = { ...prev };
+          res.data.schedules.forEach((s) => { next[s._id] = true; });
+          return next;
+        });
       }
-      const classesLabel = distinctClassNames.length > 1
-        ? `(${distinctClassNames.join(" ، ")})`
-        : `(${sourceClass})`;
+
+      // أبلغ الصفحة الأب بالتحديث إن كان onBulkSave متاحاً
+      if (onBulkSave && res.data?.schedules?.length) {
+        const patchList = res.data.schedules.map((s) => ({
+          id: s._id,
+          lessonTitle: s.lessonTitle || "",
+          homework:    s.homework    || "",
+          activities:  s.activities  || "",
+          notes:       s.notes       || "",
+        }));
+        await onBulkSave(patchList);
+      }
+
       toast.success(
-        `تم نسخ البيانات بنجاح إلى جميع فصول ${gradeDisplayName} ${classesLabel} ✅`,
+        `✅ تم نسخ بيانات الدرس لجميع فصول الصف (${updatedCount} حصة)`,
       );
-    } catch (error) {
-      console.error("Error copying class data:", error);
-      toast.error("فشل حفظ التعديلات في الخادم، يرجى المحاولة ثانية");
+    } catch (err) {
+      console.error("Error copying class data:", err);
+      toast.error(err.response?.data?.message || "فشل نسخ بيانات الفصل للفئة");
     } finally {
       setBulkSaving(false);
     }

@@ -5,7 +5,6 @@ import Modal from "@/components/ui/Modal";
 import { useAuth } from "@/contexts/AuthContext";
 import { PERMISSIONS } from "@/constants";
 import { schedulesService } from "@/services/schedules.service";
-import { getGradeCategory, getGradeDisplayName } from "@/lib/utils";
 
 export default function ScheduleCellEditModal({
   isOpen,
@@ -58,8 +57,45 @@ export default function ScheduleCellEditModal({
   const [bulkFilling, setBulkFilling] = useState(false);
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
-  const gradeCategory = getGradeCategory(formData.className);
-  const gradePrefix = getGradeDisplayName(gradeCategory);
+  // Helper to extract grade prefix from class names
+  // e.g. "أول أول" -> "أول", "أول/2" -> "أول", "الصف الأول أ" -> "الصف الأول", "1/1" -> "1"
+  const getGradePrefix = (className) => {
+    if (!className) return "";
+    const cleaned = className.trim();
+
+    // "الصف الأول", "الصف الثاني", ...
+    const fullMatch = cleaned.match(
+      /^(الصف\s+(?:الأول|الثاني|الثالث|الرابع|الخامس|السادس|السابع|الثامن|التاسع|العاشر|الحادي\s+عشر|الثاني\s+عشر))/i,
+    );
+    if (fullMatch) return fullMatch[1];
+
+    // "أولى", "أول", "ثاني", "ثالث", "رابع", "خامس", "سادس", "سابع", "ثامن", "تاسع", "عاشر"
+    const wordMatch = cleaned.match(
+      /^(أولى|أول|ثانية|ثاني|ثالثة|ثالث|رابعة|رابع|خامسة|خامس|سادسة|سادس|سابعة|سابع|ثامنة|ثامن|تاسعة|تاسع|عاشرة|عاشر)/i,
+    );
+    if (wordMatch) {
+      const map = {
+        أولى: "أول",
+        ثانية: "ثاني",
+        ثالثة: "ثالث",
+        رابعة: "رابع",
+        خامسة: "خامس",
+        سادسة: "سادس",
+      };
+      return map[wordMatch[1]] || wordMatch[1];
+    }
+
+    // Numbers: "1/1", "1-A", "2/3" -> "1", "2"
+    const numMatch = cleaned.match(/^(\d+)/);
+    if (numMatch) return numMatch[1];
+
+    const parts = cleaned.split(/[\s\/\-_]+/);
+    if (parts.length > 1) return parts[0];
+
+    return cleaned;
+  };
+
+  const gradePrefix = getGradePrefix(formData.className);
 
   useEffect(() => {
     setShowWarningPrompt(false);
