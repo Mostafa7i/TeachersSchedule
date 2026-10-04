@@ -10,6 +10,12 @@ import { Lock } from "lucide-react";
 import AILessonSuggest from "@/components/schedule/AILessonSuggest";
 
 const isBlank = (value) => !value || String(value).trim() === "";
+const getClassCategory = (className) =>
+  String(className || "")
+    .trim()
+    .split(/\s+/)[0]
+    .replace(/[ًٌٍَُِّْـ]/g, "")
+    .replace(/^ال/, "");
 
 export default function WeeklyScheduleTable({
   week,
@@ -260,6 +266,67 @@ const [isInputFocused, setIsInputFocused] = useState(false);
     [],
   );
 
+  // Copy the complete weekly plan to every class in the same category.
+  const handleCopyClassData = async (sourceCell) => {
+    if (!sourceCell?._id || !sourceCell.className) return;
+    const category = getClassCategory(sourceCell.className);
+    const sortRows = (rows) =>
+      [...rows].sort((a, b) => {
+        const dayDifference = daysList.indexOf(a.day) - daysList.indexOf(b.day);
+        return dayDifference || Number(a.period || 0) - Number(b.period || 0);
+      });
+    const sourceRows = sortRows(
+      schedules.filter(
+        (item) => (item.className || "").trim() === sourceCell.className.trim(),
+      ),
+    );
+    const peerClassNames = [
+      ...new Set(
+        schedules
+          .filter(
+            (item) =>
+              item._id !== sourceCell._id &&
+              getClassCategory(item.className) === category,
+          )
+          .map((item) => (item.className || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+    if (sourceRows.length === 0 || peerClassNames.length === 0) {
+      toast.info("لا توجد فصول أخرى من نفس الفئة لنسخ الخطة إليها");
+      return;
+    }
+
+    const updates = peerClassNames.flatMap((className) => {
+      const targetRows = sortRows(
+        schedules.filter((item) => (item.className || "").trim() === className),
+      );
+      return targetRows.slice(0, sourceRows.length).map((target, index) => {
+        const source = sourceRows[index];
+        return {
+          id: target._id,
+          lessonTitle: getCellValue(source, "lessonTitle"),
+          homework: getCellValue(source, "homework"),
+          activities: getCellValue(source, "activities"),
+          notes: getCellValue(source, "notes"),
+        };
+      });
+    });
+
+    try {
+      setBulkSaving(true);
+      if (onBulkSave) await onBulkSave(updates);
+      else await schedulesService.bulkUpdateLessons(updates);
+      toast.success(
+        `تم نسخ خطة ${sourceCell.className} إلى ${peerClassNames.length} فصول من فئة ${category} ✅`,
+      );
+    } catch (error) {
+      console.error("Error copying class data:", error);
+      toast.error("فشل نسخ بيانات الفصل للفصول من نفس الفئة");
+    } finally {
+      setBulkSaving(false);
+    }
+  };
 
   // Save a single row inline
   const handleSaveRow = async (cell) => {
@@ -699,6 +766,23 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                       )}
                     </div>
                   </div>
+
+                  {cell.className && canEdit && (
+                    <button
+                      type="button"
+                      disabled={bulkSaving}
+                      onClick={() =>
+                        handleCopyClassData(cell, currentDay, period)
+                      }
+                      className="no-print inline-flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-black text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
+                      title="نسخ كل بيانات الفصل للفصول من نفس الفئة"
+                    >
+                      <span aria-hidden="true">⧉</span>
+                      {bulkSaving
+                        ? "جارٍ النسخ..."
+                        : "نسخ كل بيانات الفصل للفئة"}
+                    </button>
+                  )}
 
                   {/* Inline Form Fields */}
                   <div className="space-y-2.5">
@@ -1234,6 +1318,22 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                                 <span className="text-slate-400">محفوظ</span>
                               )}
                             </span>
+                            {cell.className && canEdit && (
+                              <button
+                                type="button"
+                                disabled={bulkSaving}
+                                onClick={() =>
+                                  handleCopyClassData(cell, day, period)
+                                }
+                                className="no-print inline-flex items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-black text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
+                                title="نسخ كل بيانات الفصل للفصول من نفس الفئة"
+                              >
+                                <span aria-hidden="true">⧉</span>
+                                <span>
+                                  {bulkSaving ? "جارٍ النسخ" : "نسخ للفئة"}
+                                </span>
+                              </button>
+                            )}
                             {isSuperAdmin && onEditCell && (
                               <button
                                 type="button"
