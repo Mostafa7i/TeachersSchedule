@@ -923,7 +923,7 @@ const [isInputFocused, setIsInputFocused] = useState(false);
       {/* DESKTOP / TABLE VIEW: Direct Inline Table Inputs                         */}
       {/* ========================================================================= */}
       <div
-        className={`schedule-desktop-table-container scale-90 ${
+        className={`schedule-desktop-table-container  ${
           mobileLayout === "table" ? "block" : "hidden md:block"
         }`}
       >
@@ -1173,7 +1173,7 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                             <div className="space-y-1 relative group h-full min-h-23 p-1.5">
                               <div className="flex items-center relative ">
                                 <span
-                                  className={`text-[10px] -top-1 -left-1 absolute text-nowrap p-1 rounded ${
+                                  className={`text-[10px] -top-3.5  -left-1 absolute text-nowrap p-1 rounded ${
                                     isBlank(getCellValue(cell, "homework"))
                                       ? ""
                                       : "bg-sky-300/10 text-blue-500"
@@ -1194,9 +1194,10 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                                     )
                                   }
                                   placeholder="الواجب المنزلي..."
-                                  className={`w-full min-h-10.5 px-3 py-2.5 text-xs text-slate-900 rounded-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-blue-50/20 transition-all ${isBlank(getCellValue(cell, "homework")) ? "bg-red-50! border! border-red-400! placeholder:text-red-500" : "bg-white"}`}
+                                  className={`w-full min-h-10.5 px-3 py-2.5 text-xs text-slate-900 rounded-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-blue-50/20 transition-all ${isBlank(getCellValue(cell, "homework")) ? "bg-red-50!  placeholder:text-red-500" : "bg-white"}`}
                                 />
                               </div>
+                              <div className="h-[1px] w-full bg-gray-600" />
                               <div className="flex items-center relative">
                                 <span className="text-[10px] text-green-500 -top-1 -left-1 absolute  bg-green-300/10 p-1 rounded">
                                   نشاط{" "}

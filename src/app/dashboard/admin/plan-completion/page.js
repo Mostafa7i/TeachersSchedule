@@ -573,7 +573,7 @@ export default function AdminPlanCompletionPage() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white  rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse text-xs sm:text-sm">
               <thead>
@@ -592,7 +592,7 @@ export default function AdminPlanCompletionPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-slate-800">
-                {filteredTeachers.map((item) => {
+                {filteredTeachers.map((item , index) => {
                   const isIncomplete =
                     item.hasClasses &&
                     (item.status === "PARTIAL" || item.status === "NOT_STARTED");
@@ -600,13 +600,13 @@ export default function AdminPlanCompletionPage() {
                     <tr
                       key={item.teacher._id}
                       className={
-                        "hover:bg-slate-50/80 transition-colors " +
-                        (isIncomplete ? "bg-amber-50/20" : "")
+                        
+                        ` transition-colors ${index % 2  === 0 ? "bg-slate-100" : "bg-slate-50"}`
                       }
                     >
                       <td className="px-4 py-3.5 align-middle">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-full bg-blue-700 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 shadow-xs">
+                          <div className="w-9 h-9 rounded-full bg-blue-700 flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-xs">
                             {item.teacher.name?.charAt(0) || "م"}
                           </div>
                           <div>
@@ -685,10 +685,9 @@ export default function AdminPlanCompletionPage() {
                       </td>
 
                       <td className="px-3 py-3.5 text-center align-middle">
-                        {item.status === "NO_CLASSES" ? (
-                          <span className="inline-flex items-center gap-1 bg-slate-50 text-slate-500 border border-slate-200 px-2.5 py-1 rounded-full text-xs font-bold">
-                            <span>—</span>
-                            <span>بدون حصص</span>
+                      {item.status === "NO_CLASSES" ? (
+                          <span className="inline-flex items-center gap-1 bg-slate-50 text-slate-500 border border-slate-200 p-1 rounded-full text-xs font-bold">
+                            <span className="text-[9px]">بدون حصص -</span>
                           </span>
                         ) : item.status === "COMPLETED" ? (
                           <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-bold">
@@ -696,7 +695,7 @@ export default function AdminPlanCompletionPage() {
                             <span>مكتمل</span>
                           </span>
                         ) : item.status === "PARTIAL" ? (
-                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-bold">
+                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 text text-nowrap p-1 rounded-full text-xs font-bold">
                             <span>⚠️</span>
                             <span>غير مكتمل</span>
                           </span>
