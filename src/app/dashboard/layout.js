@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "@/components/layout/Sidebar";
-import { useVersionCheck } from "@/hooks/useVersionCheck";
+
 import NotificationBell from "@/components/notifications/NotificationBell";
 
 function MobileHeader() {
@@ -97,7 +97,6 @@ function DesktopHeader() {
 export default function DashboardLayout({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  useVersionCheck(); // مراقبة الإصدار — يعمل reload تلقائي عند نشر تحديث جديد
 
   useEffect(() => {
     if (!loading && !user) {
