@@ -641,7 +641,7 @@ export default function AdminPlanCompletionPage() {
                       </td>
 
                       <td className="px-3 py-3.5 text-center align-middle font-bold text-slate-700">
-                        <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-lg text-xs">
+                        <span className="bg-slate-100 text-nowrap text-slate-800  p-1 rounded-lg text-xs">
                           {item.totalAssigned} حصة
                         </span>
                       </td>

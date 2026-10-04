@@ -7,6 +7,7 @@ import { PERMISSIONS } from "@/constants";
 import { getLogoUrl, getClassBadgeStyle } from "@/lib/utils";
 import { schedulesService } from "@/services/schedules.service";
 import { Lock } from "lucide-react";
+import AILessonSuggest from "@/components/schedule/AILessonSuggest";
 
 const isBlank = (value) => !value || String(value).trim() === "";
 const getClassCategory = (className) =>
@@ -43,7 +44,7 @@ export default function WeeklyScheduleTable({
   const [savedRowSuccess, setSavedRowSuccess] = useState({});
   const [bulkSaving, setBulkSaving] = useState(false);
   const autoSaveTimers = useRef({});
-
+const [isInputFocused, setIsInputFocused] = useState(false);
   const isSuperAdmin = isAdmin();
   const canEditAny = isSuperAdmin || hasPermission(PERMISSIONS.SCHEDULES_EDIT);
   const canEditGranular =
@@ -792,6 +793,13 @@ export default function WeeklyScheduleTable({
                           <span>📖</span>
                           <span>عنوان وموضوع الدرس:</span>
                         </label>
+                        {cell._id && (
+                          <AILessonSuggest
+                            cell={cell}
+                            onApply={handleInputChange}
+                            peerSchedules={schedules}
+                          />
+                        )}
                       </div>
                       {canEdit ? (
                         <input
@@ -831,7 +839,7 @@ export default function WeeklyScheduleTable({
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
                           <span>📝</span>
-                          <span>الواجبات والأنشطة:</span>
+                          <span>الواجبات:</span>
                         </label>
                       </div>
                       {canEdit ? (
@@ -915,12 +923,12 @@ export default function WeeklyScheduleTable({
       {/* DESKTOP / TABLE VIEW: Direct Inline Table Inputs                         */}
       {/* ========================================================================= */}
       <div
-        className={`schedule-desktop-table-container ${
+        className={`schedule-desktop-table-container scale-90 ${
           mobileLayout === "table" ? "block" : "hidden md:block"
         }`}
       >
-        <div className="overflow-x-auto schedule-table-wrap rounded-2xl border border-slate-300">
-          <table className="w-full text-right border-separate border-spacing-0 min-w-[980px]">
+        <div className="overflow-x-auto schedule-table-wrap rounded-2xl border  border-slate-300">
+          <table className="w-full text-right border-separate border-spacing-0 min-w-245">
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-950 text-white text-xs sm:text-sm">
                 <th className="border border-slate-700 p-2 w-32 text-center font-bold">
@@ -996,7 +1004,7 @@ export default function WeeklyScheduleTable({
                           rowSpan={periodsCount}
                           className={`border border-slate-400 p-3 text-center align-middle font-bold text-white border-r-4 ${
                             dayIndex > 0
-                              ? "!border-t-[4px] !border-t-slate-900 day-separator-border"
+                              ? "border-t-4! border-t-slate-900! day-separator-border"
                               : ""
                           } ${
                             dayIndex % 2 === 0
@@ -1101,8 +1109,8 @@ export default function WeeklyScheduleTable({
                         className={`border border-slate-300 p-0 align-middle ${!canEdit ? "bg-slate-100/90" : ""} ${cell && isBlank(getCellValue(cell, "lessonTitle")) ? "bg-red-50/70" : ""} ${daySeparation}`}
                       >
                         {cell ? (
-                          canEdit && enableInlineEdit ? (
-                            <div className="relative group h-full min-h-[92px]">
+                          <div className="flex flex-col h-full min-h-[92px] relative">
+                            {canEdit && enableInlineEdit ? (
                               <input
                                 type="text"
                                 value={getCellValue(cell, "lessonTitle")}
@@ -1113,19 +1121,42 @@ export default function WeeklyScheduleTable({
                                     e.target.value,
                                   )
                                 }
+                                onFocus={() => setIsInputFocused(true)}
+                                onBlur={() => setIsInputFocused(false)}
                                 placeholder="اكتب عنوان الدرس والموضوع..."
-                                className={`w-full h-full min-h-[92px] px-3 py-3 text-xs font-semibold text-slate-900 border-0 rounded-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-blue-50/20 transition-all ${isBlank(getCellValue(cell, "lessonTitle")) ? "bg-red-50 placeholder:text-red-400" : "bg-white"}`}
+                                className={`w-full flex-1 min-h-[68px] px-3 py-3 text-xs font-semibold text-slate-900 border-0 rounded-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-blue-50/20 transition-all ${
+                                  isBlank(getCellValue(cell, "lessonTitle"))
+                                    ? "bg-red-50 placeholder:text-red-400"
+                                    : "bg-white"
+                                }`}
                               />
-                            </div>
-                          ) : (
-                            <p className="text-slate-900 font-bold leading-relaxed px-1">
-                              {cell.lessonTitle || (
-                                <span className="text-slate-300 text-xs italic font-normal">
-                                  لم يُسجل الدرس بعد
-                                </span>
-                              )}
-                            </p>
-                          )
+                            ) : (
+                              <p className="text-slate-900 font-bold leading-relaxed px-2 py-2 flex-1">
+                                {cell.lessonTitle || (
+                                  <span className="text-slate-300 text-xs italic font-normal">
+                                    لم يُسجّل الدرس بعد
+                                  </span>
+                                )}
+                              </p>
+                            )}
+
+                            {canEdit && enableInlineEdit && (
+                              <div
+                                className={`px-1 absolute right-0 bottom-0 pb-1.5 no-print no-export ${
+                                  isInputFocused ? "block" : "hidden"
+                                }`}
+                                onMouseDown={(e) => e.preventDefault()}
+                              >
+                                <AILessonSuggest
+                                  cell={cell}
+                                  onApply={(scheduleId, field, value) => {
+                                    handleInputChange(scheduleId, field, value);
+                                  }}
+                                  peerSchedules={schedules}
+                                />
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-slate-300 text-xs italic">
                             —
@@ -1139,18 +1170,18 @@ export default function WeeklyScheduleTable({
                       >
                         {cell ? (
                           canEdit && enableInlineEdit ? (
-                            <div className="space-y-1 relative group h-full min-h-[92px] p-1.5">
-                              <div className="flex items-center">
+                            <div className="space-y-1 relative group h-full min-h-23 p-1.5">
+                              <div className="flex items-center relative ">
                                 <span
-                                  className={`text-xs font-bold p-1 rounded ${
+                                  className={`text-[10px] -top-1 -left-1 absolute text-nowrap p-1 rounded ${
                                     isBlank(getCellValue(cell, "homework"))
-                                      ? "bg-red-100 text-red-700"
-                                      : "bg-sky-300/20 text-blue-500"
+                                      ? ""
+                                      : "bg-sky-300/10 text-blue-500"
                                   }`}
                                 >
                                   {isBlank(getCellValue(cell, "homework"))
-                                    ? "⚠ الواجب فارغ:"
-                                    : "الواجب:"}
+                                    ? ""
+                                    : "الواجب"}
                                 </span>
                                 <input
                                   type="text"
@@ -1163,11 +1194,11 @@ export default function WeeklyScheduleTable({
                                     )
                                   }
                                   placeholder="الواجب المنزلي..."
-                                  className={`w-full min-h-10.5 px-3 py-2.5 text-xs text-slate-900 rounded-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-blue-50/20 transition-all ${isBlank(getCellValue(cell, "homework")) ? "!bg-red-50 !border !border-red-400 placeholder:text-red-500" : "bg-white"}`}
+                                  className={`w-full min-h-10.5 px-3 py-2.5 text-xs text-slate-900 rounded-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:bg-blue-50/20 transition-all ${isBlank(getCellValue(cell, "homework")) ? "bg-red-50! border! border-red-400! placeholder:text-red-500" : "bg-white"}`}
                                 />
                               </div>
-                              <div className="flex items-center">
-                                <span className="text-xs text-green-500 font-bold bg-green-300/20 p-1 rounded">
+                              <div className="flex items-center relative">
+                                <span className="text-[10px] text-green-500 -top-1 -left-1 absolute  bg-green-300/10 p-1 rounded">
                                   نشاط{" "}
                                 </span>
                                 <input
@@ -1185,7 +1216,7 @@ export default function WeeklyScheduleTable({
                                       ? "الأنشطة الصفية..."
                                       : "لا يوجد"
                                   }
-                                  className="w-full min-h-[42px] px-3 py-2.5 text-[11px] text-slate-700 bg-white border-0 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:bg-emerald-50/20 transition-all"
+                                  className="w-full min-h-10.5 px-3 py-2.5 text-[11px] text-slate-700 bg-white border-0 rounded-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:bg-emerald-50/20 transition-all"
                                 />
                               </div>
                             </div>
@@ -1243,7 +1274,7 @@ export default function WeeklyScheduleTable({
                                   )
                                 }
                                 placeholder="ملاحظات..."
-                                className="w-full min-h-[92px] px-3 py-3 text-xs text-slate-900 bg-white border-0 rounded-none focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:bg-amber-50/20 transition-all"
+                                className="w-full min-h-23 px-3 py-3 text-xs text-slate-900 bg-white border-0 rounded-none focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:bg-amber-50/20 transition-all"
                               />
                             </div>
                           ) : cell.notes ? (

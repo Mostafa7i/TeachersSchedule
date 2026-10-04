@@ -98,6 +98,7 @@ body {
   }
   .schedule-desktop-table-container {
     display: block !important;
+    
   }
   .schedule-mobile-cards-container {
     display: none !important;

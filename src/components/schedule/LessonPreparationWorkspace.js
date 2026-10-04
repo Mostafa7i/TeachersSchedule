@@ -8,6 +8,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { schedulesService } from "@/services/schedules.service";
 import { getLogoUrl, getClassBadgeStyle } from "@/lib/utils";
 import SingleLessonPlanModal from "@/components/schedule/SingleLessonPlanModal";
+import AILessonSuggest from "@/components/schedule/AILessonSuggest";
 
 export default function LessonPreparationWorkspace({
   week,
@@ -903,6 +904,14 @@ export default function LessonPreparationWorkspace({
                         onChange={(e) => handleFieldChange(schedule._id, "lessonTitle", e.target.value)}
                         placeholder="اكتب عنوان وموضوع الدرس الرئيسي..."
                         className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-bold text-slate-900 bg-slate-50 focus:bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
+                      />
+                      {/* ✨ AI Suggestions Panel */}
+                      <AILessonSuggest
+                        cell={schedule}
+                        onApply={(scheduleId, field, value) =>
+                          handleFieldChange(scheduleId, field, value)
+                        }
+                        peerSchedules={schedules}
                       />
                     </div>
 

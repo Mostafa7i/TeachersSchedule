@@ -92,7 +92,7 @@ export default function TeacherTimetableGrid({
             : `العنوان: ${cell.lessonTitle}`}
         </span>
         <span
-          className={`rounded-md border px-2 py-1 font-bold ${
+          className={`rounded-md border px-1 py-1 font-bold ${
             isBlank(cell.homework)
               ? "border-red-300 bg-red-50 text-red-700"
               : "border-emerald-200 bg-emerald-50 text-emerald-700"
