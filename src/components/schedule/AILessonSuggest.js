@@ -2,17 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { aiService } from "@/services/ai.service";
-
-/** Extract the grade category from a class name.
- *  e.g. "ثاني أول" → "ثاني",  "أول ب" → "أول"
- */
-function getClassCategory(className) {
-  return String(className || "")
-    .trim()
-    .split(/\s+/)[0]
-    .replace(/[ًٌٍَُِّْـ]/g, "")
-    .replace(/^ال/, "");
-}
+import { getGradeCategory } from "@/lib/utils";
 
 /** Deduplicate an array of strings (case-insensitive trim) */
 function unique(arr) {
@@ -49,7 +39,7 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
       ? String(cell.subject?._id || "")
       : String(cell.subject || "");
 
-    const cellCategory = getClassCategory(cell.className || "");
+    const cellCategory = getGradeCategory(cell.className || "");
 
     // Find schedules of the same subject + same class category (≠ current cell)
     const peers = peerSchedules.filter((s) => {
@@ -58,7 +48,7 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
         ? String(s.subject?._id || "")
         : String(s.subject || "");
       if (sSubjectId !== cellSubjectId) return false;             // must be same subject
-      const sCategory = getClassCategory(s.className || "");
+      const sCategory = getGradeCategory(s.className || "");
       return sCategory === cellCategory && sCategory !== "";      // same grade category
     });
 
