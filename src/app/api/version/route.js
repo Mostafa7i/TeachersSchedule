@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 // رقم الإصدار — يُحدَّث تلقائياً عند كل push
 // DO NOT EDIT MANUALLY — updated by scripts/push.js
-export const APP_VERSION = "1791119865481";
+export const APP_VERSION = "1791119923880";
 
 export async function GET() {
   return NextResponse.json(
