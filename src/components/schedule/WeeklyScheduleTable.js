@@ -1142,10 +1142,8 @@ const [isInputFocused, setIsInputFocused] = useState(false);
 
                             {canEdit && enableInlineEdit && (
                               <div
-                                className={`px-1 absolute right-0 bottom-0 pb-1.5 no-print no-export ${
-                                  isInputFocused ? "block" : "hidden"
-                                }`}
-                                onMouseDown={(e) => e.preventDefault()}
+                                className="px-1 absolute left-1 bottom-1 pb-0.5 no-print no-export z-10 opacity-75 hover:opacity-100 transition-opacity"
+                                onMouseDown={(e) => e.stopPropagation()}
                               >
                                 <AILessonSuggest
                                   cell={cell}
