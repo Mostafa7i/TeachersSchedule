@@ -1085,7 +1085,7 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                               </span>
                             </div>
                             {cell.teacher?.name && (
-                              <p className="text-xs text-slate-500 font-medium">
+                              <p className="text-xs text-slate-500">
                                 👨‍🏫 {cell.teacher.name}
                               </p>
                             )}
@@ -1098,7 +1098,7 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                             )}
                           </div>
                         ) : (
-                          <span className="text-slate-400 text-xs italic">
+                          <span className="text-slate-400 text-xs italic text-nowrap text-center">
                             — (حصة غير محددة)
                           </span>
                         )}
@@ -1329,7 +1329,7 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                                 title="نسخ كل بيانات الفصل للفصول من نفس الفئة"
                               >
                                 <span aria-hidden="true">⧉</span>
-                                <span>
+                                <span className="text-[10px] text-nowrap">
                                   {bulkSaving ? "جارٍ النسخ" : "نسخ للفئة"}
                                 </span>
                               </button>
