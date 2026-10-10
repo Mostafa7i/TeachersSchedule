@@ -175,28 +175,30 @@ const [isInputFocused, setIsInputFocused] = useState(false);
 
   // Check if current user can edit this specific cell
   const checkCanEditCell = (cellData) => {
-    if (readOnly) return false;
+    if (!cellData || readOnly) return false;
     if (canEditAny) return true;
 
-    // If teacher: check if cell is assigned to teacher or matches their subjects
-    if (cellData) {
-      if (
-        cellData.teacher &&
-        user?._id &&
-        (cellData.teacher._id || cellData.teacher).toString() ===
-          user._id.toString()
-      ) {
-        return true;
+    // For a teacher:
+    // 1. If assigned to a teacher, it MUST match the current logged-in user
+    if (cellData.teacher && user?._id) {
+      const cellTeacherId = (
+        cellData.teacher._id || cellData.teacher
+      ).toString();
+      if (cellTeacherId !== user._id.toString()) {
+        return false; // Assigned to another teacher!
       }
-      if (canEditGranular && cellData.subject) {
-        const cellSubjectId = cellData.subject._id
-          ? cellData.subject._id.toString()
-          : cellData.subject.toString();
-        const userSubjectIds = (user?.subjects || []).map((s) =>
-          s._id ? s._id.toString() : s.toString(),
-        );
-        return userSubjectIds.includes(cellSubjectId);
-      }
+      return true; // Assigned to this teacher
+    }
+
+    // 2. If no teacher is assigned to this slot yet, allow editing if subject matches teacher's subjects
+    if (!cellData.teacher && canEditGranular && cellData.subject) {
+      const cellSubjectId = cellData.subject._id
+        ? cellData.subject._id.toString()
+        : cellData.subject.toString();
+      const userSubjectIds = (user?.subjects || []).map((s) =>
+        s._id ? s._id.toString() : s.toString(),
+      );
+      return userSubjectIds.includes(cellSubjectId);
     }
 
     return false;
@@ -629,10 +631,13 @@ const [isInputFocused, setIsInputFocused] = useState(false);
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
           {daysList.map((day) => {
             const isSel = (selectedMobileDay || daysList[0]) === day;
-            const entriesCount = periodsList.reduce(
-              (acc, p) => acc + (scheduleMatrix[day]?.[p]?.length || 0),
-              0,
-            );
+            const entriesCount = periodsList.reduce((acc, p) => {
+              const slots = scheduleMatrix[day]?.[p] || [];
+              const count = canEditAny
+                ? slots.length
+                : slots.filter((c) => checkCanEditCell(c)).length;
+              return acc + count;
+            }, 0);
             return (
               <button
                 key={day}
@@ -669,7 +674,41 @@ const [isInputFocused, setIsInputFocused] = useState(false);
             const currentDay = selectedMobileDay || daysList[0];
             const cellEntries = scheduleMatrix[currentDay]?.[period] || [];
 
-            if (cellEntries.length === 0) {
+            // For non-admin teachers: only show cells assigned to this teacher!
+            const visibleEntries = canEditAny
+              ? cellEntries
+              : cellEntries.filter((cell) => checkCanEditCell(cell));
+
+            if (visibleEntries.length === 0) {
+              // If teacher has no class assigned in this period -> show Lock card!
+              if (!canEditAny) {
+                return (
+                  <div
+                    key={period}
+                    className="p-4 bg-slate-100/70 border border-slate-200/80 rounded-3xl flex items-center justify-between shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-8 h-8 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center font-black text-xs">
+                        {period}
+                      </span>
+                      <div>
+                        <span className="font-bold text-xs text-slate-700 block">
+                          الحصة {period}
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium">
+                          حصة غير مسندة لجدولك
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold shadow-2xs">
+                      <Lock size={14} className="text-amber-500" />
+                      <span>مغلق</span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Admin empty slot
               return (
                 <div
                   key={period}
@@ -698,7 +737,7 @@ const [isInputFocused, setIsInputFocused] = useState(false);
               );
             }
 
-            return cellEntries.map((cell, entryIdx) => {
+            return visibleEntries.map((cell, entryIdx) => {
               const canEdit =
                 checkCanEditCell(cell) && !readOnly && enableInlineEdit;
               const lockedCell = !canEdit;
@@ -967,7 +1006,9 @@ const [isInputFocused, setIsInputFocused] = useState(false);
 
                 return periodsList.map((period, periodIndex) => {
                   const cellEntries = scheduleMatrix[day]?.[period] || [];
-                  const cell = cellEntries[0] || null;
+                  const cell = canEditAny
+                    ? cellEntries[0] || null
+                    : cellEntries.find((c) => checkCanEditCell(c)) || null;
                   const canEdit = checkCanEditCell(cell) && !readOnly;
                   const dayBorderTop =
                     dayIndex > 0 && periodIndex === 0
