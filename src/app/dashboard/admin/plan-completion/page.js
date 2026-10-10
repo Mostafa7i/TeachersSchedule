@@ -702,7 +702,7 @@ export default function AdminPlanCompletionPage() {
                         ) : item.status === "NOT_STARTED" ? (
                           <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-full text-xs font-bold">
                             <span>❌</span>
-                            <span>لم يبدأ</span>
+                            <span className="text-nowrap text-xs">لم يبدأ</span>
                           </span>
                         ) : (
                           <span className="text-gray-400 text-xs">
