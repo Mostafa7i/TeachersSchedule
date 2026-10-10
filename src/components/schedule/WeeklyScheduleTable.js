@@ -8,14 +8,12 @@ import { getLogoUrl, getClassBadgeStyle } from "@/lib/utils";
 import { schedulesService } from "@/services/schedules.service";
 import { Lock } from "lucide-react";
 import AILessonSuggest from "@/components/schedule/AILessonSuggest";
+import CopyClassDataModal, {
+  getClassCategory,
+  isSameSubject,
+} from "@/components/schedule/CopyClassDataModal";
 
 const isBlank = (value) => !value || String(value).trim() === "";
-const getClassCategory = (className) =>
-  String(className || "")
-    .trim()
-    .split(/\s+/)[0]
-    .replace(/[ًٌٍَُِّْـ]/g, "")
-    .replace(/^ال/, "");
 
 export default function WeeklyScheduleTable({
   week,
@@ -43,6 +41,7 @@ export default function WeeklyScheduleTable({
   const [savingRowId, setSavingRowId] = useState(null);
   const [savedRowSuccess, setSavedRowSuccess] = useState({});
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [copyModalCell, setCopyModalCell] = useState(null);
   const autoSaveTimers = useRef({});
 const [isInputFocused, setIsInputFocused] = useState(false);
   const isSuperAdmin = isAdmin();
@@ -268,66 +267,10 @@ const [isInputFocused, setIsInputFocused] = useState(false);
     [],
   );
 
-  // Copy the complete weekly plan to every class in the same category.
-  const handleCopyClassData = async (sourceCell) => {
+  // Open Copy Class Data Modal to copy to category classes
+  const handleCopyClassData = (sourceCell) => {
     if (!sourceCell?._id || !sourceCell.className) return;
-    const category = getClassCategory(sourceCell.className);
-    const sortRows = (rows) =>
-      [...rows].sort((a, b) => {
-        const dayDifference = daysList.indexOf(a.day) - daysList.indexOf(b.day);
-        return dayDifference || Number(a.period || 0) - Number(b.period || 0);
-      });
-    const sourceRows = sortRows(
-      schedules.filter(
-        (item) => (item.className || "").trim() === sourceCell.className.trim(),
-      ),
-    );
-    const peerClassNames = [
-      ...new Set(
-        schedules
-          .filter(
-            (item) =>
-              item._id !== sourceCell._id &&
-              getClassCategory(item.className) === category,
-          )
-          .map((item) => (item.className || "").trim())
-          .filter(Boolean),
-      ),
-    ];
-    if (sourceRows.length === 0 || peerClassNames.length === 0) {
-      toast.info("لا توجد فصول أخرى من نفس الفئة لنسخ الخطة إليها");
-      return;
-    }
-
-    const updates = peerClassNames.flatMap((className) => {
-      const targetRows = sortRows(
-        schedules.filter((item) => (item.className || "").trim() === className),
-      );
-      return targetRows.slice(0, sourceRows.length).map((target, index) => {
-        const source = sourceRows[index];
-        return {
-          id: target._id,
-          lessonTitle: getCellValue(source, "lessonTitle"),
-          homework: getCellValue(source, "homework"),
-          activities: getCellValue(source, "activities"),
-          notes: getCellValue(source, "notes"),
-        };
-      });
-    });
-
-    try {
-      setBulkSaving(true);
-      if (onBulkSave) await onBulkSave(updates);
-      else await schedulesService.bulkUpdateLessons(updates);
-      toast.success(
-        `تم نسخ خطة ${sourceCell.className} إلى ${peerClassNames.length} فصول من فئة ${category} ✅`,
-      );
-    } catch (error) {
-      console.error("Error copying class data:", error);
-      toast.error("فشل نسخ بيانات الفصل للفصول من نفس الفئة");
-    } finally {
-      setBulkSaving(false);
-    }
+    setCopyModalCell(sourceCell);
   };
 
   // Save a single row inline
@@ -1456,6 +1399,23 @@ const [isInputFocused, setIsInputFocused] = useState(false);
           </p>
         </div>
       </div>
+
+      <CopyClassDataModal
+        isOpen={Boolean(copyModalCell)}
+        onClose={() => setCopyModalCell(null)}
+        sourceCell={copyModalCell}
+        schedules={schedules}
+        localEdits={localEdits}
+        daysList={daysList}
+        onBulkSave={onBulkSave}
+        onLocalEditsCleared={(clearedIds) => {
+          setLocalEdits((prev) => {
+            const next = { ...prev };
+            clearedIds.forEach((id) => delete next[id]);
+            return next;
+          });
+        }}
+      />
     </div>
   );
 }
