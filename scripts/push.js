@@ -34,7 +34,7 @@ for (const arg of args) {
 const defaultMessage = `Auto update: ${new Date().toLocaleString("ar-EG", { timeZone: "Africa/Cairo" })}`;
 const commitMsg = customMessage || defaultMessage;
 
-// ── تحديث رقم الإصدار في ملف API ──────────────────────────────────────────
+// ── تحديث رقم الإصدار في ملف API والملف الثابت ──────────────────────────
 const versionFilePath = path.join(
   rootDir,
   "src",
@@ -43,18 +43,33 @@ const versionFilePath = path.join(
   "version",
   "route.js",
 );
+const publicVersionPath = path.join(rootDir, "public", "version.json");
 const newVersion = Date.now().toString(); // timestamp فريد في كل push
 
 if (fs.existsSync(versionFilePath)) {
   let versionContent = fs.readFileSync(versionFilePath, "utf-8");
-  // استبدل القيمة الحالية للإصدار بـ timestamp الجديد
   versionContent = versionContent.replace(
     /export const APP_VERSION = "[^"]*";/,
     `export const APP_VERSION = "${newVersion}";`,
   );
   fs.writeFileSync(versionFilePath, versionContent, "utf-8");
-  console.log(`🔢 تم تحديث رقم الإصدار إلى: ${newVersion}`);
 }
+
+try {
+  fs.writeFileSync(
+    publicVersionPath,
+    JSON.stringify(
+      { version: newVersion, updatedAt: new Date().toISOString() },
+      null,
+      2,
+    ),
+    "utf-8",
+  );
+} catch (err) {
+  console.warn("Could not write public/version.json:", err.message);
+}
+
+console.log(`🔢 تم تحديث رقم الإصدار إلى: ${newVersion}`);
 // ──────────────────────────────────────────────────────────────────────────
 
 function run(command, cwd) {
