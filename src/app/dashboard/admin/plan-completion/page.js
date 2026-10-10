@@ -241,31 +241,43 @@ export default function AdminPlanCompletionPage() {
     const totalAssigned = toCount(item.totalAssigned ?? item.assignedSlotsCount);
     const hasClasses = totalAssigned > 0;
     const homeworkRequired = teacherRequiresHomework(item);
+    
+    // Missing lessons count
     const missingLessonCount = Math.min(
       toCount(item.missingLessonCount ?? item.missingLessons),
       totalAssigned,
     );
+
+    // Number of lessons with title filled
+    const preparedLessonCount = Math.max(totalAssigned - missingLessonCount, 0);
+
+    // Raw missing homework count
     const rawMissingHomeworkCount = toCount(
       item.missingHomeworkCount ?? item.missingHomework,
     );
     const missingHomeworkCount = homeworkRequired
-      ? Math.min(rawMissingHomeworkCount, Math.max(totalAssigned - missingLessonCount, 0))
+      ? Math.min(rawMissingHomeworkCount, totalAssigned)
       : 0;
-    const effectiveMissingCount = missingLessonCount + missingHomeworkCount;
-    const completedCount = hasClasses
-      ? Math.max(totalAssigned - effectiveMissingCount, 0)
-      : 0;
+
+    // Completed slots count (lessons prepared)
+    const completedCount = item.completedCount !== undefined
+      ? toCount(item.completedCount)
+      : preparedLessonCount;
+
+    // Completion percentage: based on prepared lessons
     const completionRate = hasClasses
       ? Math.round((completedCount / totalAssigned) * 100)
       : null;
 
     let status = "NO_CLASSES";
     if (hasClasses) {
-      status = effectiveMissingCount === 0
-        ? "COMPLETED"
-        : completedCount === 0
-          ? "NOT_STARTED"
-          : "PARTIAL";
+      if (completedCount === totalAssigned) {
+        status = "COMPLETED";
+      } else if (completedCount === 0 && (rawMissingHomeworkCount === totalAssigned || !homeworkRequired)) {
+        status = "NOT_STARTED";
+      } else {
+        status = "PARTIAL";
+      }
     }
 
     return {
@@ -275,7 +287,7 @@ export default function AdminPlanCompletionPage() {
       homeworkRequired,
       missingLessonCount,
       missingHomeworkCount,
-      effectiveMissingCount,
+      effectiveMissingCount: missingLessonCount,
       completedCount,
       completionRate,
       status,
