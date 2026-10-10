@@ -1159,7 +1159,12 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                           </div>
                         ) : (
                           <span className="text-slate-300 text-xs italic">
-                            —
+                               <p
+                            className="flex justify-center text-amber-500 hover:animate-spin"
+                            title="مغلق وغير مسند لك"
+                          >
+                            <Lock size={20} />
+                          </p>
                           </span>
                         )}
                       </td>
@@ -1252,7 +1257,12 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                           )
                         ) : (
                           <span className="text-slate-300 text-xs italic">
-                            —
+                              <p
+                            className="flex justify-center text-amber-500 hover:animate-spin"
+                            title="مغلق وغير مسند لك"
+                          >
+                            <Lock size={20} />
+                          </p>
                           </span>
                         )}
                       </td>
@@ -1289,7 +1299,12 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                           )
                         ) : (
                           <span className="text-slate-300 text-xs italic">
-                            —
+                              <p
+                            className="flex justify-center text-amber-500 hover:animate-spin"
+                            title="مغلق وغير مسند لك"
+                          >
+                            <Lock size={20} />
+                          </p>
                           </span>
                         )}
                       </td>
