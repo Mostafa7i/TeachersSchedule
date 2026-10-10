@@ -57,17 +57,6 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open]);
 
-  // قفل تمرير الصفحة الخلفية أثناء فتح النافذة المنبثقة
-  useEffect(() => {
-    if (open) {
-      const origOverflow = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = origOverflow;
-      };
-    }
-  }, [open]);
-
   if (!cell || !cell._id) return null;
 
   const subjectName =
@@ -140,23 +129,20 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
     }
   };
 
-  // زر الفتح / الإغلاق النظيف لمنع أي تداخل
+  // تبديل الفتح والإغلاق
   const handleToggle = (e) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
 
-    // إذا كانت مفتوحة، نغلقها فوراً
     if (open) {
       setOpen(false);
       return;
     }
 
-    // نفتح النافذة
     setOpen(true);
 
-    // إذا لم نكن قد جلبنا بيانات الأسابيع السابقة من قبل، نجلبها
     if (!suggestions && !loading) {
       fetchPastSuggestions();
     }
@@ -198,78 +184,74 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
         {loading && <Loader2 size={11} className="animate-spin text-violet-500" />}
       </button>
 
-      {/* Full Modal & Mobile Bottom Sheet (Portal to document.body) */}
+      {/* بوب اب مدمج وصغير لا يملأ الشاشة أبداً — بأبعاد محددة وسهولة خروج تامة */}
       {mounted &&
         open &&
         createPortal(
           <div
-            className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 text-right"
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-3 text-right"
             dir="rtl"
           >
-            {/* Backdrop: النقر في أي مكان خارج النافذة يغلقها تلقائياً */}
+            {/* Backdrop شفاف يغطي الشاشة: النقر في أي مكان خارج البوب اب يغلقه فوراً */}
             <div
-              className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs transition-opacity animate-in fade-in duration-150"
+              className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-150"
               onClick={() => setOpen(false)}
               aria-hidden="true"
             />
 
-            {/* Modal Container */}
+            {/* بطاقة البوب اب المدمجة: أقصى عرض 420px وأقصى ارتفاع 70vh */}
             <div
               role="dialog"
               aria-modal="true"
-              className="relative z-10 w-full sm:max-w-xl max-h-[85vh] bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
-              onClick={(e) => e.stopPropagation()} // منع إغلاق النافذة عند النقر داخلها
+              className="relative z-10 w-[92%] sm:w-[420px] max-w-[420px] max-h-[70vh] bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
             >
-              {/* شريط الإمساك في الموبايل */}
-              <div className="sm:hidden flex justify-center pt-2.5 pb-1 bg-violet-700">
-                <div className="w-12 h-1.5 bg-white/40 rounded-full" />
-              </div>
-
-              {/* Header */}
-              <div className="bg-linear-to-r from-violet-700 via-purple-700 to-indigo-700 px-4 py-3 text-white flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                    <Sparkles size={18} className="text-amber-300" />
+              {/* Header: شريط علوي أنيق ومدمج مع زر إغلاق صريح ومباشر */}
+              <div className="bg-linear-to-r from-violet-700 to-indigo-700 px-3.5 py-2.5 text-white flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                    <Sparkles size={15} className="text-amber-300" />
                   </div>
-                  <div>
-                    <h3 className="text-sm font-black leading-tight">اقتراحات التحضير الذكية</h3>
-                    <div className="flex items-center gap-2 text-[11px] text-violet-200 mt-0.5 font-bold">
-                      {subjectName && <span>📚 {subjectName}</span>}
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-black truncate">اقتراحات التحضير الذكية</h3>
+                    <div className="flex items-center gap-1.5 text-[10px] text-violet-200 font-bold truncate">
+                      {subjectName && <span>{subjectName}</span>}
                       {className && <span>• فصل {className}</span>}
                       {dayName && <span>• {dayName} (حصة {periodNum})</span>}
                     </div>
                   </div>
                 </div>
 
+                {/* زر الخروج الصريح (✕) في رأس النافذة */}
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-all cursor-pointer"
-                  title="إغلاق (Esc)"
+                  className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/30 flex items-center justify-center text-white transition-all cursor-pointer shrink-0 ml-1 font-bold text-xs"
+                  title="إغلاق النافذة"
                 >
-                  <X size={18} />
+                  <X size={15} />
                 </button>
               </div>
 
-              {/* Body: قائمة الاقتراحات القابلة للتمرير */}
-              <div className="overflow-y-auto flex-1 p-4 space-y-4">
+              {/* Body: قائمة الاقتراحات مع سكرول داخلي مريح */}
+              <div className="overflow-y-auto flex-1 p-3 space-y-3 overscroll-contain">
                 {/* ── 1. اقتراحات الأسبوع الحالي ── */}
                 {hasCurrentWeekSugg && (
-                  <div className="p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/50 space-y-3">
-                    <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
-                      <p className="text-xs font-black text-emerald-800 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px]">🔄</span>
-                        <span>جاهز من الأسبوع الحالي (فصول نفس المادة والفئة)</span>
+                  <div className="p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-2">
+                    <div className="flex items-center justify-between border-b border-emerald-200/60 pb-1.5">
+                      <p className="text-[11px] font-black text-emerald-800 flex items-center gap-1">
+                        <span>🔄</span>
+                        <span>من الأسبوع الحالي (فصول نفس المادة)</span>
                       </p>
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-md">
                         تطابق مباشر
                       </span>
                     </div>
 
                     {currentWeekSuggestions.lessonTitle?.length > 0 && (
                       <SuggestSection
-                        icon={<BookOpen size={13} className="text-emerald-700" />}
-                        label="عنوان الدرس والموضوع"
+                        icon={<BookOpen size={12} className="text-emerald-700" />}
+                        label="عنوان الدرس"
                         items={currentWeekSuggestions.lessonTitle}
                         field="lessonTitle"
                         color="emerald"
@@ -279,7 +261,7 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
                     )}
                     {currentWeekSuggestions.homework?.length > 0 && (
                       <SuggestSection
-                        icon={<PenLine size={13} className="text-emerald-700" />}
+                        icon={<PenLine size={12} className="text-emerald-700" />}
                         label="الواجب المنزلي"
                         items={currentWeekSuggestions.homework}
                         field="homework"
@@ -290,8 +272,8 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
                     )}
                     {currentWeekSuggestions.activities?.length > 0 && (
                       <SuggestSection
-                        icon={<Target size={13} className="text-emerald-700" />}
-                        label="الأنشطة والمهام"
+                        icon={<Target size={12} className="text-emerald-700" />}
+                        label="الأنشطة"
                         items={currentWeekSuggestions.activities}
                         field="activities"
                         color="emerald"
@@ -301,8 +283,8 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
                     )}
                     {currentWeekSuggestions.notes?.length > 0 && (
                       <SuggestSection
-                        icon={<MessageSquare size={13} className="text-emerald-700" />}
-                        label="الملاحظات والتوجيهات"
+                        icon={<MessageSquare size={12} className="text-emerald-700" />}
+                        label="الملاحظات"
                         items={currentWeekSuggestions.notes}
                         field="notes"
                         color="emerald"
@@ -314,33 +296,32 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
                 )}
 
                 {/* ── 2. اقتراحات الأسابيع السابقة ── */}
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {loading ? (
-                    <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200">
-                      <Loader2 size={28} className="animate-spin text-violet-600 mx-auto mb-2" />
-                      <p className="text-xs font-bold text-slate-700">جارٍ تحليل خطط الأسابيع السابقة...</p>
-                      <p className="text-[11px] text-slate-400 mt-1">يتم البحث عن دروس وتحضيرات سابقة لنفس الحصة والفصل</p>
+                    <div className="p-5 text-center bg-slate-50 rounded-xl border border-slate-200">
+                      <Loader2 size={22} className="animate-spin text-violet-600 mx-auto mb-1.5" />
+                      <p className="text-xs font-bold text-slate-700">جارٍ فحص خطط الأسابيع السابقة...</p>
                     </div>
                   ) : error ? (
-                    <div className="p-4 text-center bg-red-50 rounded-2xl border border-red-200">
+                    <div className="p-3 text-center bg-red-50 rounded-xl border border-red-200">
                       <p className="text-xs font-bold text-red-700">{error}</p>
                       <button
                         type="button"
                         onClick={fetchPastSuggestions}
-                        className="mt-2 text-xs font-black text-violet-700 hover:underline"
+                        className="mt-1.5 text-xs font-black text-violet-700 hover:underline"
                       >
                         إعادة المحاولة
                       </button>
                     </div>
                   ) : suggestions ? (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       {hasPastSuggestions && (
-                        <div className="flex items-center gap-1.5 px-1 pt-1">
-                          <span className="w-5 h-5 rounded-lg bg-violet-600 text-white flex items-center justify-center text-[10px]">📚</span>
-                          <span className="text-xs font-black text-slate-700">من الأسابيع السابقة</span>
+                        <div className="flex items-center gap-1.5 px-0.5">
+                          <span className="text-xs">📚</span>
+                          <span className="text-[11px] font-black text-slate-700">من الأسابيع السابقة</span>
                           {suggestions.classContext?.weeksAnalyzed > 0 && (
-                            <span className="text-[10px] font-bold text-slate-500 mr-auto bg-slate-100 px-2 py-0.5 rounded-full">
-                              مُستخرج من {suggestions.classContext.weeksAnalyzed} أسابيع
+                            <span className="text-[9px] font-bold text-slate-500 mr-auto bg-slate-100 px-1.5 py-0.2 rounded-md">
+                              {suggestions.classContext.weeksAnalyzed} أسابيع
                             </span>
                           )}
                         </div>
@@ -348,8 +329,8 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
 
                       {suggestions.lessonTitle?.length > 0 && (
                         <SuggestSection
-                          icon={<BookOpen size={13} className="text-blue-700" />}
-                          label="عنوان وموضوع الدرس"
+                          icon={<BookOpen size={12} className="text-blue-700" />}
+                          label="عنوان الدرس"
                           items={suggestions.lessonTitle}
                           field="lessonTitle"
                           color="blue"
@@ -359,8 +340,8 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
                       )}
                       {suggestions.homework?.length > 0 && (
                         <SuggestSection
-                          icon={<PenLine size={13} className="text-amber-700" />}
-                          label="الواجب المنزلي"
+                          icon={<PenLine size={12} className="text-amber-700" />}
+                          label="الواجب"
                           items={suggestions.homework}
                           field="homework"
                           color="amber"
@@ -370,8 +351,8 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
                       )}
                       {suggestions.activities?.length > 0 && (
                         <SuggestSection
-                          icon={<Target size={13} className="text-blue-700" />}
-                          label="الأنشطة المقترحة"
+                          icon={<Target size={12} className="text-blue-700" />}
+                          label="الأنشطة"
                           items={suggestions.activities}
                           field="activities"
                           color="blue"
@@ -381,7 +362,7 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
                       )}
                       {suggestions.notes?.length > 0 && (
                         <SuggestSection
-                          icon={<MessageSquare size={13} className="text-amber-700" />}
+                          icon={<MessageSquare size={12} className="text-amber-700" />}
                           label="الملاحظات"
                           items={suggestions.notes}
                           field="notes"
@@ -392,10 +373,10 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
                       )}
 
                       {!hasPastSuggestions && !hasCurrentWeekSugg && (
-                        <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-                          <div className="text-3xl mb-2">📭</div>
+                        <div className="p-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                          <div className="text-2xl mb-1">📭</div>
                           <p className="text-xs font-bold text-slate-700">لا توجد اقتراحات سابقة كافية لهذه المادة بعد</p>
-                          <p className="text-[11px] text-slate-400 mt-1">ستتوفر الاقتراحات آلياً فور إدخال خطط الأسابيع القادمة</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">ستتوفر فور تسجيل خطط الأسابيع القادمة</p>
                         </div>
                       )}
                     </div>
@@ -403,15 +384,15 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 flex items-center justify-between shrink-0">
-                <span className="text-[11px] font-bold text-slate-500">
-                  💡 انقر على أي خيار لإدراجه فوراً في الخطة
+              {/* Footer: شريط سفلي مدمج مع زر إغلاق صريح */}
+              <div className="border-t border-slate-200 bg-slate-50 px-3 py-2 flex items-center justify-between shrink-0">
+                <span className="text-[10px] font-bold text-slate-500">
+                  💡 انقر على الاقتراح لإدراجه فوراً
                 </span>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-xl transition cursor-pointer shadow-xs"
+                  className="px-3.5 py-1 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-lg transition cursor-pointer shadow-xs"
                 >
                   إغلاق
                 </button>
@@ -437,13 +418,13 @@ function SuggestSection({ icon, label, items, field, color, onApply, appliedKey 
   };
 
   return (
-    <div className="space-y-1.5">
-      <p className={`text-[11px] font-black ${headerColor[color]} flex items-center gap-1.5`}>
+    <div className="space-y-1">
+      <p className={`text-[10px] font-black ${headerColor[color]} flex items-center gap-1`}>
         <span>{icon}</span>
         <span>{label}</span>
       </p>
-      <div className="grid grid-cols-1 gap-1.5">
-        {items.slice(0, 5).map((item, idx) => {
+      <div className="grid grid-cols-1 gap-1">
+        {items.slice(0, 4).map((item, idx) => {
           const isApplied = appliedKey === `${field}:::${item}`;
           return (
             <button
@@ -451,23 +432,23 @@ function SuggestSection({ icon, label, items, field, color, onApply, appliedKey 
               type="button"
               onClick={() => onApply(field, item)}
               title={`انقر لتطبيق: ${item}`}
-              className={`w-full text-right text-xs font-bold px-3 py-2.5 rounded-xl border transition-all flex items-start justify-between gap-2.5 cursor-pointer shadow-2xs ${
+              className={`w-full text-right text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-all flex items-start justify-between gap-2 cursor-pointer shadow-2xs ${
                 isApplied
-                  ? "bg-emerald-500 text-white border-emerald-600 ring-2 ring-emerald-300"
+                  ? "bg-emerald-500 text-white border-emerald-600 ring-1 ring-emerald-300"
                   : colorMap[color]
               }`}
             >
-              <div className="flex items-start gap-2 flex-1 min-w-0">
-                <span className="text-[10px] font-black opacity-60 mt-0.5 shrink-0">
+              <div className="flex items-start gap-1.5 flex-1 min-w-0">
+                <span className="text-[9px] font-black opacity-60 mt-0.5 shrink-0">
                   {idx + 1}.
                 </span>
-                <span className="leading-relaxed break-words">{item}</span>
+                <span className="leading-snug break-words">{item}</span>
               </div>
-              <div className="shrink-0 flex items-center gap-1 text-[10px] font-black mt-0.5">
+              <div className="shrink-0 flex items-center gap-1 text-[9px] font-black mt-0.5">
                 {isApplied ? (
                   <span className="flex items-center gap-1">
-                    <Check size={12} strokeWidth={3} />
-                    <span>تم التطبيق</span>
+                    <Check size={11} strokeWidth={3} />
+                    <span>تم</span>
                   </span>
                 ) : (
                   <span className="opacity-60 hover:opacity-100">
