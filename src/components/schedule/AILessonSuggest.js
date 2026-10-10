@@ -203,7 +203,7 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
             <div
               role="dialog"
               aria-modal="true"
-              className="relative z-10 w-[92%] sm:w-[420px] max-w-[420px] max-h-[70vh] bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150"
+              className="relative z-10 w-[92%] sm:w-105 max-w-105 max-h-[70vh] bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header: شريط علوي أنيق ومدمج مع زر إغلاق صريح ومباشر */}
@@ -314,7 +314,7 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
                       </button>
                     </div>
                   ) : suggestions ? (
-                    <div className="space-y-2.5">
+                    <div className="space-y-2.5 h-20 overflow-auto">
                       {hasPastSuggestions && (
                         <div className="flex items-center gap-1.5 px-0.5">
                           <span className="text-xs">📚</span>
