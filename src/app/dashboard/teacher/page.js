@@ -64,21 +64,6 @@ export default function TeacherDashboardPage() {
     loadInitialData();
   }, [toast]);
 
-  const handleSelectWeek = async (week) => {
-    if (!week?._id) return;
-
-    setCurrentWeek(week);
-    try {
-      setLoading(true);
-      const response = await schedulesService.getForTeacher(week._id);
-      setSchedules(response.data?.schedules || []);
-    } catch (error) {
-      console.error("Error loading selected week:", error);
-      toast.error("فشل جلب جدول الأسبوع المختار");
-    } finally {
-      setLoading(false);
-    }
-  };
 
 
 
@@ -158,17 +143,17 @@ export default function TeacherDashboardPage() {
 
         <div className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-4 text-center backdrop-blur-md sm:w-auto sm:px-6">
           <div>
-            <span className="block text-2xl font-black text-white">{totalAssignedClasses}</span>
+            <span className="block text-2xl font-black text-white">{loading ? <p className="w-5 h-5 border-2 border-b border-b-indigo-400 mx-auto rounded-full animate-spin"></p> : totalAssignedClasses}</span>
             <span className="text-[11px] font-semibold text-blue-200">حصصك بالجدول</span>
           </div>
           <div className="h-8 w-px bg-white/20" aria-hidden="true" />
           <div>
-            <span className="block text-2xl font-black text-emerald-300">{completedPlansCount}</span>
+            <span className="block text-2xl font-black text-emerald-300">{loading ? <p className="w-5 h-5 border-2 border-b border-b-indigo-400 mx-auto rounded-full animate-spin"></p> : completedPlansCount}</span>
             <span className="text-[11px] font-semibold text-blue-200">دروس لها عنوان</span>
           </div>
           <div className="h-8 w-px bg-white/20" aria-hidden="true" />
           <div>
-            <span className="block text-2xl font-black text-amber-300">{homeworksCount}</span>
+            <span className="block text-2xl font-black text-amber-300">{loading ? <p className="w-5 h-5 border-2 border-b border-b-indigo-400 mx-auto rounded-full animate-spin"></p> : homeworksCount}</span>
             <span className="text-[11px] font-semibold text-blue-200">واجبات مسجلة</span>
           </div>
         </div>
