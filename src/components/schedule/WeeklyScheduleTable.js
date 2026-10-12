@@ -8,10 +8,7 @@ import { getLogoUrl, getClassBadgeStyle } from "@/lib/utils";
 import { schedulesService } from "@/services/schedules.service";
 import { Lock } from "lucide-react";
 import AILessonSuggest from "@/components/schedule/AILessonSuggest";
-import CopyClassDataModal, {
-  getClassCategory,
-  isSameSubject,
-} from "@/components/schedule/CopyClassDataModal";
+import CopyClassDataModal from "@/components/schedule/CopyClassDataModal";
 
 const isBlank = (value) => !value || String(value).trim() === "";
 
@@ -19,7 +16,6 @@ export default function WeeklyScheduleTable({
   week,
   schedules = [],
   settings,
-  subjects = [],
   selectedClass = "",
   onSelectClass,
   onEditCell,
@@ -27,7 +23,6 @@ export default function WeeklyScheduleTable({
   onBulkSave,
   onShareClass,
   readOnly = false,
-  teacherHighlight = null,
   enableInlineEdit = true,
 }) {
   const { user, hasPermission, isAdmin } = useAuth();
@@ -43,7 +38,7 @@ export default function WeeklyScheduleTable({
   const [bulkSaving, setBulkSaving] = useState(false);
   const [copyModalCell, setCopyModalCell] = useState(null);
   const autoSaveTimers = useRef({});
-const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const isSuperAdmin = isAdmin();
   const canEditAny = isSuperAdmin || hasPermission(PERMISSIONS.SCHEDULES_EDIT);
   const canEditGranular =
@@ -62,6 +57,11 @@ const [isInputFocused, setIsInputFocused] = useState(false);
   const periodsCount = settings?.periodsCount || 6;
   const periodsList = Array.from({ length: periodsCount }, (_, i) => i + 1);
 
+  const [tableZoom, setTableZoom] = useState(1);
+
+  const MIN_ZOOM = 0.5;
+  const MAX_ZOOM = 1.2;
+  const ZOOM_STEP = 0.1;
   // Keep the selected mobile day valid when work-day settings load or change.
   useEffect(() => {
     setSelectedMobileDay((currentDay) =>
@@ -97,46 +97,6 @@ const [isInputFocused, setIsInputFocused] = useState(false);
 
     return matrix;
   }, [activeSchedules, daysList, periodsList]);
-
-  // Distinct classes summary dynamically derived from active schedules
-  const classesSummary = useMemo(() => {
-    const classMap = {};
-    schedules.forEach((s) => {
-      const cName = (s.className || "").trim();
-      if (!cName) return;
-      if (!classMap[cName]) {
-        classMap[cName] = {
-          name: cName,
-          count: 0,
-          withLesson: 0,
-          withHomework: 0,
-        };
-      }
-      classMap[cName].count += 1;
-      if (s.lessonTitle && s.lessonTitle.trim())
-        classMap[cName].withLesson += 1;
-      if (s.homework && s.homework.trim()) classMap[cName].withHomework += 1;
-    });
-    return Object.values(classMap);
-  }, [schedules]);
-
-  const scheduleStats = useMemo(() => {
-    const totalSlots = daysList.length * periodsList.length;
-    const filledSlots = activeSchedules.length;
-    const lessonCount = activeSchedules.filter(
-      (item) => item.lessonTitle && String(item.lessonTitle).trim(),
-    ).length;
-    const homeworkCount = activeSchedules.filter(
-      (item) => item.homework && String(item.homework).trim(),
-    ).length;
-    return {
-      totalSlots,
-      filledSlots,
-      emptySlots: Math.max(totalSlots - filledSlots, 0),
-      lessonCount,
-      homeworkCount,
-    };
-  }, [activeSchedules, daysList.length, periodsList.length]);
 
   // Calculate day dates relative to week start date
   const getDayDateFormatted = (dayName) => {
@@ -493,54 +453,6 @@ const [isInputFocused, setIsInputFocused] = useState(false);
           </span>
         </div>
       )}
-
-      {/* 2) Summary Banner when "All Classes" is selected with Distinct Class Colors */}
-      {!selectedClass && classesSummary.length > 0 && (
-        <div className="bg-slate-50 border border-slate-200 rounded-3xl p-4 space-y-3 no-print no-export">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <span>📊</span>
-              <span>فصول المدرسة المسجلة لهذا الأسبوع:</span>
-            </h3>
-            <span className="text-[11px] text-slate-500 font-semibold">
-              إجمالي الفصول: {classesSummary.length}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5">
-            {classesSummary.map((cls) => {
-              const style = getClassBadgeStyle(cls.name);
-              return (
-                <button
-                  key={cls.name}
-                  type="button"
-                  onClick={() => onSelectClass && onSelectClass(cls.name)}
-                  className={`p-2 rounded-2xl border text-right transition-all group cursor-pointer hover:shadow-md ${style.bg} ${style.border}`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className={`font-black text-[11px] ${style.text}`}>
-                      {cls.name}
-                    </span>
-                    <span
-                      className={`text-[8px] font-bold p-1 rounded-full ${style.badge}`}
-                    >
-                      {cls.count} حصة
-                    </span>
-                  </div>
-                  <div className="text-[9px] text-slate-600 font-medium">
-                    الخطة:{" "}
-                    <strong className="text-emerald-700 font-black">
-                      {cls.withLesson}
-                    </strong>{" "}
-                    / {cls.count}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* View Switcher Controls on Mobile */}
       <div className="flex md:hidden items-center justify-between bg-slate-900 p-1.5 rounded-2xl text-xs no-print no-export shadow-sm">
         <span className="font-bold text-white/80 px-2">طريقة العرض</span>
@@ -604,7 +516,7 @@ const [isInputFocused, setIsInputFocused] = useState(false);
         </div>
 
         {/* Day Banner */}
-        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-2xl text-xs font-bold text-slate-700">
+        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-2xl text-xs font-bold text-slate-700">
           <span>
             📅 خطة حصص يوم {selectedMobileDay || daysList[0]} (
             {getDayDateFormatted(selectedMobileDay || daysList[0])})
@@ -692,7 +604,7 @@ const [isInputFocused, setIsInputFocused] = useState(false);
               return (
                 <div
                   key={cell._id || `${period}-${entryIdx}`}
-                  className={`p-4 rounded-3xl border shadow-xs transition-all space-y-3 ${
+                  className={`p-4 rounded-2xl border shadow-xs transition-all space-y-3 ${
                     lockedCell
                       ? "bg-slate-100 border-slate-300 text-slate-700"
                       : isDirty
@@ -721,7 +633,6 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                           : cell.subject || "المادة"}
                       </span>
                     </div>
-
                     <div className="flex items-center gap-1.5">
                       {isSuperAdmin && onEditCell && (
                         <button
@@ -909,8 +820,59 @@ const [isInputFocused, setIsInputFocused] = useState(false);
           mobileLayout === "table" ? "block" : "hidden md:block"
         }`}
       >
+        <div className="flex items-center justify-center gap-1 mb-1 md:hidden">
+          <button
+            type="button"
+            onClick={() =>
+              setTableZoom((z) =>
+                Math.min(MAX_ZOOM, +(z + ZOOM_STEP).toFixed(2)),
+              )
+            }
+            disabled={tableZoom >= MAX_ZOOM}
+            className="w-9 h-9 rounded-xl border bg-white shadow-sm
+      text-slate-800 disabled:opacity-40"
+            aria-label="تكبير الجدول"
+          >
+            +
+          </button>
+
+          <span className="text-xs font-bold text-slate-600 min-w-10 text-center">
+            {Math.round(tableZoom * 100)}%
+          </span>
+
+          <button
+            type="button"
+            onClick={() =>
+              setTableZoom((z) =>
+                Math.max(MIN_ZOOM, +(z - ZOOM_STEP).toFixed(2)),
+              )
+            }
+            disabled={tableZoom <= MIN_ZOOM}
+            className="w-9 h-9 rounded-xl border bg-white shadow-sm
+      text-slate-800 disabled:opacity-40"
+            aria-label="تصغير الجدول"
+          >
+            −
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTableZoom(1)}
+            className="px-2 h-9 rounded-xl border bg-white shadow-sm
+      text-xs font-bold text-slate-700"
+          >
+            إعادة ضبط
+          </button>
+        </div>
         <div className="overflow-x-auto schedule-table-wrap rounded-2xl border  border-slate-300">
-          <table className="w-full text-right border-separate border-spacing-0 min-w-245">
+          <table
+            style={{
+              transform: `scale(${tableZoom})`,
+              transformOrigin: "top right",
+              width: `${100 / tableZoom}%`,
+            }}
+            className="w-full text-right border-separate border-spacing-0 min-w-245"
+          >
             <thead className="sticky top-0 z-10">
               <tr className="bg-slate-950 text-white text-xs sm:text-sm">
                 <th className="border border-slate-700 p-2 w-32 text-center font-bold">
@@ -1083,7 +1045,7 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                           </div>
                         ) : (
                           <span className="text-slate-400 text-xs italic text-nowrap text-center">
-                            — (حصة غير محددة)
+                            — (حصة غير محددة لك)
                           </span>
                         )}
                       </td>
@@ -1141,12 +1103,12 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                           </div>
                         ) : (
                           <span className="text-slate-300 text-xs italic">
-                               <p
-                            className="flex justify-center text-amber-500 hover:animate-spin"
-                            title="مغلق وغير مسند لك"
-                          >
-                            <Lock size={20} />
-                          </p>
+                            <p
+                              className="flex justify-center text-amber-500 hover:animate-spin"
+                              title="مغلق وغير مسند لك"
+                            >
+                              <Lock size={20} />
+                            </p>
                           </span>
                         )}
                       </td>
@@ -1239,12 +1201,12 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                           )
                         ) : (
                           <span className="text-slate-300 text-xs italic">
-                              <p
-                            className="flex justify-center text-amber-500 hover:animate-spin"
-                            title="مغلق وغير مسند لك"
-                          >
-                            <Lock size={20} />
-                          </p>
+                            <p
+                              className="flex justify-center text-amber-500 hover:animate-spin"
+                              title="مغلق وغير مسند لك"
+                            >
+                              <Lock size={20} />
+                            </p>
                           </span>
                         )}
                       </td>
@@ -1281,12 +1243,12 @@ const [isInputFocused, setIsInputFocused] = useState(false);
                           )
                         ) : (
                           <span className="text-slate-300 text-xs italic">
-                              <p
-                            className="flex justify-center text-amber-500 hover:animate-spin"
-                            title="مغلق وغير مسند لك"
-                          >
-                            <Lock size={20} />
-                          </p>
+                            <p
+                              className="flex justify-center text-amber-500 hover:animate-spin"
+                              title="مغلق وغير مسند لك"
+                            >
+                              <Lock size={20} />
+                            </p>
                           </span>
                         )}
                       </td>

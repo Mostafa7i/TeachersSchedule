@@ -6,15 +6,13 @@ import { useToast } from "@/contexts/ToastContext";
 import { schedulesService, weeksService } from "@/services/schedules.service";
 import { subjectsService } from "@/services/subjects.service";
 import { settingsService } from "@/services/settings.service";
-import WeekNavigator from "@/components/schedule/WeekNavigator";
 import TeacherTimetableGrid from "@/components/schedule/TeacherTimetableGrid";
-import WeeklyScheduleTable from "@/components/schedule/WeeklyScheduleTable";
 import LessonPreparationWorkspace from "@/components/schedule/LessonPreparationWorkspace";
-import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
 import AvailableTimetablesModal from "@/components/schedule/AvailableTimetablesModal";
 import TeacherSettingsView from "@/components/teacher/TeacherSettingsView";
 import { TableSkeleton, ErrorBoundary } from "@/components/ui";
+import TeacherWeeklyPlanPreviewPage from "@/components/schedule/TeacherWeeklyPlanPreviewPage";
 
 const isBlank = (value) => !value || value.trim() === "";
 
@@ -82,24 +80,7 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  const handleInlineSave = async (formData) => {
-    if (!formData.id) return;
 
-    await schedulesService.update(formData.id, formData);
-    setSchedules((previousSchedules) =>
-      previousSchedules.map((item) =>
-        item._id === formData.id ? { ...item, ...formData } : item,
-      ),
-    );
-  };
-
-  const handleBulkSave = async (updates) => {
-    if (!currentWeek?._id) return;
-
-    await schedulesService.bulkUpdateLessons(updates);
-    const response = await schedulesService.getForTeacher(currentWeek._id);
-    setSchedules(response.data?.schedules || []);
-  };
 
   const totalAssignedClasses = schedules.length;
   const missingTitleCount = schedules.filter((item) =>
@@ -117,7 +98,6 @@ export default function TeacherDashboardPage() {
 
   const tabs = [
     { id: "plan", icon: "📝", label: "الخطة السريعة" },
-    { id: "preparation", icon: "📚", label: "دفتر تحضير الدروس" },
     { id: "timetable", icon: "🗓️", label: "جدول الحصص" },
     { id: "settings", icon: "⚙️", label: "الإعدادات" },
   ];
@@ -253,52 +233,17 @@ export default function TeacherDashboardPage() {
             </button>
           ))}
         </nav>
-
-        {activeTab === "plan" || activeTab === "timetable" ? (
-          <ExportButtons
-            targetElementId={
-              activeTab === "plan"
-                ? "teacher-weekly-plan-container"
-                : "teacher-official-timetable-container"
-            }
-            weekLabel={
-              activeTab === "plan"
-                ? `خطة_${user?.name || "المعلم"}_${currentWeek?.label || ""}`
-                : `جدول_حصص_${user?.name || "المعلم"}`
-            }
-          />
-        ) : null}
       </div>
 
-      {activeTab !== "settings" && (
-        <WeekNavigator
-          weeks={weeks}
-          currentWeek={currentWeek}
-          onSelectWeek={handleSelectWeek}
-          canCopy={false}
-          canAdd={false}
-        />
-      )}
 
       <ErrorBoundary title="تعذر عرض بيانات خطة المعلم">
         {loading ? (
-          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
             <TableSkeleton rows={8} cols={6} />
           </div>
         ) : activeTab === "settings" ? (
           <TeacherSettingsView />
-        ) : activeTab === "preparation" ? (
-          <div className="space-y-4">
-            <LessonPreparationWorkspace
-              week={currentWeek}
-              weeks={weeks}
-              onSelectWeek={handleSelectWeek}
-              schedules={schedules}
-              settings={settings}
-              subjects={subjects}
-              onRefresh={() => currentWeek && handleSelectWeek(currentWeek)}
-            />
-          </div>
+        
         ) : activeTab === "timetable" ? (
           <div className="space-y-4">
             <TeacherTimetableGrid
@@ -311,16 +256,8 @@ export default function TeacherDashboardPage() {
             />
           </div>
         ) : (
-          <div className="space-y-4">
-            <WeeklyScheduleTable
-              week={currentWeek}
-              schedules={schedules}
-              settings={settings}
-              subjects={subjects}
-              onSaveCell={handleInlineSave}
-              onBulkSave={handleBulkSave}
-              enableInlineEdit
-            />
+          <div className="space-y-2">
+            <TeacherWeeklyPlanPreviewPage/>
           </div>
         )}
       </ErrorBoundary>

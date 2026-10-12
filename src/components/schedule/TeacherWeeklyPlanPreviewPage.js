@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { schedulesService, weeksService } from "@/services/schedules.service";
@@ -12,7 +12,8 @@ import ExportButtons from "@/components/schedule/ExportButtons";
 import TeacherOnboardingModal from "@/components/auth/TeacherOnboardingModal";
 import { TableSkeleton } from "@/components/ui";
 
-import { getLogoUrl, getClassBadgeStyle } from "@/lib/utils";
+import { getClassBadgeStyle } from "@/lib/utils";
+import { ArrowBigLeft, ArrowBigRight } from "lucide-react";
 
 export default function TeacherWeeklyPlanPreviewPage() {
   const { user } = useAuth();
@@ -24,7 +25,9 @@ export default function TeacherWeeklyPlanPreviewPage() {
   const [subjects, setSubjects] = useState([]);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const [isAtRight, setIsAtRight] = useState(true);
+  const [isAtLeft, setIsAtLeft] = useState(false);
+  const classesScrollRef = useRef(null);
   // Class Selection Filter
   const [selectedClass, setSelectedClass] = useState("");
 
@@ -69,6 +72,41 @@ export default function TeacherWeeklyPlanPreviewPage() {
     initData();
   }, []);
 
+  useEffect(() => {
+    const container = classesScrollRef.current;
+    if (!container) return;
+
+    const updateScrollEdges = () => {
+      const first = container.firstElementChild;
+      const last = container.lastElementChild;
+
+      if (!first || !last) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const firstRect = first.getBoundingClientRect();
+      const lastRect = last.getBoundingClientRect();
+
+      // بداية المحتوى من ناحية اليمين (RTL)
+      setIsAtRight(firstRect.right <= containerRect.right + 2);
+
+      // نهاية المحتوى من ناحية اليسار (RTL)
+      setIsAtLeft(lastRect.left >= containerRect.left - 2);
+    };
+
+    updateScrollEdges();
+
+    container.addEventListener("scroll", updateScrollEdges, {
+      passive: true,
+    });
+
+    const resizeObserver = new ResizeObserver(updateScrollEdges);
+    resizeObserver.observe(container);
+
+    return () => {
+      container.removeEventListener("scroll", updateScrollEdges);
+      resizeObserver.disconnect();
+    };
+  }, [allClassesList]);
   // Fetch Schedules when Week Changes
   const handleSelectWeek = async (week) => {
     setCurrentWeek(week);
@@ -138,52 +176,73 @@ export default function TeacherWeeklyPlanPreviewPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-full overflow-hidden">
-      {/* Top Header Card */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <span className="text-2xl">📋</span>
-            <h1 className="text-xl sm:text-2xl font-black text-gray-900">
-              خطتي الأسبوعية
-            </h1>
-          </div>
-          <p className="text-xs sm:text-sm text-gray-500 font-medium">
-            اكتب موضوع الدرس والواجبات مباشرة في الجدول، مع إمكانية النسخ والحفظ
-            الفوري.
-          </p>
+    <div className="space-y-4 max-w-full overflow-hidden">
+      {/* Controls: Week Navigator + Export Buttons */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div className="flex-1">
+          <WeekNavigator
+            weeks={weeks}
+            currentWeek={currentWeek}
+            onSelectWeek={handleSelectWeek}
+            canCopy={false}
+            canAdd={false}
+          />
         </div>
-
-        {/* User Badge */}
-        {user && (
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-2.5 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-black text-sm flex items-center justify-center shadow-xs">
-              {user.name ? user.name[0] : "م"}
-            </div>
-            <div>
-              <p className="text-xs font-black text-blue-950">{user.name}</p>
-              <p className="text-[11px] text-blue-700 font-semibold">
-                {user.subjects
-                  ?.map((s) => (typeof s === "object" ? s.name : s))
-                  .join(" • ") || "معلم"}
-              </p>
-            </div>
-          </div>
-        )}
+        <ExportButtons
+          targetElementId="weekly-schedule-print-container"
+          weekLabel={`خطة_الأسبوع_${currentWeek?.label || ""}${selectedClass ? `_فصل_${selectedClass}` : ""}`}
+        />
       </div>
-
       {/* Class Filter Bar with Distinct Colors */}
-      <div className="bg-white rounded-3xl p-4 border border-gray-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-bold text-gray-700 flex items-center gap-1">
-            <span>🏫</span>
-            <span>تصفية حسب الفصل:</span>
-          </span>
+      <div className="bg-white sticky  top-10 rounded-3xl p-2 w-full  border border-gray-200 shadow-xs  items-center justify-between gap-3">
+        <div className="text-xs mb-1 font-bold text-gray-700 flex items-center gap-1">
+          <span>🏫</span>
+          <p>تصفية حسب الفصل:</p>
 
+          <div className="flex gap-1 md:hidden">
+            {/* السهم اليمين */}
+            <button
+              type="button"
+              onClick={() =>
+                classesScrollRef.current?.scrollBy({
+                  left: 200,
+                  behavior: "smooth",
+                })
+              }
+              className={`w-5 h-5 cursor-pointer rounded-full flex items-center justify-center transition-colors ${
+                isAtRight ? "bg-gray-400 text-white" : "bg-slate-900 text-white"
+              }`}
+              aria-label="التمرير لليمين"
+            >
+              <ArrowBigRight size={14} />
+            </button>
+
+            {/* السهم اليسار */}
+            <button
+              type="button"
+              onClick={() =>
+                classesScrollRef.current?.scrollBy({
+                  left: -200,
+                  behavior: "smooth",
+                })
+              }
+              className={`w-5 h-5 cursor-pointer rounded-full flex items-center justify-center transition-colors ${
+                isAtLeft ? "bg-gray-400 text-white" : "bg-slate-900 text-white"
+              }`}
+              aria-label="التمرير لليسار"
+            >
+              <ArrowBigLeft size={14} />
+            </button>
+          </div>
+        </div>
+        <div
+          className="flex flex-1 gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar"
+          ref={classesScrollRef}
+        >
           <button
             type="button"
             onClick={() => setSelectedClass("")}
-            className={`px-3.5 py-1.5 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 text-nowrap rounded-2xl text-xs font-black transition-all cursor-pointer ${
               selectedClass === ""
                 ? "bg-slate-900 text-white shadow-xs"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -200,7 +259,7 @@ export default function TeacherWeeklyPlanPreviewPage() {
                 key={cls}
                 type="button"
                 onClick={() => setSelectedClass(cls)}
-                className={`px-3.5 py-1.5 rounded-2xl text-xs font-black transition-all cursor-pointer border ${
+                className={`px-2 py-1.5 text-nowrap  rounded-2xl text-xs font-black transition-all cursor-pointer border ${
                   isSelected
                     ? `${style.solid} shadow-xs scale-105`
                     : `${style.badge} hover:scale-105`
@@ -216,7 +275,7 @@ export default function TeacherWeeklyPlanPreviewPage() {
           <div className="flex items-center gap-2 flex-wrap">
             {/* Quick Class Subject Switcher for Multi-subject Teacher */}
             {teacherSubjectsList.length > 1 && (
-              <div className="flex items-center gap-1.5 bg-blue-50/80 border border-blue-200 px-3 py-1.5 rounded-2xl text-xs">
+              <div className="flex items-center  gap-1.5 bg-blue-50/80 border border-blue-200 px-2 py-1.5 rounded-2xl text-xs">
                 <span className="font-bold text-blue-900 flex items-center gap-1">
                   <span>📚</span>
                   <span>مادة فصل {selectedClass}:</span>
@@ -253,24 +312,6 @@ export default function TeacherWeeklyPlanPreviewPage() {
           </div>
         )}
       </div>
-
-      {/* Controls: Week Navigator + Export Buttons */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="flex-1">
-          <WeekNavigator
-            weeks={weeks}
-            currentWeek={currentWeek}
-            onSelectWeek={handleSelectWeek}
-            canCopy={false}
-            canAdd={false}
-          />
-        </div>
-        <ExportButtons
-          targetElementId="weekly-schedule-print-container"
-          weekLabel={`خطة_الأسبوع_${currentWeek?.label || ""}${selectedClass ? `_فصل_${selectedClass}` : ""}`}
-        />
-      </div>
-
       {/* Weekly Schedule Table View with Direct Inline Editing */}
       {loading ? (
         <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs">
