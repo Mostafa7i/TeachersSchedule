@@ -15,21 +15,39 @@ import { TableSkeleton } from "@/components/ui";
 import { getClassBadgeStyle } from "@/lib/utils";
 import { ArrowBigLeft, ArrowBigRight } from "lucide-react";
 
-export default function TeacherWeeklyPlanPreviewPage() {
-  const { user } = useAuth();
+export default function TeacherWeeklyPlanPreviewPage({
+  initialWeeks = [],
+  initialCurrentWeek = null,
+  initialSchedules = [],
+  initialSubjects = [],
+  initialSettings = null,
+} = {}) {
+  const { user, loading: authLoading } = useAuth();
   const toast = useToast();
 
-  const [weeks, setWeeks] = useState([]);
-  const [currentWeek, setCurrentWeek] = useState(null);
-  const [schedules, setSchedules] = useState([]);
-  const [subjects, setSubjects] = useState([]);
-  const [settings, setSettings] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [weeks, setWeeks] = useState(initialWeeks);
+  const [currentWeek, setCurrentWeek] = useState(initialCurrentWeek);
+  const [schedules, setSchedules] = useState(initialSchedules);
+  const [subjects, setSubjects] = useState(initialSubjects);
+  const [settings, setSettings] = useState(initialSettings);
+  const [loading, setLoading] = useState(!initialCurrentWeek);
   const [isAtRight, setIsAtRight] = useState(true);
   const [isAtLeft, setIsAtLeft] = useState(false);
   const classesScrollRef = useRef(null);
   // Class Selection Filter
   const [selectedClass, setSelectedClass] = useState("");
+
+  // Sync state if parent props update
+  useEffect(() => {
+    if (initialCurrentWeek) {
+      setWeeks(initialWeeks);
+      setCurrentWeek(initialCurrentWeek);
+      setSchedules(initialSchedules);
+      setSubjects(initialSubjects);
+      setSettings(initialSettings);
+      setLoading(false);
+    }
+  }, [initialCurrentWeek, initialWeeks, initialSchedules, initialSubjects, initialSettings]);
 
   // Only show classes that are actually assigned to the logged-in teacher in active schedules
   const allClassesList = [
@@ -38,8 +56,11 @@ export default function TeacherWeeklyPlanPreviewPage() {
     ]),
   ].sort();
 
-  // Load Initial Metadata
+  // Load Initial Metadata only if not provided by parent
   useEffect(() => {
+    if (initialCurrentWeek) return;
+    if (authLoading || !user) return;
+
     const initData = async () => {
       try {
         setLoading(true);
@@ -62,6 +83,10 @@ export default function TeacherWeeklyPlanPreviewPage() {
           setSchedules(schedRes.data?.schedules || []);
         }
       } catch (err) {
+        if (err.response?.status === 401) {
+          // Token expired or invalid — api interceptor handles redirection to /login
+          return;
+        }
         console.error("Error loading weekly plan preview:", err);
         toast.error("حدث خطأ أثناء تحميل بيانات الخطة الأسبوعية");
       } finally {
@@ -70,7 +95,7 @@ export default function TeacherWeeklyPlanPreviewPage() {
     };
 
     initData();
-  }, []);
+  }, [authLoading, user, initialCurrentWeek]);
 
   useEffect(() => {
     const container = classesScrollRef.current;
@@ -115,6 +140,7 @@ export default function TeacherWeeklyPlanPreviewPage() {
       const res = await schedulesService.getForTeacher(week._id);
       setSchedules(res.data?.schedules || []);
     } catch (err) {
+      if (err.response?.status === 401) return;
       toast.error("فشل جلب جدول الأسبوع المختار");
     } finally {
       setLoading(false);

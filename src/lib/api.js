@@ -16,7 +16,11 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
-      const token = Cookies.get('auth_token') || localStorage.getItem('auth_token');
+      const token =
+        Cookies.get('auth_token') ||
+        Cookies.get('token') ||
+        localStorage.getItem('auth_token') ||
+        localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -35,10 +39,12 @@ api.interceptors.response.use(
       const isAuthEndpoint = url.includes('/auth/me') || url.includes('/auth/login');
       const isLoginPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/login');
 
-      // Clear token
+      // Clear tokens
       if (typeof window !== 'undefined') {
         Cookies.remove('auth_token');
+        Cookies.remove('token');
         localStorage.removeItem('auth_token');
+        localStorage.removeItem('token');
       }
 
       // Only redirect if NOT already on login page and NOT an auth check

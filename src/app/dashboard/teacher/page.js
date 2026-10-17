@@ -17,7 +17,7 @@ import TeacherWeeklyPlanPreviewPage from "@/components/schedule/TeacherWeeklyPla
 const isBlank = (value) => !value || value.trim() === "";
 
 export default function TeacherDashboardPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const toast = useToast();
 
   const [activeTab, setActiveTab] = useState("plan");
@@ -30,6 +30,8 @@ export default function TeacherDashboardPage() {
   const [availableModalOpen, setAvailableModalOpen] = useState(false);
 
   useEffect(() => {
+    if (authLoading || !user) return;
+
     const loadInitialData = async () => {
       try {
         setLoading(true);
@@ -54,6 +56,7 @@ export default function TeacherDashboardPage() {
           setSchedules(schedulesRes.data?.schedules || []);
         }
       } catch (error) {
+        if (error.response?.status === 401) return;
         console.error("Error loading teacher schedule:", error);
         toast.error("حدث خطأ أثناء تحميل بيانات الجدول");
       } finally {
@@ -62,7 +65,7 @@ export default function TeacherDashboardPage() {
     };
 
     loadInitialData();
-  }, [toast]);
+  }, [authLoading, user, toast]);
 
 
 
@@ -242,7 +245,13 @@ export default function TeacherDashboardPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            <TeacherWeeklyPlanPreviewPage/>
+            <TeacherWeeklyPlanPreviewPage
+              initialWeeks={weeks}
+              initialCurrentWeek={currentWeek}
+              initialSchedules={schedules}
+              initialSubjects={subjects}
+              initialSettings={settings}
+            />
           </div>
         )}
       </ErrorBoundary>
