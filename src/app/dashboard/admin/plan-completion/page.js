@@ -264,13 +264,15 @@ export default function AdminPlanCompletionPage() {
       ? toCount(item.completedCount)
       : preparedLessonCount;
 
-    // Completion percentage: based on prepared lessons
+    // Completion percentage: based on prepared lessons and started progress
     const completionRate = hasClasses
-      ? Math.round((completedCount / totalAssigned) * 100)
+      ? (item.completionRate !== undefined
+          ? toCount(item.completionRate)
+          : Math.round((completedCount / totalAssigned) * 100))
       : null;
 
-    let status = "NO_CLASSES";
-    if (hasClasses) {
+    let status = item.status || "NO_CLASSES";
+    if (hasClasses && !item.status) {
       if (completedCount === totalAssigned) {
         status = "COMPLETED";
       } else if (completedCount === 0 && (rawMissingHomeworkCount === totalAssigned || !homeworkRequired)) {

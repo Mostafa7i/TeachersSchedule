@@ -199,11 +199,11 @@ export default function AILessonSuggest({ cell, onApply, peerSchedules = [] }) {
               aria-hidden="true"
             />
 
-            {/* بطاقة البوب اب المدمجة: أقصى عرض 420px وأقصى ارتفاع 70vh */}
+            {/* بطاقة البوب اب المدمجة: أقصى عرض 420px وأقصى ارتفاع 75vh */}
             <div
               role="dialog"
               aria-modal="true"
-              className="relative z-10 w-[92%] sm:w-105 max-w-105 max-h-[70vh] bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150"
+              className="relative z-10 w-[92%] sm:w-[420px] max-w-[420px] max-h-[75vh] bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header: شريط علوي أنيق ومدمج مع زر إغلاق صريح ومباشر */}
