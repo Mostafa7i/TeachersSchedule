@@ -31,6 +31,8 @@ export default function MasterTimetableGrid({
   const [customClassName, setCustomClassName] = useState("");
   const [roomName, setRoomName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isCustomTeacher, setIsCustomTeacher] = useState(false);
+  const [customTeacherName, setCustomTeacherName] = useState("");
 
   const daysList = settings?.workDays || [
     "الأحد",
@@ -136,6 +138,13 @@ export default function MasterTimetableGrid({
       setCustomClassName(cell.className || "");
       setSelectedSubjectId(cell.subject?._id || cell.subject || "");
       setRoomName(cell.room || "");
+      if (cell.customTeacherName) {
+        setIsCustomTeacher(true);
+        setCustomTeacherName(cell.customTeacherName);
+      } else {
+        setIsCustomTeacher(false);
+        setCustomTeacherName("");
+      }
     } else {
       setCustomClassName("");
       const defaultSubj =
@@ -144,6 +153,8 @@ export default function MasterTimetableGrid({
           : subjects[0]?._id || "";
       setSelectedSubjectId(defaultSubj);
       setRoomName("");
+      setIsCustomTeacher(false);
+      setCustomTeacherName("");
     }
 
     setModalOpen(true);
@@ -157,14 +168,24 @@ export default function MasterTimetableGrid({
     setCustomClassName(className);
 
     if (cell) {
-      setSelectedTeacherId(cell.teacher?._id || cell.teacher || "");
       setSelectedSubjectId(cell.subject?._id || cell.subject || "");
       setRoomName(cell.room || "");
-      const foundTeacher = teachers.find(
-        (t) => t._id === (cell.teacher?._id || cell.teacher),
-      );
-      setActiveTeacher(foundTeacher || null);
+      if (cell.customTeacherName) {
+        setIsCustomTeacher(true);
+        setCustomTeacherName(cell.customTeacherName);
+        setSelectedTeacherId("__custom__");
+        setActiveTeacher(null);
+      } else {
+        setIsCustomTeacher(false);
+        setCustomTeacherName("");
+        const tId = cell.teacher?._id || cell.teacher || "";
+        setSelectedTeacherId(tId);
+        const foundTeacher = teachers.find((t) => t._id === tId);
+        setActiveTeacher(foundTeacher || null);
+      }
     } else {
+      setIsCustomTeacher(false);
+      setCustomTeacherName("");
       setSelectedTeacherId(teachers[0]?._id || "");
       setSelectedSubjectId(subjects[0]?._id || "");
       setRoomName("");
@@ -176,8 +197,12 @@ export default function MasterTimetableGrid({
 
   // Save Master Cell
   const handleSaveCell = async () => {
-    if (!selectedTeacherId) {
+    if (!isCustomTeacher && !selectedTeacherId) {
       toast.error("يرجى اختيار المعلم");
+      return;
+    }
+    if (isCustomTeacher && !customTeacherName.trim()) {
+      toast.error("يرجى كتابة اسم المعلم");
       return;
     }
     if (!selectedSubjectId) {
@@ -191,7 +216,8 @@ export default function MasterTimetableGrid({
         weekId: week._id,
         day: activeDay,
         period: activePeriod,
-        teacherId: selectedTeacherId,
+        teacherId: isCustomTeacher ? null : selectedTeacherId,
+        customTeacherName: isCustomTeacher ? customTeacherName.trim() : "",
         subjectId: selectedSubjectId,
         className: customClassName.trim(),
         room: roomName.trim(),
@@ -211,15 +237,15 @@ export default function MasterTimetableGrid({
 
   // Clear Cell
   const handleClearCell = async () => {
-    if (!selectedTeacherId) return;
-
     setSaving(true);
     try {
       await schedulesService.saveMasterCell({
         weekId: week._id,
         day: activeDay,
         period: activePeriod,
-        teacherId: selectedTeacherId,
+        teacherId: isCustomTeacher ? null : selectedTeacherId,
+        customTeacherName: isCustomTeacher ? customTeacherName.trim() : "",
+        className: customClassName.trim(),
         subjectId: null, // triggers delete/clear
       });
 
@@ -228,7 +254,8 @@ export default function MasterTimetableGrid({
         onScheduleUpdated({
           day: activeDay,
           period: activePeriod,
-          teacherId: selectedTeacherId,
+          teacherId: isCustomTeacher ? null : selectedTeacherId,
+          className: customClassName.trim(),
           cleared: true,
         });
       }
@@ -513,7 +540,7 @@ export default function MasterTimetableGrid({
                 <div className="grid grid-cols-2 gap-2">
                   {periodsList.map((p) => {
                     const cell = classMatrix[selectedDay]?.[className]?.[p];
-                    const hasTeacher = !!cell?.teacher;
+                    const hasTeacher = !!(cell?.teacher || cell?.customTeacherName);
 
                     return (
                       <div
@@ -536,7 +563,7 @@ export default function MasterTimetableGrid({
                         {hasTeacher ? (
                           <div>
                             <p className="font-black text-xs text-emerald-950">
-                              👨‍🏫 {cell.teacher?.name}
+                              👨‍🏫 {cell.teacher?.name || cell.customTeacherName}
                             </p>
                             <div className="flex items-center justify-between text-[10px] text-gray-500 mt-0.5">
                               <span>{cell.subject?.name}</span>
@@ -800,7 +827,7 @@ export default function MasterTimetableGrid({
                                 {hasSchedule ? (
                                   <div className="space-y-0.5">
                                     <p className="text-xs font-black text-slate-900 leading-tight">
-                                      {cell.teacher?.name || "معلم"}
+                                      {cell.teacher?.name || cell.customTeacherName || "معلم"}
                                     </p>
                                     {cell.subject?.name && (
                                       <span
@@ -851,7 +878,7 @@ export default function MasterTimetableGrid({
                                 {hasSchedule ? (
                                   <div className="space-y-0.5">
                                     <p className="text-xs font-black text-slate-900 leading-tight">
-                                      {cell.teacher?.name || "معلم"}
+                                      {cell.teacher?.name || cell.customTeacherName || "معلم"}
                                     </p>
                                     {cell.subject?.name && (
                                       <span
@@ -929,31 +956,71 @@ export default function MasterTimetableGrid({
         <div className="space-y-4">
           {/* Teacher Picker (if in classes view or changing teacher) */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">
-              المعلم المسند <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={selectedTeacherId}
-              onChange={(e) => {
-                const tId = e.target.value;
-                setSelectedTeacherId(tId);
-                const found = teachers.find((t) => t._id === tId);
-                setActiveTeacher(found || null);
-                if (found && found.subjects && found.subjects.length > 0) {
-                  setSelectedSubjectId(
-                    found.subjects[0]._id || found.subjects[0],
-                  );
-                }
-              }}
-              className="w-full px-3.5 py-2 text-xs font-bold bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            >
-              <option value="">-- اختر المعلم --</option>
-              {teachers.map((t) => (
-                <option key={t._id} value={t._id}>
-                  👨‍🏫 {t.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-gray-700">
+                المعلم المسند <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextState = !isCustomTeacher;
+                  setIsCustomTeacher(nextState);
+                  if (nextState) {
+                    setSelectedTeacherId("__custom__");
+                  } else {
+                    setSelectedTeacherId(teachers[0]?._id || "");
+                    setActiveTeacher(teachers[0] || null);
+                  }
+                }}
+                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+              >
+                {isCustomTeacher ? "📋 اختيار معلم مسجل" : "✍️ كتابة معلم بديل / خارجي"}
+              </button>
+            </div>
+
+            {isCustomTeacher ? (
+              <div className="space-y-1.5">
+                <input
+                  type="text"
+                  value={customTeacherName}
+                  onChange={(e) => setCustomTeacherName(e.target.value)}
+                  placeholder="اكتب اسم المعلم البديل أو الخارجي (مثال: أ. محمد بديل)"
+                  className="w-full px-3.5 py-2 text-xs font-bold bg-amber-50/50 border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+                <p className="text-[11px] text-amber-700 font-medium">
+                  💡 يمكنك كتابة أي اسم لمعلم غير مسجل في النظام كمعلم بديل أو منتدب.
+                </p>
+              </div>
+            ) : (
+              <select
+                value={selectedTeacherId}
+                onChange={(e) => {
+                  const tId = e.target.value;
+                  if (tId === "__custom__") {
+                    setIsCustomTeacher(true);
+                    setSelectedTeacherId("__custom__");
+                    return;
+                  }
+                  setSelectedTeacherId(tId);
+                  const found = teachers.find((t) => t._id === tId);
+                  setActiveTeacher(found || null);
+                  if (found && found.subjects && found.subjects.length > 0) {
+                    setSelectedSubjectId(
+                      found.subjects[0]._id || found.subjects[0],
+                    );
+                  }
+                }}
+                className="w-full px-3.5 py-2 text-xs font-bold bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                <option value="">-- اختر المعلم --</option>
+                {teachers.map((t) => (
+                  <option key={t._id} value={t._id}>
+                    👨‍🏫 {t.name}
+                  </option>
+                ))}
+                <option value="__custom__">✍️ كتابة اسم معلم آخر غير مسجل...</option>
+              </select>
+            )}
           </div>
 
           {/* Subject Picker */}

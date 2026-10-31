@@ -299,9 +299,9 @@ function ClassScheduleCard({ className, week, schedules, settings, cardId }) {
                             </div>
 
                             {/* Teacher */}
-                            {cell.teacher?.name && (
+                            {(cell.teacher?.name || cell.customTeacherName) && (
                               <p className="text-xs text-slate-500 mb-1 font-medium">
-                                👨‍🏫 {cell.teacher.name}
+                                👨‍🏫 {cell.teacher?.name || cell.customTeacherName}
                                 {cell.room && (
                                   <span className="mr-2 text-slate-400">
                                     📍 {cell.room}

@@ -22,9 +22,11 @@ export default function ScheduleCellEditModal({
 }) {
   const { user, hasPermission, isAdmin } = useAuth();
 
+  const [isCustomTeacher, setIsCustomTeacher] = useState(false);
   const [formData, setFormData] = useState({
     subject: "",
     teacher: "",
+    customTeacherName: "",
     className: "",
     room: "",
     lessonTitle: "",
@@ -101,9 +103,29 @@ export default function ScheduleCellEditModal({
     setShowWarningPrompt(false);
     setShowBulkConfirm(false);
     if (schedule) {
+      const customName =
+        schedule.customTeacherName ||
+        (schedule.teacher?.isCustom ? schedule.teacher.name : "") ||
+        (schedule.teacher &&
+        typeof schedule.teacher === "object" &&
+        !schedule.teacher._id
+          ? schedule.teacher.name
+          : "") ||
+        "";
+      const hasCustom = Boolean(
+        customName &&
+          (!schedule.teacher ||
+            schedule.teacher.isCustom ||
+            !schedule.teacher._id),
+      );
+      setIsCustomTeacher(hasCustom);
+
       setFormData({
         subject: schedule.subject?._id || schedule.subject || "",
-        teacher: schedule.teacher?._id || schedule.teacher || "",
+        teacher: hasCustom
+          ? ""
+          : schedule.teacher?._id || schedule.teacher || "",
+        customTeacherName: customName,
         className: schedule.className || defaultClassName || "",
         room: schedule.room || "",
         lessonTitle: schedule.lessonTitle || "",
@@ -112,11 +134,13 @@ export default function ScheduleCellEditModal({
         notes: schedule.notes || "",
       });
     } else {
+      setIsCustomTeacher(false);
       const defaultSubject =
         availableSubjects.length > 0 ? availableSubjects[0]._id : "";
       setFormData({
         subject: defaultSubject,
         teacher: isSuperAdmin ? teachers[0]?._id || "" : user?._id || "",
+        customTeacherName: "",
         className: defaultClassName || "",
         room: "",
         lessonTitle: "",
@@ -130,6 +154,10 @@ export default function ScheduleCellEditModal({
   const executeSave = () => {
     onSave({
       ...formData,
+      teacher: isCustomTeacher ? null : formData.teacher || null,
+      customTeacherName: isCustomTeacher
+        ? formData.customTeacherName.trim()
+        : "",
       week: week?._id,
       day,
       period,
@@ -366,23 +394,83 @@ export default function ScheduleCellEditModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  المعلم المسند
-                </label>
-                <select
-                  value={formData.teacher}
-                  onChange={(e) =>
-                    setFormData({ ...formData, teacher: e.target.value })
-                  }
-                  className="w-full px-3 py-2 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                >
-                  <option value="">-- اختر المعلم --</option>
-                  {teachers.map((t) => (
-                    <option key={t._id} value={t._id}>
-                      👨‍🏫 {t.name}
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-gray-700">
+                    المعلم المسند
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isCustomTeacher;
+                      setIsCustomTeacher(next);
+                      if (next) {
+                        setFormData((prev) => ({ ...prev, teacher: "" }));
+                      } else {
+                        setFormData((prev) => ({
+                          ...prev,
+                          customTeacherName: "",
+                        }));
+                      }
+                    }}
+                    className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                  >
+                    {isCustomTeacher
+                      ? "← اختيار من المسجلين"
+                      : "✍️ كتابة معلم بديل"}
+                  </button>
+                </div>
+
+                {isCustomTeacher ? (
+                  <div className="space-y-1">
+                    <input
+                      type="text"
+                      value={formData.customTeacherName}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          customTeacherName: e.target.value,
+                          teacher: "",
+                        })
+                      }
+                      placeholder="اكتب اسم المعلم (مثال: أ. محمد بديل)"
+                      className="w-full px-3 py-2 text-xs font-bold bg-amber-50/70 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                    <p className="text-[10px] text-amber-700 font-semibold">
+                      💡 معلم منتدب أو غير مسجل في الحسابات
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    value={formData.teacher}
+                    onChange={(e) => {
+                      if (e.target.value === "__custom__") {
+                        setIsCustomTeacher(true);
+                        setFormData({
+                          ...formData,
+                          teacher: "",
+                          customTeacherName: "",
+                        });
+                      } else {
+                        setFormData({
+                          ...formData,
+                          teacher: e.target.value,
+                          customTeacherName: "",
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-2 text-xs font-bold bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  >
+                    <option value="">-- اختر المعلم --</option>
+                    {teachers.map((t) => (
+                      <option key={t._id} value={t._id}>
+                        👨‍🏫 {t.name}
+                      </option>
+                    ))}
+                    <option value="__custom__">
+                      ✍️ كتابة اسم معلم آخر غير مسجل...
                     </option>
-                  ))}
-                </select>
+                  </select>
+                )}
               </div>
 
               <div>

@@ -137,20 +137,26 @@ export default function WeeklyScheduleTable({
     if (!cellData || readOnly) return false;
     if (canEditAny) return true;
 
+    // If assigned to a custom/external teacher, regular teachers cannot edit it
+    if (cellData.customTeacherName || cellData.teacher?.isCustom) {
+      return false;
+    }
+
     // For a teacher:
     // 1. If assigned to a teacher, it MUST match the current logged-in user
     if (cellData.teacher && user?._id) {
+      const teacherObj = cellData.teacher;
       const cellTeacherId = (
-        cellData.teacher._id || cellData.teacher
-      ).toString();
-      if (cellTeacherId !== user._id.toString()) {
+        teacherObj._id || (typeof teacherObj === "string" ? teacherObj : null)
+      )?.toString();
+      if (!cellTeacherId || cellTeacherId !== user._id.toString()) {
         return false; // Assigned to another teacher!
       }
       return true; // Assigned to this teacher
     }
 
     // 2. If no teacher is assigned to this slot yet, allow editing if subject matches teacher's subjects
-    if (!cellData.teacher && canEditGranular && cellData.subject) {
+    if (!cellData.teacher && !cellData.customTeacherName && canEditGranular && cellData.subject) {
       const cellSubjectId = cellData.subject._id
         ? cellData.subject._id.toString()
         : cellData.subject.toString();
@@ -815,9 +821,9 @@ export default function WeeklyScheduleTable({
                                 <span>تعديل بيانات الحصة</span>
                               </button>
                             )}
-                            {cell.teacher?.name && (
+                            {(cell.teacher?.name || cell.customTeacherName) && (
                               <span className="text-[11px] text-slate-500 font-medium">
-                                👨‍🏫 {cell.teacher.name}
+                                👨‍🏫 {cell.teacher?.name || cell.customTeacherName}
                               </span>
                             )}
                           </div>
@@ -1210,9 +1216,9 @@ export default function WeeklyScheduleTable({
                                   : cell.subject}
                               </span>
                             </div>
-                            {cell.teacher?.name && (
+                            {(cell.teacher?.name || cell.customTeacherName) && (
                               <p className="text-xs text-slate-500">
-                                👨‍🏫 {cell.teacher.name}
+                                👨‍🏫 {cell.teacher?.name || cell.customTeacherName}
                               </p>
                             )}
                             {cell.className && selectedClass && (
