@@ -29,7 +29,7 @@ export default function WeeklyScheduleTable({
   const toast = useToast();
 
   const [mobileLayout, setMobileLayout] = useState("cards"); // "cards" | "table"
-  const [selectedMobileDay, setSelectedMobileDay] = useState("");
+  const [selectedMobileDay, setSelectedMobileDay] = useState("__all__"); // "__all__" = show all days
 
   // Local state for inline editable cell values: { [scheduleId]: { lessonTitle, homework, activities, notes } }
   const [localEdits, setLocalEdits] = useState({});
@@ -64,11 +64,11 @@ export default function WeeklyScheduleTable({
   const ZOOM_STEP = 0.1;
   // Keep the selected mobile day valid when work-day settings load or change.
   useEffect(() => {
-    setSelectedMobileDay((currentDay) =>
-      currentDay && daysList.includes(currentDay)
-        ? currentDay
-        : daysList[0] || "",
-    );
+    setSelectedMobileDay((currentDay) => {
+      if (currentDay === "__all__") return "__all__";
+      if (currentDay && daysList.includes(currentDay)) return currentDay;
+      return "__all__";
+    });
   }, [daysList.join("|")]);
 
   // Filter schedules if a specific class is selected
@@ -212,7 +212,7 @@ export default function WeeklyScheduleTable({
           handleSaveRow(currentCell);
         }
         delete autoSaveTimers.current[cellId];
-      }, 850);
+      }, 2000);
     });
 
     return () => {
@@ -238,7 +238,6 @@ export default function WeeklyScheduleTable({
     if (!cell || !cell._id) return;
     const edits = localEdits[cell._id];
     if (!edits || savingRowId === cell._id) {
-      toast.info("لم يتم إجراء أي تعديل جديد على هذه الحصة");
       return;
     }
 
@@ -307,7 +306,8 @@ export default function WeeklyScheduleTable({
         return next;
       });
 
-      toast.success("تم حفظ الخطة بنجاح ✅");
+      // Auto-save completed silently — visual feedback is shown inline on each card.
+      // toast.success() is not called here to avoid spamming the user while typing.
     } catch (err) {
       toast.error(err.response?.data?.message || "فشل حفظ الخطة");
     } finally {
@@ -443,14 +443,24 @@ export default function WeeklyScheduleTable({
 
       {unsavedCount > 0 && !readOnly && (
         <div
-          className="bg-blue-50 border border-blue-200 text-blue-900 p-3 rounded-2xl flex items-center gap-2 no-print no-export"
+          className="bg-blue-50 border border-blue-200 text-blue-900 p-3 rounded-2xl flex items-center justify-between gap-2 no-print no-export shadow-xs"
           role="status"
           aria-live="polite"
         >
-          <span className="text-base">☁️</span>
-          <span className="text-xs sm:text-sm font-bold">
-            يتم حفظ التعديلات تلقائيًا بعد الانتهاء من الكتابة...
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-base animate-pulse">☁️</span>
+            <span className="text-xs sm:text-sm font-bold">
+              يوجد ({unsavedCount}) تعديل يتم حفظه تلقائياً...
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={bulkSaving}
+            onClick={handleSaveAll}
+            className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition cursor-pointer"
+          >
+            {bulkSaving ? "جارٍ الحفظ..." : "حفظ الآن"}
+          </button>
         </div>
       )}
       {/* View Switcher Controls on Mobile */}
@@ -482,16 +492,103 @@ export default function WeeklyScheduleTable({
           mobileLayout === "cards" ? "block md:hidden space-y-3.5" : "hidden"
         }`}
       >
-        {/* Day Selector Pills */}
+        {/* ── Mobile Progress Summary ── */}
+        {(() => {
+          const allEditableCells = schedules.filter((c) =>
+            canEditAny ? true : checkCanEditCell(c),
+          );
+          const totalCells = allEditableCells.length;
+          const missingLesson = allEditableCells.filter((c) =>
+            isBlank(getCellValue(c, "lessonTitle")),
+          ).length;
+          const missingHomework = allEditableCells.filter((c) =>
+            isBlank(getCellValue(c, "homework")),
+          ).length;
+          const completedAll = missingLesson === 0 && missingHomework === 0;
+          if (totalCells === 0) return null;
+
+          return (
+            <div
+              className={`rounded-2xl border p-3 text-xs font-bold ${
+                completedAll
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                  : "bg-amber-50 border-amber-200 text-amber-900"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="flex items-center gap-1.5">
+                  {completedAll ? "🎉" : "📋"}
+                  <span>
+                    {completedAll
+                      ? "ممتاز! تم تعبئة جميع الحصص"
+                      : "ملخص إنجاز التحضير"}
+                  </span>
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                    completedAll
+                      ? "bg-emerald-600 text-white"
+                      : "bg-amber-600 text-white"
+                  }`}
+                >
+                  {Math.round(
+                    ((totalCells - missingLesson) / totalCells) * 100,
+                  )}
+                  %
+                </span>
+              </div>
+              {!completedAll && (
+                <div className="flex items-center gap-3 flex-wrap">
+                  {missingLesson > 0 && (
+                    <span className="flex items-center gap-1 text-red-700 bg-red-100 px-2 py-0.5 rounded-lg">
+                      📖 {missingLesson} درس ناقص
+                    </span>
+                  )}
+                  {missingHomework > 0 && (
+                    <span className="flex items-center gap-1 text-orange-700 bg-orange-100 px-2 py-0.5 rounded-lg">
+                      📝 {missingHomework} واجب ناقص
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Day Selector Pills — "الكل" is default */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
+          {/* "الكل" pill */}
+          <button
+            type="button"
+            onClick={() => setSelectedMobileDay("__all__")}
+            className={`shrink-0 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              selectedMobileDay === "__all__"
+                ? "bg-slate-900 text-white shadow-xs"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            <span>📅 الكل</span>
+          </button>
           {daysList.map((day) => {
-            const isSel = (selectedMobileDay || daysList[0]) === day;
+            const isSel = selectedMobileDay === day;
             const entriesCount = periodsList.reduce((acc, p) => {
               const slots = scheduleMatrix[day]?.[p] || [];
               const count = canEditAny
                 ? slots.length
                 : slots.filter((c) => checkCanEditCell(c)).length;
               return acc + count;
+            }, 0);
+            // Count missing lessons for this day
+            const dayMissing = periodsList.reduce((acc, p) => {
+              const slots = scheduleMatrix[day]?.[p] || [];
+              const visible = canEditAny
+                ? slots
+                : slots.filter((c) => checkCanEditCell(c));
+              return (
+                acc +
+                visible.filter((c) => isBlank(getCellValue(c, "lessonTitle")))
+                  .length
+              );
             }, 0);
             return (
               <button
@@ -501,315 +598,398 @@ export default function WeeklyScheduleTable({
                 className={`shrink-0 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                   isSel
                     ? "bg-blue-600 text-white shadow-xs"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    : dayMissing > 0
+                      ? "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 <span>{day}</span>
                 <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSel ? "bg-white/25 text-white" : "bg-gray-200 text-gray-600"}`}
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                    isSel
+                      ? "bg-white/25 text-white"
+                      : dayMissing > 0
+                        ? "bg-red-200 text-red-700"
+                        : "bg-gray-200 text-gray-600"
+                  }`}
                 >
                   {entriesCount}
                 </span>
+                {dayMissing > 0 && !isSel && (
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                )}
               </button>
             );
           })}
         </div>
 
-        {/* Day Banner */}
-        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-2xl text-xs font-bold text-slate-700">
-          <span>
-            📅 خطة حصص يوم {selectedMobileDay || daysList[0]} (
-            {getDayDateFormatted(selectedMobileDay || daysList[0])})
-          </span>
-        </div>
-
-        {/* Period Cards with Direct Inline Inputs */}
-        <div className="space-y-3">
-          {periodsList.map((period) => {
-            const currentDay = selectedMobileDay || daysList[0];
-            const cellEntries = scheduleMatrix[currentDay]?.[period] || [];
-
-            // For non-admin teachers: only show cells assigned to this teacher!
-            const visibleEntries = canEditAny
-              ? cellEntries
-              : cellEntries.filter((cell) => checkCanEditCell(cell));
-
-            if (visibleEntries.length === 0) {
-              // If teacher has no class assigned in this period -> show Lock card!
-              if (!canEditAny) {
-                return (
-                  <div
-                    key={period}
-                    className="p-4 bg-slate-100/70 border border-slate-200/80 rounded-3xl flex items-center justify-between shadow-2xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-8 h-8 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center font-black text-xs">
-                        {period}
-                      </span>
-                      <div>
-                        <span className="font-bold text-xs text-slate-700 block">
-                          الحصة {period}
-                        </span>
-                        <span className="text-[11px] text-slate-400 font-medium">
-                          حصة غير مسندة لجدولك
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold shadow-2xs">
-                      <Lock size={14} className="text-amber-500" />
-                      <span>مغلق</span>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Admin empty slot
-              return (
-                <div
-                  key={period}
-                  className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-2xl flex items-center justify-between gap-3 text-xs text-slate-500"
-                >
-                  <div>
-                    <span className="font-bold block text-slate-700">
-                      الحصة {period}
+        {/* Render periods — show all days or just the selected one */}
+        {(selectedMobileDay === "__all__" ? daysList : [selectedMobileDay]).map(
+          (currentDay) => (
+            <div key={currentDay} className="space-y-3">
+              {/* Day Banner */}
+              <div className="flex items-center justify-between bg-slate-800 text-white px-3.5 py-2 rounded-2xl text-xs font-bold sticky top-0 z-10 shadow-sm">
+                <span className="flex items-center gap-1.5">
+                  <span>📅</span>
+                  <span>
+                    {currentDay} ({getDayDateFormatted(currentDay)})
+                  </span>
+                </span>
+                {(() => {
+                  const dayMissing = periodsList.reduce((acc, p) => {
+                    const slots = scheduleMatrix[currentDay]?.[p] || [];
+                    const visible = canEditAny
+                      ? slots
+                      : slots.filter((c) => checkCanEditCell(c));
+                    return (
+                      acc +
+                      visible.filter((c) =>
+                        isBlank(getCellValue(c, "lessonTitle")),
+                      ).length
+                    );
+                  }, 0);
+                  return dayMissing > 0 ? (
+                    <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">
+                      {dayMissing} ناقص
                     </span>
-                    <span>لا توجد حصة مسندة</span>
-                  </div>
-                  {isSuperAdmin && onEditCell && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onEditCell(null, currentDay, period, selectedClass)
-                      }
-                      className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-black text-white shadow-sm transition hover:bg-blue-700"
-                      title="إضافة حصة وتحديد المادة والمدرس والفصل"
-                    >
-                      <span>＋</span>
-                      <span>إضافة حصة</span>
-                    </button>
-                  )}
-                </div>
-              );
-            }
+                  ) : (
+                    <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                      ✓ مكتمل
+                    </span>
+                  );
+                })()}
+              </div>
 
-            return visibleEntries.map((cell, entryIdx) => {
-              const canEdit =
-                checkCanEditCell(cell) && !readOnly && enableInlineEdit;
-              const lockedCell = !canEdit;
-              const isDirty = Boolean(localEdits[cell._id]);
-              const isSaved = Boolean(savedRowSuccess[cell._id]);
-              const isSaving = savingRowId === cell._id;
-              const classStyle = getClassBadgeStyle(cell.className);
+              {/* Period Cards */}
+              <div className="space-y-3">
+                {periodsList.map((period) => {
+                  const cellEntries =
+                    scheduleMatrix[currentDay]?.[period] || [];
 
-              return (
-                <div
-                  key={cell._id || `${period}-${entryIdx}`}
-                  className={`p-4 rounded-2xl border shadow-xs transition-all space-y-3 ${
-                    lockedCell
-                      ? "bg-slate-100 border-slate-300 text-slate-700"
-                      : isDirty
-                        ? "bg-amber-50/60 border-amber-300 ring-1 ring-amber-300"
-                        : isSaved
-                          ? "bg-emerald-50/60 border-emerald-300 ring-1 ring-emerald-300"
-                          : "bg-white border-gray-200"
-                  }`}
-                >
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-xs">
-                        {period}
-                      </span>
-                      {cell.className && (
-                        <span
-                          className={`text-xs font-black px-2.5 py-0.5 rounded-lg border ${classStyle.badge}`}
+                  // For non-admin teachers: only show cells assigned to this teacher!
+                  const visibleEntries = canEditAny
+                    ? cellEntries
+                    : cellEntries.filter((cell) => checkCanEditCell(cell));
+
+                  if (visibleEntries.length === 0) {
+                    // If teacher has no class assigned in this period -> show Lock card!
+                    if (!canEditAny) {
+                      return (
+                        <div
+                          key={`${currentDay}-${period}`}
+                          className="p-3 bg-slate-100/70 border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-2xs"
                         >
-                          {cell.className}
-                        </span>
-                      )}
-                      <span className="font-bold text-xs text-slate-800">
-                        {typeof cell.subject === "object"
-                          ? cell.subject?.name || "المادة"
-                          : cell.subject || "المادة"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {isSuperAdmin && onEditCell && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onEditCell(
-                              cell,
-                              currentDay,
-                              period,
-                              cell.className || selectedClass,
-                            )
-                          }
-                          className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-700 transition hover:bg-blue-100"
-                          title="تعديل المادة والمدرس والفصل والقاعة"
-                        >
-                          <span>✎</span>
-                          <span>تعديل بيانات الحصة</span>
-                        </button>
-                      )}
-                      {cell.teacher?.name && (
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          👨‍🏫 {cell.teacher.name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-7 h-7 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center font-black text-xs">
+                              {period}
+                            </span>
+                            <div>
+                              <span className="font-bold text-xs text-slate-700 block">
+                                الحصة {period}
+                              </span>
+                              <span className="text-[11px] text-slate-400 font-medium">
+                                حصة غير مسندة لجدولك
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold shadow-2xs">
+                            <Lock size={13} className="text-amber-500" />
+                            <span>مغلق</span>
+                          </div>
+                        </div>
+                      );
+                    }
 
-                  {cell.className && canEdit && (
-                    <button
-                      type="button"
-                      disabled={bulkSaving}
-                      onClick={() =>
-                        handleCopyClassData(cell, currentDay, period)
-                      }
-                      className="no-print inline-flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-black text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
-                      title="نسخ كل بيانات الفصل للفصول من نفس الفئة"
-                    >
-                      <span aria-hidden="true">⧉</span>
-                      {bulkSaving
-                        ? "جارٍ النسخ..."
-                        : "نسخ كل بيانات الفصل للفئة"}
-                    </button>
-                  )}
-
-                  {/* Inline Form Fields */}
-                  <div className="space-y-2.5">
-                    {/* Lesson Title */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                          <span>📖</span>
-                          <span>عنوان وموضوع الدرس:</span>
-                        </label>
-                        {cell._id && (
-                          <AILessonSuggest
-                            cell={cell}
-                            onApply={handleInputChange}
-                            peerSchedules={schedules}
-                          />
+                    // Admin empty slot
+                    return (
+                      <div
+                        key={`${currentDay}-${period}`}
+                        className="p-3 bg-slate-50 border border-dashed border-slate-300 rounded-2xl flex items-center justify-between gap-3 text-xs text-slate-500"
+                      >
+                        <div>
+                          <span className="font-bold block text-slate-700">
+                            الحصة {period}
+                          </span>
+                          <span>لا توجد حصة مسندة</span>
+                        </div>
+                        {isSuperAdmin && onEditCell && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onEditCell(
+                                null,
+                                currentDay,
+                                period,
+                                selectedClass,
+                              )
+                            }
+                            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-black text-white shadow-sm transition hover:bg-blue-700"
+                            title="إضافة حصة وتحديد المادة والمدرس والفصل"
+                          >
+                            <span>＋</span>
+                            <span>إضافة حصة</span>
+                          </button>
                         )}
                       </div>
-                      {canEdit ? (
-                        <input
-                          type="text"
-                          value={getCellValue(cell, "lessonTitle")}
-                          onChange={(e) =>
-                            handleInputChange(
-                              cell._id,
-                              "lessonTitle",
-                              e.target.value,
-                            )
-                          }
-                          placeholder="اكتب عنوان وموضوع الدرس هنا..."
-                          className={`w-full min-h-13 px-3 py-3 text-xs font-semibold text-slate-900 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all ${isBlank(getCellValue(cell, "lessonTitle")) ? "bg-red-50 border-red-300 placeholder:text-red-400" : "bg-white border-gray-200"}`}
-                        />
-                      ) : (
-                        <p
-                          className={`text-xs font-bold p-2 border rounded-xl ${
-                            isBlank(cell.lessonTitle)
-                              ? "bg-red-50 border-red-300 text-red-700"
-                              : "bg-slate-200/80 border-slate-300 text-slate-900"
-                          }`}
-                        >
-                          {isBlank(cell.lessonTitle) ? (
-                            <span className="text-red-600 italic font-bold">
-                              ⚠ لم يُسجل عنوان الدرس
-                            </span>
-                          ) : (
-                            cell.lessonTitle
-                          )}
-                        </p>
-                      )}
-                    </div>
+                    );
+                  }
 
-                    {/* Homework & Activities */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                          <span>📝</span>
-                          <span>الواجبات:</span>
-                        </label>
-                      </div>
-                      {canEdit ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <input
-                            type="text"
-                            value={getCellValue(cell, "homework")}
-                            onChange={(e) =>
-                              handleInputChange(
-                                cell._id,
-                                "homework",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="الواجب المنزلي (مثال: صـ 25 تمرين 3)"
-                            className={`w-full min-h-[52px] px-3 py-3 text-xs text-slate-900 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all ${isBlank(getCellValue(cell, "homework")) ? "bg-red-50 border-red-300 placeholder:text-red-400" : "bg-white border-gray-200"}`}
-                          />
-                          <input
-                            type="text"
-                            value={getCellValue(cell, "activities")}
-                            onChange={(e) =>
-                              handleInputChange(
-                                cell._id,
-                                "activities",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="الأنشطة الصفية (اختياري)"
-                            className="w-full min-h-[52px] px-3 py-3 text-xs text-slate-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm transition-all"
-                          />
+                  return visibleEntries.map((cell, entryIdx) => {
+                    const canEdit =
+                      checkCanEditCell(cell) && !readOnly && enableInlineEdit;
+                    const lockedCell = !canEdit;
+                    const isDirty = Boolean(localEdits[cell._id]);
+                    const isSaved = Boolean(savedRowSuccess[cell._id]);
+                    const isSaving = savingRowId === cell._id;
+                    const classStyle = getClassBadgeStyle(cell.className);
+                    const lessonMissing = isBlank(
+                      getCellValue(cell, "lessonTitle"),
+                    );
+                    const homeworkMissing = isBlank(
+                      getCellValue(cell, "homework"),
+                    );
+                    const hasMissing =
+                      canEdit && (lessonMissing || homeworkMissing);
+
+                    return (
+                      <div
+                        key={cell._id || `${currentDay}-${period}-${entryIdx}`}
+                        className={`p-4 rounded-2xl border shadow-xs transition-all space-y-3 ${
+                          lockedCell
+                            ? "bg-slate-100 border-slate-300 text-slate-700"
+                            : isSaved
+                              ? "bg-emerald-50/60 border-emerald-300 ring-1 ring-emerald-300"
+                              : isDirty
+                                ? "bg-amber-50/60 border-amber-300 ring-1 ring-amber-300"
+                                : hasMissing
+                                  ? "bg-white border-red-200 ring-1 ring-red-100"
+                                  : "bg-white border-gray-200"
+                        }`}
+                      >
+                        {/* Card Header */}
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-7 h-7 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                              {period}
+                            </span>
+                            {cell.className && (
+                              <span
+                                className={`text-xs font-black px-2.5 py-0.5 rounded-lg border ${classStyle.badge}`}
+                              >
+                                {cell.className}
+                              </span>
+                            )}
+                            <span className="font-bold text-xs text-slate-800">
+                              {typeof cell.subject === "object"
+                                ? cell.subject?.name || "المادة"
+                                : cell.subject || "المادة"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {/* Missing fields indicator */}
+                            {canEdit && lessonMissing && (
+                              <span className="text-[10px] font-black text-red-600 bg-red-100 px-1.5 py-0.5 rounded-md animate-pulse">
+                                📖 ناقص
+                              </span>
+                            )}
+                            {canEdit && homeworkMissing && (
+                              <span className="text-[10px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-md">
+                                📝 ناقص
+                              </span>
+                            )}
+                            {isSuperAdmin && onEditCell && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onEditCell(
+                                    cell,
+                                    currentDay,
+                                    period,
+                                    cell.className || selectedClass,
+                                  )
+                                }
+                                className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-700 transition hover:bg-blue-100"
+                                title="تعديل المادة والمدرس والفصل والقاعة"
+                              >
+                                <span>✎</span>
+                                <span>تعديل بيانات الحصة</span>
+                              </button>
+                            )}
+                            {cell.teacher?.name && (
+                              <span className="text-[11px] text-slate-500 font-medium">
+                                👨‍🏫 {cell.teacher.name}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      ) : (
-                        <p
-                          className={`text-xs p-2 border rounded-xl ${
-                            isBlank(cell.homework)
-                              ? "bg-red-50 border-red-300 text-red-700 font-bold"
-                              : "bg-slate-200/80 border-slate-300 text-slate-800"
-                          }`}
-                        >
-                          {isBlank(cell.homework) ? (
-                            <span className="text-red-700 font-bold">
-                              ⚠ الواجب غير مسجل
-                            </span>
-                          ) : (
-                            `واجب: ${cell.homework}`
-                          )}
-                          {cell.activities ? ` | نشاط: ${cell.activities}` : ""}
-                        </p>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Auto-save status */}
-                  <div className="flex items-center justify-end pt-1 border-t border-slate-100">
-                    <span className="text-[11px] font-bold" aria-live="polite">
-                      {isSaving ? (
-                        <span className="text-blue-600">
-                          ⏳ جارٍ الحفظ تلقائيًا...
-                        </span>
-                      ) : isDirty ? (
-                        <span className="text-amber-600">
-                          ● سيتم الحفظ تلقائيًا
-                        </span>
-                      ) : isSaved ? (
-                        <span className="text-emerald-600">
-                          ✓ تم الحفظ تلقائيًا
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">محفوظ تلقائيًا</span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-              );
-            });
-          })}
-        </div>
+                        {cell.className && canEdit && (
+                          <button
+                            type="button"
+                            disabled={bulkSaving}
+                            onClick={() =>
+                              handleCopyClassData(cell, currentDay, period)
+                            }
+                            className="no-print inline-flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-black text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
+                            title="نسخ كل بيانات الفصل للفصول من نفس الفئة"
+                          >
+                            <span aria-hidden="true">⧉</span>
+                            {bulkSaving
+                              ? "جارٍ النسخ..."
+                              : "نسخ كل بيانات الفصل للفئة"}
+                          </button>
+                        )}
+
+                        {/* Inline Form Fields */}
+                        <div className="space-y-2.5">
+                          {/* Lesson Title */}
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                <span>📖</span>
+                                <span>عنوان وموضوع الدرس:</span>
+                                {canEdit && lessonMissing && (
+                                  <span className="text-red-500 mr-1">
+                                    (مطلوب ⚠)
+                                  </span>
+                                )}
+                              </label>
+                              {cell._id && (
+                                <AILessonSuggest
+                                  cell={cell}
+                                  onApply={handleInputChange}
+                                  peerSchedules={schedules}
+                                />
+                              )}
+                            </div>
+                            {canEdit ? (
+                              <input
+                                type="text"
+                                value={getCellValue(cell, "lessonTitle")}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    cell._id,
+                                    "lessonTitle",
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="اكتب عنوان وموضوع الدرس هنا..."
+                                className={`w-full min-h-13 px-3 py-3 text-xs font-semibold text-slate-900 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all ${lessonMissing ? "bg-red-50 border-red-300 placeholder:text-red-400" : "bg-white border-gray-200"}`}
+                              />
+                            ) : (
+                              <p
+                                className={`text-xs font-bold p-2 border rounded-xl ${
+                                  isBlank(cell.lessonTitle)
+                                    ? "bg-red-50 border-red-300 text-red-700"
+                                    : "bg-slate-200/80 border-slate-300 text-slate-900"
+                                }`}
+                              >
+                                {isBlank(cell.lessonTitle) ? (
+                                  <span className="text-red-600 italic font-bold">
+                                    ⚠ لم يُسجل عنوان الدرس
+                                  </span>
+                                ) : (
+                                  cell.lessonTitle
+                                )}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Homework & Activities */}
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                                <span>📝</span>
+                                <span>الواجبات:</span>
+                                {canEdit && homeworkMissing && (
+                                  <span className="text-orange-500 mr-1">
+                                    (مطلوب ⚠)
+                                  </span>
+                                )}
+                              </label>
+                            </div>
+                            {canEdit ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input
+                                  type="text"
+                                  value={getCellValue(cell, "homework")}
+                                  onChange={(e) =>
+                                    handleInputChange(
+                                      cell._id,
+                                      "homework",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="الواجب المنزلي (مثال: صـ 25 تمرين 3)"
+                                  className={`w-full min-h-[52px] px-3 py-3 text-xs text-slate-900 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all ${homeworkMissing ? "bg-red-50 border-red-300 placeholder:text-red-400" : "bg-white border-gray-200"}`}
+                                />
+                                <input
+                                  type="text"
+                                  value={getCellValue(cell, "activities")}
+                                  onChange={(e) =>
+                                    handleInputChange(
+                                      cell._id,
+                                      "activities",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="الأنشطة الصفية (اختياري)"
+                                  className="w-full min-h-[52px] px-3 py-3 text-xs text-slate-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm transition-all"
+                                />
+                              </div>
+                            ) : (
+                              <p
+                                className={`text-xs p-2 border rounded-xl ${
+                                  isBlank(cell.homework)
+                                    ? "bg-red-50 border-red-300 text-red-700 font-bold"
+                                    : "bg-slate-200/80 border-slate-300 text-slate-800"
+                                }`}
+                              >
+                                {isBlank(cell.homework) ? (
+                                  <span className="text-red-700 font-bold">
+                                    ⚠ الواجب غير مسجل
+                                  </span>
+                                ) : (
+                                  `واجب: ${cell.homework}`
+                                )}
+                                {cell.activities
+                                  ? ` | نشاط: ${cell.activities}`
+                                  : ""}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Auto-save status */}
+                        <div className="flex items-center justify-end pt-1 border-t border-slate-100">
+                          <span className="text-[11px] font-bold" aria-live="polite">
+                            {isSaving ? (
+                              <span className="text-blue-600">
+                                ⏳ جارٍ الحفظ تلقائيًا...
+                              </span>
+                            ) : isDirty ? (
+                              <span className="text-amber-600">
+                                ● سيتم الحفظ تلقائيًا
+                              </span>
+                            ) : isSaved ? (
+                              <span className="text-emerald-600">
+                                ✓ تم الحفظ تلقائيًا
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">
+                                محفوظ تلقائيًا
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  });
+                })}
+              </div>
+            </div>
+          ),
+        )}
       </div>
 
       {/* ========================================================================= */}
