@@ -20,6 +20,12 @@ export default function AdminUsersPage() {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   // Search & Filter
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -80,17 +86,28 @@ export default function AdminUsersPage() {
     };
   };
 
-  const fetchUsers = async (isRefresh = false) => {
+  const fetchUsers = async (targetPage = page, isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
-      const params = {};
+      const params = {
+        page: targetPage,
+        limit: limit === "all" ? 0 : limit,
+      };
       if (search) params.search = search;
       if (roleFilter) params.role = roleFilter;
       if (statusFilter) params.isActive = statusFilter;
 
       const res = await usersService.getAll(params);
       setUsers(res.data || []);
+      if (res.meta) {
+        setTotalPages(res.meta.pages || 1);
+        setTotalCount(res.meta.total ?? (res.data?.length || 0));
+        setPage(res.meta.page || targetPage);
+      } else {
+        setTotalCount(res.data?.length || 0);
+        setTotalPages(1);
+      }
     } catch (err) {
       toast.error("فشل جلب قائمة المستخدمين");
     } finally {
@@ -117,9 +134,10 @@ export default function AdminUsersPage() {
 
   // لا نعيد تحميل الأدوار والمواد مع كل حرف في البحث، ونؤخر البحث قليلًا.
   useEffect(() => {
-    const timer = window.setTimeout(() => fetchUsers(), search ? 350 : 0);
+    setPage(1);
+    const timer = window.setTimeout(() => fetchUsers(1), search ? 350 : 0);
     return () => window.clearTimeout(timer);
-  }, [search, roleFilter, statusFilter]);
+  }, [search, roleFilter, statusFilter, limit]);
 
   const handleOpenAdd = () => {
     setEditingUser(null);
@@ -166,9 +184,9 @@ export default function AdminUsersPage() {
         );
         toast.success("تم تحديث بيانات المستخدم بنجاح ✅");
       } else {
-        const res = await usersService.create(formData);
-        setUsers((prev) => [res.data, ...prev]);
+        await usersService.create(formData);
         toast.success("تمت إضافة المستخدم بنجاح ✅");
+        fetchUsers(1);
       }
       setUserModalOpen(false);
     } catch (err) {
@@ -218,9 +236,9 @@ export default function AdminUsersPage() {
     setSaving(true);
     try {
       await usersService.remove(userToDelete._id);
-      setUsers((prev) => prev.filter((u) => u._id !== userToDelete._id));
       toast.success("تم حذف المستخدم بنجاح 🗑️");
       setDeleteDialogOpen(false);
+      fetchUsers(page);
     } catch (err) {
       const msg = err.response?.data?.message || "فشل حذف المستخدم";
       toast.error(msg);
@@ -233,6 +251,7 @@ export default function AdminUsersPage() {
     setSearch("");
     setRoleFilter("");
     setStatusFilter("");
+    setPage(1);
   };
 
   const handleSubjectToggle = (subjId) => {
@@ -347,9 +366,16 @@ export default function AdminUsersPage() {
           )}
         </div>
 
-        <div className="text-xs text-gray-500 font-bold">
-          إجمالي المستخدمين:{" "}
-          <span className="text-blue-600">{users.length}</span>
+        <div className="flex items-center gap-3 text-xs text-gray-500 font-bold">
+          <div>
+            إجمالي المستخدمين:{" "}
+            <span className="text-blue-600 font-black">{totalCount}</span>
+          </div>
+          {totalPages > 1 && (
+            <div className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-100">
+              صفحة {page} من {totalPages}
+            </div>
+          )}
         </div>
       </div>
 
@@ -503,6 +529,66 @@ export default function AdminUsersPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="px-6 py-4 bg-gray-50/70 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-gray-600 font-medium">
+            <span>عرض</span>
+            <select
+              value={limit}
+              onChange={(e) => {
+                const val = e.target.value === "all" ? "all" : Number(e.target.value);
+                setLimit(val);
+                setPage(1);
+              }}
+              className="px-2.5 py-1 text-xs font-bold bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value="all">الكل</option>
+            </select>
+            <span>مستخدم لكل صفحة • إجمالي: <strong className="text-gray-900">{totalCount}</strong></span>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const nextP = Math.max(page - 1, 1);
+                  setPage(nextP);
+                  fetchUsers(nextP);
+                }}
+                disabled={page <= 1}
+                className="px-3.5 py-1.5 font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+              >
+                الصفحة السابقة
+              </button>
+
+              <div className="flex items-center gap-1 font-bold text-gray-700">
+                <span>صفحة</span>
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-md font-black">{page}</span>
+                <span>من</span>
+                <span>{totalPages}</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const nextP = Math.min(page + 1, totalPages);
+                  setPage(nextP);
+                  fetchUsers(nextP);
+                }}
+                disabled={page >= totalPages}
+                className="px-3.5 py-1.5 font-bold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+              >
+                الصفحة التالية
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
