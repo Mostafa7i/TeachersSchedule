@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/contexts/ToastContext";
 import { schedulesService, weeksService } from "@/services/schedules.service";
 import { subjectsService } from "@/services/subjects.service";
@@ -43,6 +43,8 @@ export default function AdminPlanCompletionPage() {
   const [bulkMessage, setBulkMessage] = useState("");
   const [sendingBulk, setSendingBulk] = useState(false);
 
+  const isInitialMount = useRef(true);
+
   useEffect(() => {
     const initData = async () => {
       try {
@@ -62,6 +64,12 @@ export default function AdminPlanCompletionPage() {
         const activeWk = currWeekRes.data || weeksList[0];
         if (activeWk) {
           setSelectedWeekId(activeWk._id);
+          try {
+            const statsRes = await schedulesService.getCompletionStats(activeWk._id);
+            setCompletionData(statsRes.data || null);
+          } catch (e) {
+            console.error("Failed to load initial completion stats:", e);
+          }
         }
       } catch (err) {
         toast.error("فشل تحميل البيانات الأساسية");
@@ -86,6 +94,10 @@ export default function AdminPlanCompletionPage() {
   };
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     if (selectedWeekId) {
       fetchStats(selectedWeekId);
     }
@@ -351,27 +363,31 @@ export default function AdminPlanCompletionPage() {
     return true;
   });
 
+  if (loading || (!completionData && weeks.length > 0)) {
+    return <PlanCompletionSkeleton />;
+  }
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-full overflow-hidden">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <div>
           <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold mb-1.5">
             <span>📊 نظام الرقابة والمتابعة الأسبوعية</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900">
             متابعة إنجاز الخطط الأسبوعية والتنبيهات
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm mt-0.5">
-            رصد الحصص غير المكتملة، مع تجاهل الواجب في المواد التي لا تتطلب واجبات، وإرسال تنبيهات
-            فورية ومباشرة لحسابات المعلمين.
+            رصد الحصص غير المكتملة، مع مراعاة المواد التي لا تتطلب واجبات، وإرسال تنبيهات
+            فورية لحسابات المعلمين.
           </p>
         </div>
 
         {summary.incompleteTeachers > 0 && (
           <button
             onClick={handleOpenBulkReminder}
-            className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all text-sm cursor-pointer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all text-xs sm:text-sm cursor-pointer shrink-0"
           >
             <span>📢</span>
             <span>تنبيه جماعي للمتأخرين ({summary.incompleteTeachers})</span>
@@ -380,16 +396,16 @@ export default function AdminPlanCompletionPage() {
       </div>
 
       {/* Week Selector & Overall Percentage */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-4 flex-1">
-          <div className="min-w-[260px]">
-            <label className="block text-xs font-bold text-gray-700 mb-1">
-              اختر الأسبوع الدراسي للمتابعة:
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-end gap-2 flex-1">
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-bold text-gray-700 mb-1 truncate">
+              الأسبوع الدراسي للمتابعة:
             </label>
             <select
               value={selectedWeekId}
               onChange={(e) => setSelectedWeekId(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm font-bold bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full px-3 py-2 text-xs sm:text-sm font-bold bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none truncate"
             >
               {weeks.map((w) => (
                 <option key={w._id} value={w._id}>
@@ -402,7 +418,7 @@ export default function AdminPlanCompletionPage() {
           <button
             onClick={() => fetchStats(selectedWeekId)}
             disabled={refreshing}
-            className="mt-5 sm:mt-4 p-2.5 text-gray-600 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 border border-gray-200 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+            className="p-2 sm:p-2.5 text-gray-600 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 border border-gray-200 rounded-xl transition-all cursor-pointer disabled:opacity-50 shrink-0"
             title="تحديث البيانات"
           >
             <svg
@@ -423,23 +439,23 @@ export default function AdminPlanCompletionPage() {
           </button>
         </div>
 
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-2xl">
+        <div className="flex items-center justify-between sm:justify-end gap-3 bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-2xl shrink-0">
           <div className="text-right">
             <span className="text-[11px] font-bold text-slate-500 block">
               نسبة إنجاز المدرسة بالكامل
             </span>
-            <span className="text-lg font-black text-slate-900">
+            <span className="text-base sm:text-lg font-black text-slate-900">
               {summary.overallCompletionPercentage}%
             </span>
           </div>
-          <div className="w-12 h-12 rounded-full border-4 border-blue-600 flex items-center justify-center font-black text-xs text-blue-700 bg-white">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full border-4 border-blue-600 flex items-center justify-center font-black text-xs text-blue-700 bg-white shrink-0">
             {summary.overallCompletionPercentage}%
           </div>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500">
@@ -514,12 +530,12 @@ export default function AdminPlanCompletionPage() {
       </div>
 
       {/* Filter Tabs & Search */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 sm:p-3.5 rounded-2xl border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl overflow-x-auto no-scrollbar">
           <button
             onClick={() => setStatusFilter("all")}
             className={
-              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer " +
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-nowrap shrink-0 " +
               (statusFilter === "all"
                 ? "bg-white text-blue-900 shadow-xs"
                 : "text-gray-600 hover:text-gray-900")
@@ -530,7 +546,7 @@ export default function AdminPlanCompletionPage() {
           <button
             onClick={() => setStatusFilter("incomplete")}
             className={
-              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer " +
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-nowrap shrink-0 " +
               (statusFilter === "incomplete"
                 ? "bg-amber-500 text-white shadow-xs"
                 : "text-gray-600 hover:text-gray-900")
@@ -541,7 +557,7 @@ export default function AdminPlanCompletionPage() {
           <button
             onClick={() => setStatusFilter("completed")}
             className={
-              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer " +
+              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-nowrap shrink-0 " +
               (statusFilter === "completed"
                 ? "bg-emerald-600 text-white shadow-xs"
                 : "text-gray-600 hover:text-gray-900")
@@ -551,13 +567,13 @@ export default function AdminPlanCompletionPage() {
           </button>
         </div>
 
-        <div className="relative min-w-[220px]">
+        <div className="relative flex-1 sm:max-w-[280px]">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="بحث باسم المعلم، المادة، الهاتف..."
-            className="w-full pr-8 pl-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            className="w-full pr-8 pl-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
           <svg
             className="w-4 h-4 text-gray-400 absolute right-2.5 top-2.5"
@@ -587,8 +603,184 @@ export default function AdminPlanCompletionPage() {
           </p>
         </div>
       ) : (
-        <div className="bg-white  rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
+        <>
+          {/* 1) MOBILE RESPONSIVE CARDS (block md:hidden) */}
+          <div className="block md:hidden space-y-3">
+            {filteredTeachers.map((item) => {
+              const isIncomplete =
+                item.hasClasses &&
+                (item.status === "PARTIAL" || item.status === "NOT_STARTED");
+
+              return (
+                <div
+                  key={item.teacher._id}
+                  className={`bg-white rounded-2xl border p-4 shadow-xs transition-all space-y-3 ${
+                    item.status === "COMPLETED"
+                      ? "border-emerald-200"
+                      : item.status === "PARTIAL"
+                        ? "border-amber-200"
+                        : item.status === "NOT_STARTED"
+                          ? "border-red-200"
+                          : "border-gray-200"
+                  }`}
+                >
+                  {/* Card Header: Teacher + Status Badge */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-blue-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-xs">
+                        {item.teacher.name?.charAt(0) || "م"}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-slate-900 text-sm leading-snug truncate">
+                          {item.teacher.name}
+                        </h4>
+                        {item.teacher.phone ? (
+                          <a
+                            href={`tel:${item.teacher.phone}`}
+                            className="text-[11px] text-blue-600 font-mono hover:underline inline-flex items-center gap-1 mt-0.5"
+                          >
+                            <span>📞</span>
+                            <span>{item.teacher.phone}</span>
+                          </a>
+                        ) : (
+                          <span className="text-[11px] text-gray-400 block mt-0.5">
+                            بدون هاتف
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="shrink-0">
+                      {item.status === "NO_CLASSES" ? (
+                        <span className="inline-flex items-center gap-1 bg-slate-50 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                          بدون حصص
+                        </span>
+                      ) : item.status === "COMPLETED" ? (
+                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                          <span>✅</span>
+                          <span>مكتمل</span>
+                        </span>
+                      ) : item.status === "PARTIAL" ? (
+                        <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                          <span>⚠️</span>
+                          <span>غير مكتمل</span>
+                        </span>
+                      ) : item.status === "NOT_STARTED" ? (
+                        <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                          <span>❌</span>
+                          <span>لم يبدأ</span>
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">بدون حصص</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Subjects */}
+                  {item.teacher.subjects &&
+                    item.teacher.subjects.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {item.teacher.subjects.map((s) => (
+                          <span
+                            key={s._id || s}
+                            className="px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-2xs"
+                            style={{
+                              backgroundColor: s.color || "#2563eb",
+                            }}
+                          >
+                            {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                  {/* Progress & Class Count */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-700">
+                        {item.hasClasses
+                          ? `الإنجاز: ${item.completionRate}%`
+                          : "لا توجد حصص مسندة"}
+                      </span>
+                      <span className="text-slate-500 font-semibold text-[11px]">
+                        {item.hasClasses
+                          ? `${item.completedCount} من ${item.totalAssigned} حصة`
+                          : "—"}
+                      </span>
+                    </div>
+                    {item.hasClasses && (
+                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            item.completionRate === 100
+                              ? "bg-emerald-500"
+                              : item.completionRate > 50
+                                ? "bg-amber-500"
+                                : "bg-red-500"
+                          }`}
+                          style={{
+                            width: `${item.completionRate || 0}%`,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Missing slots indicators */}
+                  {isIncomplete && (
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                      {item.missingLessonCount > 0 && (
+                        <span className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-lg font-bold text-[11px] flex items-center gap-1">
+                          <span>📖</span>
+                          <span>{item.missingLessonCount} درس فارغ</span>
+                        </span>
+                      )}
+                      {item.missingHomeworkCount > 0 && (
+                        <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-lg font-bold text-[11px] flex items-center gap-1">
+                          <span>📝</span>
+                          <span>{item.missingHomeworkCount} واجب فارغ</span>
+                        </span>
+                      )}
+                      {!item.homeworkRequired &&
+                        item.missingLessonCount > 0 && (
+                          <span className="text-[10px] text-slate-500 font-semibold">
+                            الواجب غير مطلوب للمادة
+                          </span>
+                        )}
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPlanModal(item.teacher)}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 px-3 rounded-xl shadow-xs transition-all text-xs cursor-pointer"
+                    >
+                      <span>👁️</span>
+                      <span>استعراض الخطة</span>
+                    </button>
+
+                    {isIncomplete && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenSingleReminder(item)}
+                        className="inline-flex items-center justify-center gap-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-3.5 rounded-xl shadow-xs transition-all text-xs cursor-pointer"
+                      >
+                        <span>🔔</span>
+                        <span>تنبيه</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 2) DESKTOP TABLE VIEW (hidden md:block) */}
+          <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-right border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="bg-slate-800 text-white text-xs">
@@ -789,6 +981,7 @@ export default function AdminPlanCompletionPage() {
             </table>
           </div>
         </div>
+        </>
       )}
 
       {/* Single Teacher Notification Modal */}
@@ -931,6 +1124,97 @@ export default function AdminPlanCompletionPage() {
         subjects={subjects}
         onSaveSuccess={() => fetchStats(selectedWeekId)}
       />
+    </div>
+  );
+}
+
+function PlanCompletionSkeleton() {
+  return (
+    <div className="p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-full overflow-hidden">
+      {/* Header Skeleton */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="space-y-2">
+          <div className="h-5 w-40 bg-slate-200 rounded-full skeleton" />
+          <div className="h-7 sm:h-9 w-64 sm:w-80 bg-slate-200 rounded-xl skeleton" />
+          <div className="h-4 w-72 sm:w-96 max-w-full bg-slate-100 rounded-lg skeleton" />
+        </div>
+        <div className="h-10 w-44 bg-slate-200 rounded-xl skeleton" />
+      </div>
+
+      {/* Week Selector Skeleton */}
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="h-11 w-full sm:w-72 bg-slate-100 rounded-xl skeleton" />
+        <div className="h-12 w-full sm:w-48 bg-slate-100 rounded-2xl skeleton" />
+      </div>
+
+      {/* KPI Cards Skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <div className="h-4 w-20 sm:w-24 bg-slate-200 rounded skeleton" />
+              <div className="w-8 h-8 rounded-xl bg-slate-100 skeleton" />
+            </div>
+            <div className="h-8 w-16 bg-slate-200 rounded-lg skeleton" />
+            <div className="h-3 w-28 bg-slate-100 rounded skeleton" />
+          </div>
+        ))}
+      </div>
+
+      {/* Filter Tabs Skeleton */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm">
+        <div className="h-9 w-full sm:w-64 bg-slate-100 rounded-xl skeleton" />
+        <div className="h-9 w-full sm:w-48 bg-slate-100 rounded-xl skeleton" />
+      </div>
+
+      {/* Mobile Cards Skeleton */}
+      <div className="block md:hidden space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-full bg-slate-200 skeleton" />
+                <div className="space-y-1.5">
+                  <div className="h-4 w-28 bg-slate-200 rounded skeleton" />
+                  <div className="h-3 w-20 bg-slate-100 rounded skeleton" />
+                </div>
+              </div>
+              <div className="h-6 w-16 bg-slate-200 rounded-full skeleton" />
+            </div>
+            <div className="h-2.5 w-full bg-slate-100 rounded-full skeleton" />
+            <div className="h-9 w-full bg-slate-100 rounded-xl skeleton" />
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table Skeleton */}
+      <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-4 space-y-3">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className="flex items-center justify-between gap-4 py-2 border-b border-gray-100"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-slate-200 skeleton" />
+              <div className="space-y-1.5">
+                <div className="h-4 w-32 bg-slate-200 rounded skeleton" />
+                <div className="h-3 w-20 bg-slate-100 rounded skeleton" />
+              </div>
+            </div>
+            <div className="h-4 w-24 bg-slate-100 rounded skeleton" />
+            <div className="h-4 w-16 bg-slate-100 rounded skeleton" />
+            <div className="h-2 w-32 bg-slate-100 rounded-full skeleton" />
+            <div className="h-6 w-20 bg-slate-200 rounded-full skeleton" />
+            <div className="h-8 w-28 bg-slate-200 rounded-xl skeleton" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
