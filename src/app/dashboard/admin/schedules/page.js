@@ -206,8 +206,8 @@ export default function AdminSchedulesPage() {
   };
 
   const exportFilename = selectedClass
-    ? `الخطة_الأسبوعية_فصل_${selectedClass.replace(/\s+/g, "_")}_${currentWeek?.label || ""}`
-    : currentWeek?.label || "الجدول_الأسبوعي";
+    ? `الخطة_لفصل_${selectedClass.replace(/\s+/g, "_")}_${currentWeek?.label || ""}`
+    : currentWeek?.label || "الخطة_الأسبوعية";
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50/80 p-3 sm:p-5 lg:p-8 space-y-5 sm:space-y-6">

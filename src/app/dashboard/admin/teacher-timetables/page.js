@@ -451,8 +451,8 @@ export default function AdminTeacherTimetablesPage() {
             }
             weekLabel={
               activeMainTab === "master"
-                ? "الجدول_العام_للمدرسة_" + (selectedWeek?.label || "")
-                : "جدول_المعلم_" +
+                ? "الخطة_العامة_للمدرسة_" + (selectedWeek?.label || "")
+                : "خطة_المعلم_" +
                   (selectedTeacher?.name?.replace(/\s+/g, "_") || "") +
                   "_" +
                   (selectedWeek?.label || "")

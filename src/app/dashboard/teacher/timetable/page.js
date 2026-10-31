@@ -223,7 +223,7 @@ export default function TeacherTimetablePage() {
         </div>
         <ExportButtons
           targetElementId="teacher-official-timetable-container"
-          weekLabel={`جدول_حصص_${user?.name || "معلم"}_${currentWeek?.label || ""}`}
+          weekLabel={`خطة_حصص_${user?.name || "معلم"}_${currentWeek?.label || ""}`}
         />
       </div>
 

@@ -435,7 +435,7 @@ export default function ClassScheduleShareModal({
       });
 
       const link = document.createElement("a");
-      link.download = `جدول_فصل_${className?.replace(/\s+/g, "_")}_${week?.label || "الأسبوع"}_${Date.now()}.png`;
+      link.download = `الخطة_لفصل_${className?.replace(/\s+/g, "_")}_${week?.label || "الأسبوع"}.png`;
       link.href = dataUrl;
       link.click();
       toast.success("تم تصدير بطاقة الجدول كصورة PNG عالية الدقة ✅");
@@ -477,7 +477,7 @@ export default function ClassScheduleShareModal({
       } else {
         // Fallback: download
         const link = document.createElement("a");
-        link.download = `جدول_فصل_${className?.replace(/\s+/g, "_")}.png`;
+        link.download = `الخطة_لفصل_${className?.replace(/\s+/g, "_")}.png`;
         link.href = dataUrl;
         link.click();
         toast.success("تم تحميل الصورة — متصفحك لا يدعم النسخ المباشر");
@@ -587,7 +587,7 @@ export default function ClassScheduleShareModal({
         "FAST",
       );
       pdf.save(
-        `جدول_فصل_${className?.replace(/\s+/g, "_")}_${week?.label || "الأسبوع"}_${Date.now()}.pdf`,
+        `الخطة_لفصل_${className?.replace(/\s+/g, "_")}_${week?.label || "الأسبوع"}.pdf`,
       );
 
       toast.success("تم تصدير بطاقة الجدول كملف PDF بنجاح 📄");

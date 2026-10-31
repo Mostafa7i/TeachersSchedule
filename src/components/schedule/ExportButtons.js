@@ -342,7 +342,7 @@ export default function ExportButtons({
       });
 
       const link = document.createElement("a");
-      link.download = `جدول_${weekLabel.replace(/\s+/g, "_")}_${Date.now()}.png`;
+      link.download = `الخطة_${weekLabel.replace(/\s+/g, "_")}.png`;
       link.href = dataUrl;
       link.click();
 
@@ -415,7 +415,7 @@ export default function ExportButtons({
           "NONE",
         );
         pdf.save(
-          `جدول_${weekLabel.replace(/\s+/g, "_")}_ملء_الشاشة_${Date.now()}.pdf`,
+          `الخطة_${weekLabel.replace(/\s+/g, "_")}_ملء_الشاشة.pdf`,
         );
         toast.success("تم تصدير الجدول كملف PDF عريض ملء الشاشة بنجاح 📄✨");
       } else {
@@ -506,7 +506,7 @@ export default function ExportButtons({
         }
 
         pdf.save(
-          `جدول_${weekLabel.replace(/\s+/g, "_")}_صفحات_A4_${Date.now()}.pdf`,
+          `الخطة_${weekLabel.replace(/\s+/g, "_")}_صفحات_A4.pdf`,
         );
         toast.success("تم تصدير الجدول كملف PDF مقسم لصفحات A4 بنجاح 📑");
       }
