@@ -174,10 +174,10 @@ export default function AdminDashboardPage() {
             </p>
           )}
           <Link
-            href="/dashboard/admin/weeks"
+            href="/dashboard/admin/schedules"
             className="text-xs font-semibold text-amber-600 hover:text-amber-800 mt-2 inline-flex items-center gap-1"
           >
-            إدارة الأسابيع ←
+            إدارة الأسابيع والجداول ←
           </Link>
         </div>
 

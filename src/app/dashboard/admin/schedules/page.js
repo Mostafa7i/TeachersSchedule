@@ -8,6 +8,7 @@ import { subjectsService } from "@/services/subjects.service";
 import { usersService } from "@/services/users.service";
 import { settingsService } from "@/services/settings.service";
 import WeekNavigator from "@/components/schedule/WeekNavigator";
+import WeekManagerPanel from "@/components/schedule/WeekManagerPanel";
 import WeeklyScheduleTable from "@/components/schedule/WeeklyScheduleTable";
 import ScheduleCellEditModal from "@/components/schedule/ScheduleCellEditModal";
 import CopyWeekModal from "@/components/schedule/CopyWeekModal";
@@ -245,17 +246,46 @@ export default function AdminSchedulesPage() {
         </div>
       </header>
 
-      {/* Week Navigator Bar */}
+      {/* Week Navigator Bar + Week Manager */}
       <section className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden no-print">
-      <WeekNavigator
-        weeks={weeks}
-        currentWeek={currentWeek}
-        onSelectWeek={handleSelectWeek}
-        onCopyWeek={() => setCopyModalOpen(true)}
-        onAddSchedule={handleAddSchedule}
-        canCopy={true}
-        canAdd={true}
-      />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 sm:p-4 border-b border-slate-100">
+          {/* Week selector / nav */}
+          <div className="flex-1 min-w-0">
+            <WeekNavigator
+              weeks={weeks}
+              currentWeek={currentWeek}
+              onSelectWeek={handleSelectWeek}
+              onCopyWeek={() => setCopyModalOpen(true)}
+              onAddSchedule={handleAddSchedule}
+              canCopy={true}
+              canAdd={true}
+            />
+          </div>
+          {/* Week management actions */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <WeekManagerPanel
+              weeks={weeks}
+              currentWeek={currentWeek}
+              onWeekCreated={(newWeek) => {
+                setWeeks((prev) => [...prev, newWeek]);
+              }}
+              onWeekUpdated={(updated) => {
+                setWeeks((prev) => prev.map((w) => w._id === updated._id ? updated : w));
+              }}
+              onWeekDeleted={(deletedId) => {
+                setWeeks((prev) => prev.filter((w) => w._id !== deletedId));
+                if (currentWeek?._id === deletedId) {
+                  const remaining = weeks.filter((w) => w._id !== deletedId);
+                  if (remaining.length > 0) handleSelectWeek(remaining[remaining.length - 1]);
+                  else { setCurrentWeek(null); setSchedules([]); }
+                }
+              }}
+              onSelectWeek={(week) => {
+                handleSelectWeek(week);
+              }}
+            />
+          </div>
+        </div>
       </section>
 
       {/* Class Selector Tabs Bar */}
