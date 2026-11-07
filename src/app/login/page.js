@@ -161,12 +161,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* School Logo & Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-2xl mb-4 border border-blue-100/20 text-4xl">
-            🏫
+          <div className="inline-flex items-center justify-center w-40 h-24  rounded-3xl shadow-2xl mb-2 text-4xl">
+            <img src="logo.png"/>
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight mb-2">
             نظام إدارة الجداول المدرسية
@@ -197,7 +197,7 @@ export default function LoginPage() {
                 <div className="w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
               ) : (
                 <svg
-                  className="w-6 h-6 flex-shrink-0 group-hover:scale-110 transition-transform"
+                  className="w-6 h-6 shrink-0 group-hover:scale-110 transition-transform"
                   viewBox="0 0 24 24"
                 >
                   <path
@@ -237,6 +237,7 @@ export default function LoginPage() {
         <p className="text-center text-slate-400 text-xs mt-6 font-medium">
           نظام إدارة الجداول المدرسية &copy; {new Date().getFullYear()}
         </p>
+        <p className="text-center text-slate-400 text-xs mt-2 font-semibold">تم تطوير المنصة بواسطة:  مصطفى محمود عبدالهادي</p>
       </div>
 
       {/* Admin Password Login Modal */}
@@ -338,7 +339,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={adminLoading}
-            className="w-full py-3 bg-blue-700 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-3 disabled:cursor-not-allowed disabled:bg-gray-500 bg-blue-700 hover:bg-blue-800 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             {adminLoading ? "جاري التحقق..." : "دخول كمسؤول"}
           </button>

@@ -5,7 +5,7 @@ export const revalidate = 0;
 
 // رقم الإصدار — يُحدَّث تلقائياً عند كل push
 // DO NOT EDIT MANUALLY — updated by scripts/push.js
-export const APP_VERSION = "1794040219058";
+export const APP_VERSION = "1794042905424";
 
 export async function GET() {
   return NextResponse.json(

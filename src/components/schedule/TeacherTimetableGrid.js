@@ -21,6 +21,7 @@ export default function TeacherTimetableGrid({
   onCellClick,
   onCopyClassData,
   editable = false,
+  showPlanStatus = false,
   containerId = "teacher-paper-timetable-container",
 }) {
   const daysList = settings?.workDays || [
@@ -365,8 +366,8 @@ export default function TeacherTimetableGrid({
                           ✏️ تعديل
                         </span>
                       )}
-                      {renderPlanStatus(cell)}
-                      {renderCopyButton(cell, selectedMobileDay, p)}
+                      {showPlanStatus && renderPlanStatus(cell)}
+                      {onCopyClassData && renderCopyButton(cell, selectedMobileDay, p)}
                     </div>
                   ) : (
                     <div className="flex items-center justify-between text-xs text-gray-400 py-1">
@@ -486,8 +487,8 @@ export default function TeacherTimetableGrid({
                                 ({cell.room})
                               </span>
                             )}
-                            {renderPlanStatus(cell)}
-                            {renderCopyButton(cell, day, period)}
+                            {showPlanStatus && renderPlanStatus(cell)}
+                            {onCopyClassData && renderCopyButton(cell, day, period)}
                           </div>
                         ) : (
                           <span className="text-gray-300 text-xs select-none">
@@ -537,8 +538,8 @@ export default function TeacherTimetableGrid({
                                 ({cell.room})
                               </span>
                             )}
-                            {renderPlanStatus(cell)}
-                            {renderCopyButton(cell, day, period)}
+                            {showPlanStatus && renderPlanStatus(cell)}
+                            {onCopyClassData && renderCopyButton(cell, day, period)}
                           </div>
                         ) : (
                           <span className="text-gray-300 text-xs select-none">

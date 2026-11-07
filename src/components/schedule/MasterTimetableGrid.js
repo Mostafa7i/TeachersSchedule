@@ -72,11 +72,30 @@ export default function MasterTimetableGrid({
       (settings.breakTime.endTime || "9:35")
     : "9:15 - 9:35";
 
+  // Detect any substitute or external teachers present in the schedules
+  const customTeacherNames = [
+    ...new Set(
+      schedules
+        .filter((s) => !s.teacher?._id && (s.customTeacherName || (s.teacher && typeof s.teacher === "object" && s.teacher.name)))
+        .map((s) => s.customTeacherName || s.teacher?.name)
+        .filter(Boolean)
+    ),
+  ];
+
+  const customTeachersList = customTeacherNames.map((name) => ({
+    _id: `custom_${name}`,
+    name: `أ. ${name} (بديل/خارجي)`,
+    isCustom: true,
+    subjects: [],
+  }));
+
+  const allTeachersCombined = [...teachers, ...customTeachersList];
+
   // Build 3D Schedule Matrix: [day][teacherId][period] -> schedule
   const teacherMatrix = {};
   daysList.forEach((d) => {
     teacherMatrix[d] = {};
-    teachers.forEach((t) => {
+    allTeachersCombined.forEach((t) => {
       teacherMatrix[d][t._id] = {};
       periodsList.forEach((p) => {
         teacherMatrix[d][t._id][p] = null;
@@ -90,14 +109,14 @@ export default function MasterTimetableGrid({
   ].sort();
   const allClassesSet = new Set(existingClasses);
   schedules.forEach((s) => {
-    if (
-      s.day &&
-      s.period &&
-      s.teacher?._id &&
-      teacherMatrix[s.day] &&
-      teacherMatrix[s.day][s.teacher._id]
-    ) {
-      teacherMatrix[s.day][s.teacher._id][s.period] = s;
+    if (!s.day || !s.period) return;
+    const tId = s.teacher?._id || (typeof s.teacher === "string" ? s.teacher : null);
+    const customKey = s.customTeacherName || (s.teacher?.isCustom ? s.teacher?.name : null);
+
+    if (tId && teacherMatrix[s.day] && teacherMatrix[s.day][tId]) {
+      teacherMatrix[s.day][tId][s.period] = s;
+    } else if (customKey && teacherMatrix[s.day] && teacherMatrix[s.day][`custom_${customKey}`]) {
+      teacherMatrix[s.day][`custom_${customKey}`][s.period] = s;
     }
   });
 
@@ -268,7 +287,7 @@ export default function MasterTimetableGrid({
   };
 
   // Filter teachers by search query
-  const filteredTeachers = teachers.filter((t) => {
+  const filteredTeachers = allTeachersCombined.filter((t) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     const matchName = t.name?.toLowerCase().includes(q);
